@@ -12,7 +12,9 @@
    최대 너비까지 천천히 줌아웃 -> 이후에 다시 일반적으로" + "예시로 준 영상을 참고 해".
 2. 카메라: 무게중심이 좁은 폭(DZ_X) 안에서 흔들리면 그대로, 넘으면 따라간다 - 참고본 -1.mov 의 속도 · 가속 · 줌 빠르기 99 백분위
    안이면 같은 프레임에, 넘치면 그만큼만 천천히 (미리 움직이지 않는다). 배율은 지난 ZWIN 동안 필요했던 가장 넓은 것을 쥔다.
-   왔다 갔다 구간(꺾임 · 줌 봉우리가 0.6초 안 간격으로 4번 넘게)은 그 동안 몸이 오간 전체 폭을 겨눠 천천히 넓혀 둔다.
+   왔다 갔다 구간(꺾임 · 줌 봉우리가 0.6초 안 간격으로 4번 넘게)은 그때까지 오간 폭을 겨눠 천천히 넓히고 구간 동안 안 당긴다.
+   -> "줌아웃이 너무 빠르고 캐릭터가 움직이기 전에 (동작이 화면 밖으로 나가기 전까지는) 줌아웃하면 안돼. 동작 -> 카메라 혹은
+   동작 == 카메라, 카메라 -> 동작은 절대 금지": 줌아웃은 몸이 지금 화면을 넘을 때만, 앞을 보는 것(다듬기 · 구간 전체 폭)은 없다.
    DFPS 마다 키 (in: linear) - shortsmith 가 이어진 키를 한 경로로 굽는다. 거의 직선인 키는 뺀다.
 3. camera.punch (챌린지 순간 확대): [{"s": 12.0, "e": 15.8, "z": 2.0}] - 그 동안 상반신으로 컷 인, 끝나면 컷 아웃.
 
@@ -36,7 +38,8 @@ HEAD = 0.07        # 풀샷 머리 위 여백 / 상자 높이. measured 가운�
 FOOT = 0.05        # 발 아래 여백. measured 0.053 (0.039-0.079)
 # 사용자 "카메라가 캐릭터보다 먼저 이동하거나 늦게 이동하면 안돼" (2026-10-01): 앞 판은 σ 0.2초 가우스 + 앞뒤 0.6초 창으로
 # 카메라가 몸보다 먼저 움직이기 시작하고 늦게 멈췄다. 이제 몸 위치를 프레임마다 재고 같은 프레임에 따라간다
-SIG = 0.05         # 흐름 떨림만 누르는 가우스 σ (초) - 앞뒤 한두 프레임
+SIG = 0            # 앞뒤를 같이 보는 다듬기는 안 쓴다 - σ 0.05초도 카메라를 한두 프레임 먼저 움직였다. 떨림은 DZ_* 와 가속 한도가 받는다
+EDGE_M = 0.01      # 줌아웃은 몸이 이 여백까지 넘을 때만 (화면 밖으로 나가려 할 때)
 # 사용자 "아직도 너무 어지러워 순간적으로 크게 움직이는 이동, 줌인, 아웃이 많으면 어지러우니까 크게 변경되는 경우 오히려 천천히 이동 해야 해
 # 특히나 왔다 갔다 하는 경우라면 왔다 갔다 하는 기간 동안 최대 너비 까지 천천히 줌아웃 -> 이후에 다시 일반적으로 진행",
 # "어떻게 처리하는지 내가 예시로 준 영상을 참고 해". 한도는 -1.mov 카메라 (0.1초마다) 의 99 백분위:
@@ -246,14 +249,26 @@ if g:
     osc.append(g)
 # 구간 = 첫 꺾임 0.3초 앞부터 마지막 꺾임까지 (봉우리 발치는 한참 앞까지 거슬러 가서 56-67초가 한 구간이 됐다)
 osc = [(max(0, min(i for i, _ in g) - int(0.3 * DFPS)), max(i for i, _ in g)) for g in osc if len(g) >= OSC_N]
-# 구간 안 겨눌 곳: 그 동안 몸이 오간 전체 폭 (고정)
+# 구간 안에서는 그때까지 실제로 오간 폭만 본다 (앞으로 갈 곳을 미리 보면 카메라가 동작보다 먼저 움직인다 - 사용자 "카메라 -> 동작은 절대 금지")
 tx0, ty0, tx1, ty1, tmc = X0.copy(), Y0.copy(), X1.copy(), Y1.copy(), MC.copy()
+in_osc = np.zeros(len(T), bool)
 for a, b in osc:
-    u = (X0[a:b + 1].min(), Y0[a:b + 1].min(), X1[a:b + 1].max(), Y1[a:b + 1].max())
-    tx0[a:b + 1], ty0[a:b + 1], tx1[a:b + 1], ty1[a:b + 1] = u
-    tmc[a:b + 1] = (u[0] + u[2]) / 2
-H_aim = fit_h(tx0, ty0, tx1, ty1)
-H_aim = np.array([H_aim[max(0, i - int(ZWIN * DFPS)):i + 1].max() for i in range(len(H_aim))])   # 지난 ZWIN 의 가장 넓은 것
+    in_osc[a:b + 1] = True
+    tx0[a:b + 1], ty0[a:b + 1] = np.minimum.accumulate(X0[a:b + 1]), np.minimum.accumulate(Y0[a:b + 1])
+    tx1[a:b + 1], ty1[a:b + 1] = np.maximum.accumulate(X1[a:b + 1]), np.maximum.accumulate(Y1[a:b + 1])
+    tmc[a:b + 1] = (tx0[a:b + 1] + tx1[a:b + 1]) / 2
+# 배율 겨냥: 몸이 지금 화면을 넘을 때만 넓힌다 ("동작이 화면 밖으로 나가기 전까지는 줌아웃하면 안돼") - 여백 EDGE_M 만 두고 딱 들어가게.
+# 당기기는 지난 ZWIN 의 풀샷 높이가 지금보다 DZ_H 넘게 작을 때만, 왔다 갔다 구간 안에서는 안 당긴다
+need_edge = np.clip(np.maximum((ty1 - ty0) / (1 - 2 * EDGE_M), (tx1 - tx0) / (ASP * (1 - 2 * EDGE_M))), HMIN * SH, SH)
+nf_hold = np.array([need[max(0, i - int(ZWIN * DFPS)):i + 1].max() for i in range(len(need))])
+H_aim, cur = np.empty(len(T)), float(need[0])
+for i in range(len(T)):
+    if need_edge[i] > cur:
+        cur = float(need_edge[i])
+    elif not in_osc[i] and nf_hold[i] < cur * (1 - DZ_H):
+        cur = float(nf_hold[i])
+    H_aim[i] = cur
+
 
 
 
@@ -282,13 +297,8 @@ def follow(target, vmax, amax, scale):
     return out
 
 
-# 줌 빠르기 한도: 평소 V_Z. 왔다 갔다 구간은 "그 기간 동안 최대 너비까지 천천히" - 구간 절반쯤에 닿는 빠르기까지만 올린다
-vz, az = np.full(len(T), V_Z), np.full(len(T), A_Z)
-for a, b in osc:
-    span = max(0.5, 0.5 * (T[b] - T[a]))
-    r = (H_aim[a:b + 1].max() / need[a] - 1) / span
-    vz[a:b + 1] = max(V_Z, r); az[a:b + 1] = max(A_Z, 2 * r / span)
-H = np.clip(follow(dead(H_aim, DZ_H * H_aim), vz, az, H_aim), HMIN * SH, SH)      # 멈추며 살짝 넘어가는 것 (1084 > 1080) 은 자른다
+# 줌도 참고본 한도 그대로 (앞 판은 왔다 갔다 구간에서 빠르기를 올려 "줌아웃이 너무 빠르고")
+H = np.clip(follow(H_aim, V_Z, A_Z, H_aim), HMIN * SH, SH)      # 멈추며 살짝 넘어가는 것은 자른다
 CX_aim, TOP_aim = aim(tx0, ty0, tx1, ty1, tmc, H)
 CX = follow(dead(CX_aim, DZ_X * H * ASP), V_X, A_X, H)
 TOP = follow(dead(TOP_aim, DZ_Y * H), V_Y, A_Y, H)
