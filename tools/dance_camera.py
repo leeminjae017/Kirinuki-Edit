@@ -35,6 +35,11 @@ FOOT = 0.05        # 발 아래 여백. measured 0.053 (0.039-0.079)
 # 카메라가 몸보다 먼저 움직이기 시작하고 늦게 멈췄다. 이제 몸 위치를 프레임마다 재고 같은 프레임에 따라간다
 SIG = 0.05         # 흐름 떨림만 누르는 가우스 σ (초) - 앞뒤 한두 프레임
 ZOOM_IN = 0.5      # 몸이 다시 작아질 때 당기는 빠르기 (h/초). 넓힐 때는 그 프레임에 같이 (guess)
+# 사용자 "줌인 줌아웃이 크게 계속 반복 되면 어지러우니까 차라리 이런 경우에는 천천히 줌아웃을 해줘 (25~27초 부근)" (시험 40-70초의
+# 65.4-67.2초: 다리를 번갈아 차며 0.4-0.5초마다 8-31% 줌 봉우리 5개). 되풀이 구간만 바꾸고 나머지는 그대로 ("나머지는 좋아")
+PUMP_PROM = 0.08   # 이만큼 (h 비율) 솟은 줌 봉우리를 센다
+PUMP_GAP = 1.0     # 봉우리 사이가 이보다 짧게 둘 이상 이어지면 되풀이 구간 (다른 곳 봉우리는 1초 넘게 떨어져 있었다)
+ZOUT_SEC = 1.0     # 되풀이 구간: 이만큼에 걸쳐 구간에서 가장 넓은 배율까지 천천히 넓히고, 끝나면 같은 빠르기로 돌아온다 (guess)
 SIDE = 0.03        # 몸 끝과 상자 가장자리 사이 최소 여유 / 너비 (guess)
 TOL = 0.4          # 키를 뺄 때 직선에서 벗어나도 되는 정도 (원본 px)
 PUNCH_Z = 2.0      # 챌린지 확대 배율 (guess - 상반신이 차는 정도)
@@ -199,6 +204,25 @@ H = need.copy()
 for i in range(1, len(H)):
     H[i] = max(need[i], H[i - 1] - ZOOM_IN * H[i - 1] * (T[i] - T[i - 1]))
 BASE = float(np.percentile(need, 50))
+# 되풀이 줌: 봉우리 무리마다 [첫 봉우리 발치, 마지막 봉우리] 동안 천천히 넓혀 그대로 두고, 뒤는 같은 빠르기로 당긴다
+from scipy.signal import find_peaks
+pk, pinfo = find_peaks(H, prominence=PUMP_PROM * float(np.median(H)))
+groups, g = [], []
+for j, i in enumerate(pk):
+    if g and T[i] - T[pk[g[-1]]] > PUMP_GAP:
+        groups.append(g); g = []
+    g.append(j)
+if g:
+    groups.append(g)
+pumps = []
+for g in (g for g in groups if len(g) >= 2):
+    a, b = int(pinfo["left_bases"][g[0]]), int(pk[g[-1]])
+    Hr = float(H[a:b + 1].max()); rate = max(1.0, (Hr - H[a]) / ZOUT_SEC)
+    ramp = np.minimum(Hr, H[a] + rate * (T[a:b + 1] - T[a]))
+    after = np.maximum(H[b + 1:], Hr - rate * (T[b + 1:] - T[b]))
+    H = np.concatenate([H[:a], ramp, after])
+    pumps.append((T[a], T[b], Hr))
+H = gaussian_filter1d(H, SIG * DFPS)
 Wd = H * ASP
 # 가로: 무게중심 그대로 (앞뒤 한두 프레임만 다듬음). 몸 끝이 상자 밖으로 나가려 하면 그 프레임에 민다, 넓혀도 안 들어가면 몸 가운데
 CX = sg(mcx, SIG)
@@ -272,6 +296,7 @@ io.open(os.path.join(work, "edit.json"), "w", encoding="utf-8").write(json.dumps
 hs = [k["h"] for k in keys]
 tot = sum(e - s for s, e in keep_ranges())
 sp = np.abs(np.diff(CX)) * DFPS / H[1:]
+print("되풀이 줌 구간 %d: %s" % (len(pumps), ", ".join("%.1f-%.1f초 h %d" % p for p in pumps)))
 print("카메라: 트래킹 키 %d (%.1f초) · 확대 %d · 배율 h %d-%d (가운데값 %d, 원본 %d) · 가로 속도 가운데값 %.3f / 95%% %.3f h/초"
       % (len(keys), tot, len(punch), min(hs), max(hs), BASE, SH, np.median(sp), np.percentile(sp, 95)))
 print("몸이 잘리는 순간 (1%% 넘게): %d%s" % (len(clip), "" if not clip else "  " + ", ".join("%.1f초 %.0f%%" % (t, o * 100) for t, o in clip[:12])))
