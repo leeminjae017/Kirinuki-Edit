@@ -50,7 +50,10 @@ DZ_X = 0.025      # 가로: 몸 무게중심이 카메라 가운데에서 너비
                    # measured -1.mov 카메라-몸 가로 차 사분위 -0.025 ~ 0.015 - 참고본도 이 폭의 흔들림은 안 따라간다
 DZ_Y = 0.02        # 세로도 같은 방식 (guess)
 DZ_H = 0.03        # 배율도 3% 안의 바뀜은 안 따라간다 - 여백(HEAD · FOOT · SIDE) 이 받아 준다 (guess)
-ZWIN = 2.5         # 배율: 지난 이만큼 동안 필요했던 가장 넓은 배율을 쥐고 있다 - 차기 사이사이 줌인하지 않게. measured 참고본 배율 바뀜은
+FILL = 0.8         # 캐릭터가 화면을 이만큼은 채운다 - 사용자 "너무 줌아웃이 많이 되면 안돼 8:2 (캐릭터 : 여백)까지만 허용 그이상은 허용하지 않음".
+                   # 몸 높이 · 너비 중 더 꽉 차는 쪽으로 잰다. 왔다 갔다 구간은 그때까지 오간 폭이 캐릭터 ("25~27초는 잘 처리 했는데")
+ZWIN = 0.5         # 배율: 지난 이만큼 동안 필요했던 가장 넓은 배율을 쥐고 있다 (2.5초로는 차기가 끝난 27-29초가 "일반적인 경우 ... 다시 줌인을 해서 여백을
+#                   최소화" 되지 않았다 -> 0.5초. 차기 사이사이는 왔다 갔다 구간이 막는다) - 차기 사이사이 줌인하지 않게. measured 참고본 배율 바뀜은
                    # 가운데값 초당 0.2% (거의 고정), 이 판 앞은 5% 였다. 지난 것만 보므로 미리 넓히지 않는다 (guess 1.5초)
 OSC_X = 0.05       # 왔다 갔다: 무게중심이 너비의 이만큼 넘게 오가는 꺾임
 OSC_Z = 0.08       # 또는 필요한 배율이 이만큼 넘게 솟는 봉우리
@@ -292,13 +295,19 @@ def follow(target, vmax, amax, scale):
         e = tg - c
         vd = np.sign(e) * min(vm, np.sqrt(2 * am * abs(e)), abs(e) / dt)
         v += np.clip(vd - v, -am * dt, am * dt)
-        c += v * dt
+        c2 = c + v * dt
+        if (c2 - tg) * (c - tg) < 0:                # 목표를 지나치지 않는다 - 줌이 몸보다 2px 넓어진 적이 있다
+            c2, v = float(tg), 0.0
+        c = c2
         out[i] = c
     return out
 
 
 # 줌도 참고본 한도 그대로 (앞 판은 왔다 갔다 구간에서 빠르기를 올려 "줌아웃이 너무 빠르고")
-H = np.clip(follow(H_aim, V_Z, A_Z, H_aim), HMIN * SH, SH)      # 멈추며 살짝 넘어가는 것은 자른다
+# 8:2 한도: 캐릭터(구간 안은 오간 폭)가 그 프레임 화면의 FILL 아래로 작아지면 안 된다 (지난 0.3초로 재니 웅크릴 때 0.66 까지 내려갔다)
+ext = np.maximum(ty1 - ty0, (tx1 - tx0) / ASP)
+H_cap = np.clip(ext / FILL, HMIN * SH, SH)
+H = np.clip(np.minimum(follow(np.minimum(H_aim, H_cap), V_Z, A_Z, H_aim), H_cap), HMIN * SH, SH)
 CX_aim, TOP_aim = aim(tx0, ty0, tx1, ty1, tmc, H)
 CX = follow(dead(CX_aim, DZ_X * H * ASP), V_X, A_X, H)
 TOP = follow(dead(TOP_aim, DZ_Y * H), V_Y, A_Y, H)
