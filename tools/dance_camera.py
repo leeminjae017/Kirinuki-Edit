@@ -18,7 +18,7 @@
 """
 import io, json, os, subprocess, sys
 import numpy as np
-from scipy.ndimage import gaussian_filter1d, maximum_filter1d
+from scipy.ndimage import gaussian_filter1d, maximum_filter1d, minimum_filter1d
 
 # ---- 수치 ----
 # measured = Damyui-n152-1.mov (사용자가 -0.mov 를 세로로 다시 잡은 것) 카메라를 0.1초마다, 몸을 0.25초마다 재서 맞댐
@@ -29,8 +29,11 @@ FOOT = 0.05        # 발 아래 여백. measured 0.053 (0.039-0.079)
 SIG_X = 0.2        # 가로 따라가기 가우스 σ (초). measured: 카메라 가운데를 몸 무게중심 다듬은 것에 맞대 RMS 가 가장 작은 값 0.2초 ·
                    # 늦음 0초 (16.5px). 카메라-몸 가로 차는 90% 가 너비 ±0.05 안
 SIG_Y = 2.0        # 세로 (머리 위 y) σ. measured 2초가 가장 잘 맞음 - 세로는 거의 안 움직인다 (y 140-203)
-SIG_H = 1.0        # 배율 바뀜 σ (guess)
-ZOOM_MAX = 1.10    # 편 기준보다 이만큼까지만 넓힌다. measured 배율 0.787 / 0.842 두 가지 (7%)
+SIG_H = 0.4        # 배율 바뀜 σ (초, guess)
+LOOK_H = 0.6       # 이만큼 앞뒤에서 가장 큰 몸으로 배율을 잡는다 - 차기 · 팔 뻗기 전에 미리 넓힌다 (guess)
+FIT = 1.03         # 다듬으면 꼭대기가 깎이니 조금 넉넉히
+# 배율: 사용자 "최대한 몸 전체가 다 나오게 줌인 아웃을 사용해줘" (2026-10-01). 첫 트래킹 판은 기준의 1.10 배까지만 넓혀
+# 다리 차기 때 발끝이 11-18% 잘렸다 -> 한도 없이 몸 높이 · 너비 둘 다 들어가게 (원본 높이까지). 동작이 끝나면 다시 당긴다
 SIDE = 0.03        # 몸 끝과 상자 가장자리 사이 최소 여유 / 너비 - 이보다 가까우면 카메라를 민다 (guess)
 TOL = 0.4          # 키를 뺄 때 직선에서 벗어나도 되는 정도 (원본 px)
 PUNCH_Z = 2.0      # 챌린지 확대 배율 (guess - 상반신이 차는 정도)
@@ -140,16 +143,22 @@ x0, y0, x1, y1, mcx = B.T
 # ---- 2. 카메라 ----
 cam = E.get("camera") or {}
 punch = cam.get("punch") or []
-# 배율: 머리-발이 여백까지 들어가는 높이의 80 백분위를 편 기준으로. 몸이 안 들어가는 순간(뛰기 · 팔 올리기)만 천천히 넓힌다
-need = (y1 - y0) / (1 - HEAD - FOOT)
-BASE = min(SH, max(HMIN * SH, float(np.percentile(need, 80))))
-w_need = maximum_filter1d(need, size=int(FPS) + 1)      # 앞뒤 0.5초 안 가장 큰 것 - 넓히기를 조금 앞서 시작
-H = gaussian_filter1d(np.clip(w_need, BASE, min(SH, BASE * ZOOM_MAX)), SIG_H * FPS)
+# 배율: 머리-발이 여백까지, 좌우 끝이 SIDE 여유까지 들어가는 높이. 앞뒤 LOOK_H 안 가장 큰 것을 다듬어 따라간다
+# 앞뒤 LOOK_H 안에서 몸이 가장 넓게 퍼진 범위 - 0.2초마다 좌우로 번갈아 차는 다리를 한 틀에 넣는다 (프레임마다 맞추면 흔들린다)
+win = 2 * int(LOOK_H * FPS) + 1
+ux0, ux1 = minimum_filter1d(x0, win), maximum_filter1d(x1, win)
+uy0, uy1 = minimum_filter1d(y0, win), maximum_filter1d(y1, win)
+need = np.maximum((uy1 - uy0) / (1 - HEAD - FOOT), (ux1 - ux0) / (ASP * (1 - 2 * SIDE)))
+BASE = min(SH, max(HMIN * SH, float(np.percentile(need, 50))))     # 요약에 찍는 가운데값
+H = gaussian_filter1d(need, SIG_H * FPS) * FIT
+H = np.clip(H, HMIN * SH, SH)
 Wd = H * ASP
 # 가로: 무게중심을 다듬어 따라가고, 몸 끝이 상자 밖으로 나가려 하면 그만큼 민다 (몸이 상자보다 넓으면 무게중심 그대로)
 CX = gaussian_filter1d(mcx, SIG_X * FPS)
-lo, hi = x1 - Wd / 2 + SIDE * Wd, x0 + Wd / 2 - SIDE * Wd
-CX = np.where(lo <= hi, np.clip(CX, lo, hi), CX)
+lo, hi = ux1 - Wd / 2 + SIDE * Wd, ux0 + Wd / 2 - SIDE * Wd
+# 넓게 퍼진 범위가 다 들어가면 그 안에서 무게중심을 따르고, 원본 높이까지 넓혀도 안 들어가면 범위 가운데 - 한쪽만 잘리지 않게
+# (다리 차기 65.8-67.2초: 무게중심을 따라 왼쪽 90px 남기고 오른쪽 발이 90px 잘렸다)
+CX = np.where(lo <= hi, np.clip(CX, lo, hi), (lo + hi) / 2)
 CX = gaussian_filter1d(CX, 0.1 * FPS)
 CX = np.clip(CX, Wd / 2, SW - Wd / 2)
 # 세로: 머리 위 여백을 느리게, 발이 잘리면 내리고 (머리 여백은 반까지만 내준다)
@@ -222,7 +231,7 @@ io.open(os.path.join(work, "edit.json"), "w", encoding="utf-8").write(json.dumps
 hs = [k["h"] for k in keys]
 tot = sum(e - s for s, e in keep_ranges())
 sp = np.abs(np.diff(CX)) * FPS / H[1:]
-print("카메라: 트래킹 키 %d (%.1f초) · 확대 %d · 배율 h %d-%d (기준 %d, 원본 %d) · 가로 속도 가운데값 %.3f / 95%% %.3f h/초"
+print("카메라: 트래킹 키 %d (%.1f초) · 확대 %d · 배율 h %d-%d (가운데값 %d, 원본 %d) · 가로 속도 가운데값 %.3f / 95%% %.3f h/초"
       % (len(keys), tot, len(punch), min(hs), max(hs), BASE, SH, np.median(sp), np.percentile(sp, 95)))
 print("몸이 잘리는 순간 (1%% 넘게): %d%s" % (len(clip), "" if not clip else "  " + ", ".join("%.1f초 %.0f%%" % (t, o * 100) for t, o in clip[:12])))
 
