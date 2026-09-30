@@ -8,8 +8,11 @@
    -> "최대한 몸 전체가 다 나오게 줌인 아웃" -> "카메라가 캐릭터보다 먼저 이동하거나 늦게 이동하면 안돼".
 1. 캐릭터: isnet-anime (~/.u2net/isnet-anime.onnx, 애니 캐릭터 분할) 윤곽을 FPS 마다 (편 폴더 char_masks.npz 캐시),
    그 사이 프레임은 윤곽 점을 광학 흐름으로 앞 · 뒤에서 옮겨 섞는다 -> DFPS 마다 몸 상자 · 무게중심.
-2. 카메라는 몸과 같은 프레임에: 가로는 무게중심, 배율은 그 프레임 몸 전체가 여백까지 들어가게 (당길 때만 천천히),
-   세로는 머리 위 · 발 아래 여백이 고르게. 떨림만 앞뒤 한두 프레임 다듬는다.
+   -> "순간적으로 크게 움직이는 이동, 줌인, 아웃이 많으면 어지러우니까 크게 변경되는 경우 오히려 천천히 ... 왔다 갔다 하는 기간 동안
+   최대 너비까지 천천히 줌아웃 -> 이후에 다시 일반적으로" + "예시로 준 영상을 참고 해".
+2. 카메라: 무게중심이 좁은 폭(DZ_X) 안에서 흔들리면 그대로, 넘으면 따라간다 - 참고본 -1.mov 의 속도 · 가속 · 줌 빠르기 99 백분위
+   안이면 같은 프레임에, 넘치면 그만큼만 천천히 (미리 움직이지 않는다). 배율은 지난 ZWIN 동안 필요했던 가장 넓은 것을 쥔다.
+   왔다 갔다 구간(꺾임 · 줌 봉우리가 0.6초 안 간격으로 4번 넘게)은 그 동안 몸이 오간 전체 폭을 겨눠 천천히 넓혀 둔다.
    DFPS 마다 키 (in: linear) - shortsmith 가 이어진 키를 한 경로로 굽는다. 거의 직선인 키는 뺀다.
 3. camera.punch (챌린지 순간 확대): [{"s": 12.0, "e": 15.8, "z": 2.0}] - 그 동안 상반신으로 컷 인, 끝나면 컷 아웃.
 
@@ -34,12 +37,22 @@ FOOT = 0.05        # 발 아래 여백. measured 0.053 (0.039-0.079)
 # 사용자 "카메라가 캐릭터보다 먼저 이동하거나 늦게 이동하면 안돼" (2026-10-01): 앞 판은 σ 0.2초 가우스 + 앞뒤 0.6초 창으로
 # 카메라가 몸보다 먼저 움직이기 시작하고 늦게 멈췄다. 이제 몸 위치를 프레임마다 재고 같은 프레임에 따라간다
 SIG = 0.05         # 흐름 떨림만 누르는 가우스 σ (초) - 앞뒤 한두 프레임
-ZOOM_IN = 0.5      # 몸이 다시 작아질 때 당기는 빠르기 (h/초). 넓힐 때는 그 프레임에 같이 (guess)
-# 사용자 "줌인 줌아웃이 크게 계속 반복 되면 어지러우니까 차라리 이런 경우에는 천천히 줌아웃을 해줘 (25~27초 부근)" (시험 40-70초의
-# 65.4-67.2초: 다리를 번갈아 차며 0.4-0.5초마다 8-31% 줌 봉우리 5개). 되풀이 구간만 바꾸고 나머지는 그대로 ("나머지는 좋아")
-PUMP_PROM = 0.08   # 이만큼 (h 비율) 솟은 줌 봉우리를 센다
-PUMP_GAP = 1.0     # 봉우리 사이가 이보다 짧게 둘 이상 이어지면 되풀이 구간 (다른 곳 봉우리는 1초 넘게 떨어져 있었다)
-ZOUT_SEC = 1.0     # 되풀이 구간: 이만큼에 걸쳐 구간에서 가장 넓은 배율까지 천천히 넓히고, 끝나면 같은 빠르기로 돌아온다 (guess)
+# 사용자 "아직도 너무 어지러워 순간적으로 크게 움직이는 이동, 줌인, 아웃이 많으면 어지러우니까 크게 변경되는 경우 오히려 천천히 이동 해야 해
+# 특히나 왔다 갔다 하는 경우라면 왔다 갔다 하는 기간 동안 최대 너비 까지 천천히 줌아웃 -> 이후에 다시 일반적으로 진행",
+# "어떻게 처리하는지 내가 예시로 준 영상을 참고 해". 한도는 -1.mov 카메라 (0.1초마다) 의 99 백분위:
+V_X, A_X = 0.31, 1.1   # 가로 속도 h/초 · 가속 h/초². measured 가운데값 0.037 · 90% 0.153 · 99% 0.314 / 가속 99% 1.10
+V_Y, A_Y = 0.07, 0.3   # 세로. measured 속도 99% 0.072 (가속 guess)
+V_Z, A_Z = 0.10, 0.3   # 배율 바뀜 /초. measured 99% 0.099 · 최대 0.22 (가속 guess). 다리 차기 64-70초: 2.5초에 걸쳐 7% 넓히고 그대로
+DZ_X = 0.025      # 가로: 몸 무게중심이 카메라 가운데에서 너비의 이만큼 안에서 흔들리면 안 따라간다 (넘으면 그 끝을 따라감).
+                   # measured -1.mov 카메라-몸 가로 차 사분위 -0.025 ~ 0.015 - 참고본도 이 폭의 흔들림은 안 따라간다
+DZ_Y = 0.02        # 세로도 같은 방식 (guess)
+DZ_H = 0.03        # 배율도 3% 안의 바뀜은 안 따라간다 - 여백(HEAD · FOOT · SIDE) 이 받아 준다 (guess)
+ZWIN = 2.5         # 배율: 지난 이만큼 동안 필요했던 가장 넓은 배율을 쥐고 있다 - 차기 사이사이 줌인하지 않게. measured 참고본 배율 바뀜은
+                   # 가운데값 초당 0.2% (거의 고정), 이 판 앞은 5% 였다. 지난 것만 보므로 미리 넓히지 않는다 (guess 1.5초)
+OSC_X = 0.05       # 왔다 갔다: 무게중심이 너비의 이만큼 넘게 오가는 꺾임
+OSC_Z = 0.08       # 또는 필요한 배율이 이만큼 넘게 솟는 봉우리
+OSC_GAP, OSC_N = 0.6, 4   # 꺾임 · 봉우리가 0.6초 안 간격으로 4번 넘게 이어지면 왔다 갔다 구간. measured 시험 40-70초: 다리 차기
+                          # 65.2-67.2초는 0.2-0.5초 간격으로 13번, 다른 곳은 0.6초 넘게 떨어지거나 2-3번 (1초 · 3번으로는 56-68초가 한 덩이)
 SIDE = 0.03        # 몸 끝과 상자 가장자리 사이 최소 여유 / 너비 (guess)
 TOL = 0.4          # 키를 뺄 때 직선에서 벗어나도 되는 정도 (원본 px)
 PUNCH_Z = 2.0      # 챌린지 확대 배율 (guess - 상반신이 차는 정도)
@@ -192,47 +205,98 @@ def dense():
 T, B = dense()
 x0, y0, x1, y1, mcx = B.T
 
-# ---- 2. 카메라 - 몸과 같은 프레임에 움직인다 ----
+# ---- 2. 카메라 ----
+# 작은 움직임은 몸과 같은 프레임에, 큰 움직임은 참고본의 속도 · 가속 한도 안에서 천천히 (넘치는 만큼만 늦는다 - 미리 움직이지는 않는다).
+# 왔다 갔다 하는 구간은 그 동안 몸이 오가는 전체 폭이 들어가게 천천히 넓혀 두고, 끝나면 다시 평소대로.
 cam = E.get("camera") or {}
 punch = cam.get("punch") or []
 sg = lambda a, sec: gaussian_filter1d(a, sec * DFPS) if sec > 0 else a
-# 배율: 이 프레임의 머리-발이 여백까지, 좌우 끝이 SIDE 여유까지 들어가는 높이. 몸이 퍼지면 그 프레임에 같이 넓히고
-# (미리 넓히면 카메라가 몸보다 먼저 움직인다), 다시 당길 때만 천천히 (ZOOM_IN h/초)
-need = np.maximum((sg(y1, SIG) - sg(y0, SIG)) / (1 - HEAD - FOOT), (sg(x1, SIG) - sg(x0, SIG)) / (ASP * (1 - 2 * SIDE)))
-need = np.clip(need, HMIN * SH, SH)
-H = need.copy()
-for i in range(1, len(H)):
-    H[i] = max(need[i], H[i - 1] - ZOOM_IN * H[i - 1] * (T[i] - T[i - 1]))
-BASE = float(np.percentile(need, 50))
-# 되풀이 줌: 봉우리 무리마다 [첫 봉우리 발치, 마지막 봉우리] 동안 천천히 넓혀 그대로 두고, 뒤는 같은 빠르기로 당긴다
+X0, Y0, X1, Y1, MC = (sg(v, SIG) for v in (x0, y0, x1, y1, mcx))
+
+
+def fit_h(bx0, by0, bx1, by1):
+    """몸 상자가 여백까지 들어가는 상자 높이"""
+    return np.clip(np.maximum((by1 - by0) / (1 - HEAD - FOOT), (bx1 - bx0) / (ASP * (1 - 2 * SIDE))), HMIN * SH, SH)
+
+
+def aim(bx0, by0, bx1, by1, mc, h):
+    """상자 높이 h 일 때 겨눌 가운데 x 와 위 y - 무게중심을 따르되 몸 끝이 안 나가게, 세로는 머리 · 발 여백이 고르게"""
+    w = h * ASP
+    lo, hi = bx1 - w / 2 + SIDE * w, bx0 + w / 2 - SIDE * w
+    cx = np.where(lo <= hi, np.clip(mc, lo, hi), (lo + hi) / 2)
+    top = ((by0 - HEAD * h) + (by1 + FOOT * h - h)) / 2
+    return np.clip(cx, w / 2, SW - w / 2), np.clip(top, 0, SH - h)
+
+
+# 왔다 갔다 하는 구간: 몸 무게중심 (가로) 이나 필요한 배율이 OSC_GAP 안 간격으로 OSC_N 번 넘게 방향을 바꾸는 곳
 from scipy.signal import find_peaks
-pk, pinfo = find_peaks(H, prominence=PUMP_PROM * float(np.median(H)))
-groups, g = [], []
-for j, i in enumerate(pk):
-    if g and T[i] - T[pk[g[-1]]] > PUMP_GAP:
-        groups.append(g); g = []
-    g.append(j)
+need = fit_h(X0, Y0, X1, Y1)
+href = float(np.median(need))
+ev = []
+for sig, prom in ((MC, OSC_X * href * ASP), (-MC, OSC_X * href * ASP), (need, OSC_Z * href)):
+    pk, info = find_peaks(sig, prominence=prom)
+    ev += [(int(i), int(b)) for i, b in zip(pk, info["left_bases"])]
+ev.sort()
+osc, g = [], []
+for i, b in ev:
+    if g and T[i] - T[g[-1][0]] > OSC_GAP:
+        osc.append(g); g = []
+    g.append((i, b))
 if g:
-    groups.append(g)
-pumps = []
-for g in (g for g in groups if len(g) >= 2):
-    a, b = int(pinfo["left_bases"][g[0]]), int(pk[g[-1]])
-    Hr = float(H[a:b + 1].max()); rate = max(1.0, (Hr - H[a]) / ZOUT_SEC)
-    ramp = np.minimum(Hr, H[a] + rate * (T[a:b + 1] - T[a]))
-    after = np.maximum(H[b + 1:], Hr - rate * (T[b + 1:] - T[b]))
-    H = np.concatenate([H[:a], ramp, after])
-    pumps.append((T[a], T[b], Hr))
-H = gaussian_filter1d(H, SIG * DFPS)
+    osc.append(g)
+# 구간 = 첫 꺾임 0.3초 앞부터 마지막 꺾임까지 (봉우리 발치는 한참 앞까지 거슬러 가서 56-67초가 한 구간이 됐다)
+osc = [(max(0, min(i for i, _ in g) - int(0.3 * DFPS)), max(i for i, _ in g)) for g in osc if len(g) >= OSC_N]
+# 구간 안 겨눌 곳: 그 동안 몸이 오간 전체 폭 (고정)
+tx0, ty0, tx1, ty1, tmc = X0.copy(), Y0.copy(), X1.copy(), Y1.copy(), MC.copy()
+for a, b in osc:
+    u = (X0[a:b + 1].min(), Y0[a:b + 1].min(), X1[a:b + 1].max(), Y1[a:b + 1].max())
+    tx0[a:b + 1], ty0[a:b + 1], tx1[a:b + 1], ty1[a:b + 1] = u
+    tmc[a:b + 1] = (u[0] + u[2]) / 2
+H_aim = fit_h(tx0, ty0, tx1, ty1)
+H_aim = np.array([H_aim[max(0, i - int(ZWIN * DFPS)):i + 1].max() for i in range(len(H_aim))])   # 지난 ZWIN 의 가장 넓은 것
+
+
+
+
+def dead(target, band):
+    """band 안의 흔들림은 무시 - 밖으로 나가면 그 끝을 따라간다 (지난 값만 쓴다)"""
+    out, c = np.empty(len(target)), float(target[0])
+    for i, tg in enumerate(target):
+        c = min(max(c, tg - band[i]), tg + band[i])
+        out[i] = c
+    return out
+
+def follow(target, vmax, amax, scale):
+    vmax, amax = np.broadcast_to(vmax, target.shape), np.broadcast_to(amax, target.shape)
+    """target 을 따라간다. 속도 vmax · 가속 amax (scale 곱) 안이면 같은 프레임에 딱 맞고, 넘치면 그만큼만 천천히.
+    멈출 거리를 봐서 넘어가지 않게 줄인다. 앞 프레임 값만 쓴다 (미리 움직이지 않는다)"""
+    dt = 1.0 / DFPS
+    c, v, out = float(target[0]), 0.0, np.empty(len(target))
+    for i, tg in enumerate(target):
+        vm, am = vmax[i] * scale[i], amax[i] * scale[i]
+        e = tg - c
+        vd = np.sign(e) * min(vm, np.sqrt(2 * am * abs(e)), abs(e) / dt)
+        v += np.clip(vd - v, -am * dt, am * dt)
+        c += v * dt
+        out[i] = c
+    return out
+
+
+# 줌 빠르기 한도: 평소 V_Z. 왔다 갔다 구간은 "그 기간 동안 최대 너비까지 천천히" - 구간 절반쯤에 닿는 빠르기까지만 올린다
+vz, az = np.full(len(T), V_Z), np.full(len(T), A_Z)
+for a, b in osc:
+    span = max(0.5, 0.5 * (T[b] - T[a]))
+    r = (H_aim[a:b + 1].max() / need[a] - 1) / span
+    vz[a:b + 1] = max(V_Z, r); az[a:b + 1] = max(A_Z, 2 * r / span)
+H = np.clip(follow(dead(H_aim, DZ_H * H_aim), vz, az, H_aim), HMIN * SH, SH)      # 멈추며 살짝 넘어가는 것 (1084 > 1080) 은 자른다
+CX_aim, TOP_aim = aim(tx0, ty0, tx1, ty1, tmc, H)
+CX = follow(dead(CX_aim, DZ_X * H * ASP), V_X, A_X, H)
+TOP = follow(dead(TOP_aim, DZ_Y * H), V_Y, A_Y, H)
 Wd = H * ASP
-# 가로: 무게중심 그대로 (앞뒤 한두 프레임만 다듬음). 몸 끝이 상자 밖으로 나가려 하면 그 프레임에 민다, 넓혀도 안 들어가면 몸 가운데
-CX = sg(mcx, SIG)
-lo, hi = sg(x1, SIG) - Wd / 2 + SIDE * Wd, sg(x0, SIG) + Wd / 2 - SIDE * Wd
-CX = np.where(lo <= hi, np.clip(CX, lo, hi), (lo + hi) / 2)
 CX = np.clip(CX, Wd / 2, SW - Wd / 2)
-# 세로: 머리 위 · 발 아래 여백이 같은 비율로 남게 몸 가운데에 (배율이 몸 높이로 정해진 프레임에서는 여백이 딱 HEAD · FOOT)
-TOP = ((sg(y0, SIG) - HEAD * H) + (sg(y1, SIG) + FOOT * H - H)) / 2
 TOP = np.clip(TOP, 0, SH - H)
 X = CX - Wd / 2
+BASE = href
 
 # 거의 직선인 키는 뺀다 (Douglas-Peucker, x · y · h 가 TOL 안)
 def simplify(i, j, out):
@@ -296,7 +360,7 @@ io.open(os.path.join(work, "edit.json"), "w", encoding="utf-8").write(json.dumps
 hs = [k["h"] for k in keys]
 tot = sum(e - s for s, e in keep_ranges())
 sp = np.abs(np.diff(CX)) * DFPS / H[1:]
-print("되풀이 줌 구간 %d: %s" % (len(pumps), ", ".join("%.1f-%.1f초 h %d" % p for p in pumps)))
+print("왔다 갔다 구간 %d: %s" % (len(osc), ", ".join("%.1f-%.1f초" % (T[a], T[b]) for a, b in osc)))
 print("카메라: 트래킹 키 %d (%.1f초) · 확대 %d · 배율 h %d-%d (가운데값 %d, 원본 %d) · 가로 속도 가운데값 %.3f / 95%% %.3f h/초"
       % (len(keys), tot, len(punch), min(hs), max(hs), BASE, SH, np.median(sp), np.percentile(sp, 95)))
 print("몸이 잘리는 순간 (1%% 넘게): %d%s" % (len(clip), "" if not clip else "  " + ", ".join("%.1f초 %.0f%%" % (t, o * 100) for t, o in clip[:12])))
