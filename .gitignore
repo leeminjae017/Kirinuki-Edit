@@ -38,3 +38,6 @@ venv/
 *.bak[0-9]*
 *.tmp.mkv
 /dashboard/_t.txt
+
+# Remotion 이 실행 폴더마다 받는 Chrome (521MB)
+.remotion/
