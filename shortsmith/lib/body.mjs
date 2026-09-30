@@ -13,6 +13,63 @@ import { duration, log, loudness, md5, run, sig, slash, spawnPromise, writeJson 
    Per-piece AAC would add priming/padding at every joint and click; audio is encoded once, at the end.
    Only gain (volume=NdB) is ever applied - no denoise, highpass, limiter or loudnorm unless the user asks. */
 const VERSION = 3;
+
+/* Camera (edit.camera.keys): the crop box follows keyframes in source time - [{ t, x, y, h, in }], source pixels, box width
+   = h * window aspect. A key holds until the next one; a next key with in: "linear" is reached at constant speed, anything
+   else is a cut on that frame. A held span is a plain crop (cached like any piece). A run of linear keys - a tracking camera
+   puts one every frame it moves - becomes one moving span of up to maxLen seconds / maxPts keys (the expression goes on the
+   command line, 32K on Windows) whose box is a piecewise-linear path, drawn by
+   perspective (sub-pixel, per frame; an integer crop x/y steps visibly on slow pans once magnified 2x).
+   Dance reference (Damyui-n152-1, 2026-10-01): the camera follows the body almost all the time, a few one-frame cuts. */
+export function cameraSpans(keys, s, e, aspect, SW, SH, fps, maxLen = 3, maxPts = 40) {
+  const snap = (t) => Math.round(t * fps) / fps;
+  const K = keys.map((k) => ({ ...k, t: snap(k.t) })).sort((a, b) => a.t - b.t);
+  const boxOf = (k, exact) => {
+    const R = exact ? (v) => Math.round(v * 100) / 100 : Math.round;
+    const h = Math.min(SH, R(k.h)), w = Math.min(SW, R(h * aspect));
+    return { x: R(Math.max(0, Math.min(SW - w, k.x))), y: R(Math.max(0, Math.min(SH - h, k.y))), w, h };
+  };
+  const lerp = (a, b, u) => ({ x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u, h: a.h + (b.h - a.h) * u });
+  const at = (t) => {                               // box at t and whether it is moving towards the next key
+    let i = 0;
+    while (i + 1 < K.length && K[i + 1].t <= t + 1e-6) i++;
+    const a = K[i], b = K[i + 1];
+    if (t < a.t - 1e-6 || !b || b.in !== 'linear') return { box: boxOf(a), i, moving: false };
+    return { box: boxOf(lerp(a, b, (t - a.t) / (b.t - a.t)), true), i, moving: true };
+  };
+  // one boundary per frame time - two keys on the same frame made a 0s piece that ffmpeg wrote as a broken file (2.7s went missing)
+  const cuts = [...new Set([s, ...K.map((k) => k.t).filter((t) => t > s + 0.5 / fps && t < e - 0.5 / fps), e])];
+  const out = [];
+  for (let j = 0; j + 1 < cuts.length; j++) {
+    const a = cuts[j], b = cuts[j + 1], A = at(a);
+    if (b - a < 0.5 / fps) continue;
+    if (!A.moving) { out.push({ s: a, e: b, from: A.box }); continue; }
+    const k0 = K[A.i], k1 = K[A.i + 1];
+    const end = boxOf(lerp(k0, k1, (b - k0.t) / (k1.t - k0.t)), true);
+    const last = out[out.length - 1];
+    // continue the previous moving span when it ends here (no cut between) and stays under maxLen
+    if (last && last.path && Math.abs(last.e - a) < 1e-6 && b - last.s <= maxLen + 1e-6 && last.path.length < maxPts) { last.path.push({ t: b, box: end }); last.e = b; }
+    else out.push({ s: a, e: b, path: [{ t: a, box: A.box }, { t: b, box: end }] });
+  }
+  return out;
+}
+
+/* perspective corners for a path span: v(f) = v0 + sum of each leg's change * clip((f - f_k) / len_k, 0, 1), f = frame in the
+   piece. perspective counts input frames from 1 - using in/N ran a frame ahead (measured 4.5px on a 119px pan). */
+export function pathVf(path, s, fps) {
+  const F = path.map((p) => Math.round((p.t - s) * fps));
+  const expr = (g) => {
+    let x = `${g(path[0].box)}`;
+    for (let k = 0; k + 1 < path.length; k++) {
+      const d = +(g(path[k + 1].box) - g(path[k].box)).toFixed(2), L = Math.max(1, F[k + 1] - F[k]);
+      if (d) x += `+${d}*clip((in-1-${F[k]})/${L},0,1)`;
+    }
+    return `'${x}'`;
+  };
+  const X0 = (b) => b.x, X1 = (b) => b.x + b.w, Y0 = (b) => b.y, Y1 = (b) => b.y + b.h;
+  return `perspective=x0=${expr(X0)}:y0=${expr(Y0)}:x1=${expr(X1)}:y1=${expr(Y0)}:x2=${expr(X0)}:y2=${expr(Y1)}:x3=${expr(X1)}:y3=${expr(Y1)}`
+    + ':interpolation=cubic:eval=frame';
+}
 const FPS_DEFAULT = 60;
 
 export async function buildBody(projectDir, edit, preset, cutsList) {
@@ -34,6 +91,14 @@ export async function buildBody(projectDir, edit, preset, cutsList) {
   const wh = W.h || Math.round(W.w * C.h / C.w / 2) * 2;
   if (preset.brand?.background?.file && !preset.brand.background.path) throw new Error('background file missing: ' + preset.brand.background.file);
   const fade = preset.audio?.fadeSec ?? 0.008;
+  const cam = edit.camera?.keys?.length ? edit.camera.keys : null;
+  let srcInfo = null;
+  if (cam) {
+    const [sw, sh, fr] = run('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height,r_frame_rate', '-of', 'csv=p=0', src], 'probe size')
+      .stdout.trim().split(',');
+    const [fn, fd] = fr.split('/').map(Number);
+    srcInfo = { w: +sw, h: +sh, fps: fn / (fd || 1) };
+  }
   const sigs = {};
   const sigOf = (f) => (sigs[f] ??= sig(f));
 
@@ -68,20 +133,36 @@ export async function buildBody(projectDir, edit, preset, cutsList) {
     }
     const gain = gainDb ? `volume=${gainDb}dB,` : '';
     const pcC = pc.crop || (pc.source ? null : C);
+    const tail = (sp !== 1 ? `,setpts=(PTS-STARTPTS)/${sp}` : '') + `,fps=${fps},format=nv12`;
     // a piece's own crop may have another aspect: fill the window, trimming the excess (no stretching)
-    const vcrop = pcC ? `crop=${pcC.w}:${pcC.h}:${pcC.x}:${pcC.y},` : '';
-    const vf = `${vcrop}scale=${W.w}:${wh}:force_original_aspect_ratio=increase:flags=lanczos,crop=${W.w}:${wh},setsar=1`
-      + (sp !== 1 ? `,setpts=(PTS-STARTPTS)/${sp}` : '') + `,fps=${fps},format=nv12`;
-    const af = `${gain}${sp !== 1 ? `atempo=${sp},` : ''}aresample=48000,afade=t=in:st=0:d=${fade},afade=t=out:st=${Math.max(0, outDur - fade).toFixed(3)}:d=${fade}`;
-    const key = md5([VERSION, sigOf(file), pc.s, dur, vf, af, enc.name]);
-    const out = path.join(cache, `win_${key}.mkv`);
-    if (!fs.existsSync(out)) {
-      jobs.push(['-y', '-v', 'error', '-ss', pc.s.toFixed(3), '-t', dur.toFixed(3), '-i', file,
-        '-vf', vf, '-af', af, '-t', outDur.toFixed(3), ...enc.args, '-c:a', 'pcm_s16le', '-ar', '48000', '-ac', '2', out + '.tmp.mkv']);
-      fresh++;
-    } else fs.utimesSync(out, new Date(), new Date());
-    clips.push(out);
-    keys.push([key, +cur.toFixed(3), outDur]);
+    const cropVf = (c) => `${c ? `crop=${c.w}:${c.h}:${c.x}:${c.y},` : ''}scale=${W.w}:${wh}:force_original_aspect_ratio=increase:flags=lanczos,crop=${W.w}:${wh},setsar=1` + tail;
+    // camera: split the piece where the box holds / moves; only the piece's own ends get the audio fade (music runs on)
+    const spans = cam && !pc.source && !pc.crop ? cameraSpans(cam, pc.s, pc.e, W.w / wh, srcInfo.w, srcInfo.h, srcInfo.fps) : [{ s: pc.s, e: pc.e }];
+    let off = 0;
+    spans.forEach((q, qi) => {
+      // camera pieces fall on any 1/30s: cut them by frame count, not by a 3-decimal -t - 18 pieces came out 1797 frames for
+      // 30.000s of sound (a frame short or long each), so the picture ended 50ms behind the audio
+      const exact = spans.length > 1;
+      const qd = exact ? q.e - q.s : +(q.e - q.s).toFixed(3);
+      const qo = qi === spans.length - 1 ? +(outDur - off).toFixed(exact ? 6 : 3) : exact ? Math.round(qd / sp * fps) / fps : +(qd / sp).toFixed(3);
+      const nv = Math.round(qo * fps);
+      let vf;
+      if (q.path) vf = pathVf(q.path, q.s, srcInfo.fps) + `,scale=${W.w}:${wh}:flags=lanczos,setsar=1` + tail;
+      else vf = cropVf(q.from || pcC);
+      const fi = qi === 0 ? `afade=t=in:st=0:d=${fade},` : '', fo = qi === spans.length - 1 ? `,afade=t=out:st=${Math.max(0, qo - fade).toFixed(3)}:d=${fade}` : '';
+      const af = `${gain}${sp !== 1 ? `atempo=${sp},` : ''}aresample=48000${fi ? ',' + fi.slice(0, -1) : ''}${fo}`;
+      const key = md5([VERSION, sigOf(file), q.s, qd, vf, af, enc.name, ...(exact ? [nv] : [])]);
+      const out = path.join(cache, `win_${key}.mkv`);
+      if (!fs.existsSync(out)) {
+        jobs.push(['-y', '-v', 'error', '-ss', q.s.toFixed(exact ? 6 : 3), '-t', (exact ? qd + 0.1 : qd).toFixed(exact ? 6 : 3), '-i', file,
+          '-vf', vf, '-af', af, ...(exact ? ['-frames:v', String(nv)] : []), '-t', qo.toFixed(exact ? 6 : 3), ...enc.args,
+          '-c:a', 'pcm_s16le', '-ar', '48000', '-ac', '2', out + '.tmp.mkv']);
+        fresh++;
+      } else fs.utimesSync(out, new Date(), new Date());
+      clips.push(out);
+      keys.push([key, +(cur + off).toFixed(3), qo]);
+      off += qo;
+    });
     parts.push({ file, s: pc.s, e: pc.e, sp, gain, at: cur, outDur });
     if (!pc.source) mainDur = cur + outDur;
     cur += outDur;

@@ -35,6 +35,9 @@ Set `crop` in edit.json from a frame of the source (put the face inside, keep ch
 - A keep entry can carry `crop` (framing per scene), `gainDb` (boost a quiet scene, at most +6), or
   `{ "source": "outro.mov", "s": 0, "e": 7.47 }` for another file (not sped up, loudness matched on its own).
   `"speed": 1.1` in edit.json speeds up the main part when the user asks.
+- `"camera": { "keys": [{ "t", "x", "y", "h", "in" }] }` in edit.json moves the crop over time (source seconds and
+  pixels, width = h x window aspect). A key holds until the next; a next key with `"in": "linear"` is reached at
+  constant speed, otherwise it is a cut. Write the keys with a tool that tracks the subject - not by hand.
 
 ## 3. Captions
 
