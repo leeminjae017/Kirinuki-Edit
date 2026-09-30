@@ -17,10 +17,11 @@ const VERSION = 3;
 /* Camera (edit.camera.keys): the crop box follows keyframes in source time - [{ t, x, y, h, in }], source pixels, box width
    = h * window aspect. A key holds until the next one; a next key with in: "linear" is reached at constant speed, anything
    else is a cut on that frame. A held span is a plain crop (cached like any piece). A run of linear keys - a tracking camera
-   puts one every 0.2s - becomes one moving span of up to maxLen seconds whose box is a piecewise-linear path, drawn by
+   puts one every frame it moves - becomes one moving span of up to maxLen seconds / maxPts keys (the expression goes on the
+   command line, 32K on Windows) whose box is a piecewise-linear path, drawn by
    perspective (sub-pixel, per frame; an integer crop x/y steps visibly on slow pans once magnified 2x).
    Dance reference (Damyui-n152-1, 2026-10-01): the camera follows the body almost all the time, a few one-frame cuts. */
-export function cameraSpans(keys, s, e, aspect, SW, SH, fps, maxLen = 3) {
+export function cameraSpans(keys, s, e, aspect, SW, SH, fps, maxLen = 3, maxPts = 40) {
   const snap = (t) => Math.round(t * fps) / fps;
   const K = keys.map((k) => ({ ...k, t: snap(k.t) })).sort((a, b) => a.t - b.t);
   const boxOf = (k, exact) => {
@@ -47,7 +48,7 @@ export function cameraSpans(keys, s, e, aspect, SW, SH, fps, maxLen = 3) {
     const end = boxOf(lerp(k0, k1, (b - k0.t) / (k1.t - k0.t)), true);
     const last = out[out.length - 1];
     // continue the previous moving span when it ends here (no cut between) and stays under maxLen
-    if (last && last.path && Math.abs(last.e - a) < 1e-6 && b - last.s <= maxLen + 1e-6) { last.path.push({ t: b, box: end }); last.e = b; }
+    if (last && last.path && Math.abs(last.e - a) < 1e-6 && b - last.s <= maxLen + 1e-6 && last.path.length < maxPts) { last.path.push({ t: b, box: end }); last.e = b; }
     else out.push({ s: a, e: b, path: [{ t: a, box: A.box }, { t: b, box: end }] });
   }
   return out;
@@ -139,17 +140,23 @@ export async function buildBody(projectDir, edit, preset, cutsList) {
     const spans = cam && !pc.source && !pc.crop ? cameraSpans(cam, pc.s, pc.e, W.w / wh, srcInfo.w, srcInfo.h, srcInfo.fps) : [{ s: pc.s, e: pc.e }];
     let off = 0;
     spans.forEach((q, qi) => {
-      const qd = +(q.e - q.s).toFixed(3), qo = qi === spans.length - 1 ? +(outDur - off).toFixed(3) : +(qd / sp).toFixed(3);
+      // camera pieces fall on any 1/30s: cut them by frame count, not by a 3-decimal -t - 18 pieces came out 1797 frames for
+      // 30.000s of sound (a frame short or long each), so the picture ended 50ms behind the audio
+      const exact = spans.length > 1;
+      const qd = exact ? q.e - q.s : +(q.e - q.s).toFixed(3);
+      const qo = qi === spans.length - 1 ? +(outDur - off).toFixed(exact ? 6 : 3) : exact ? Math.round(qd / sp * fps) / fps : +(qd / sp).toFixed(3);
+      const nv = Math.round(qo * fps);
       let vf;
       if (q.path) vf = pathVf(q.path, q.s, srcInfo.fps) + `,scale=${W.w}:${wh}:flags=lanczos,setsar=1` + tail;
       else vf = cropVf(q.from || pcC);
       const fi = qi === 0 ? `afade=t=in:st=0:d=${fade},` : '', fo = qi === spans.length - 1 ? `,afade=t=out:st=${Math.max(0, qo - fade).toFixed(3)}:d=${fade}` : '';
       const af = `${gain}${sp !== 1 ? `atempo=${sp},` : ''}aresample=48000${fi ? ',' + fi.slice(0, -1) : ''}${fo}`;
-      const key = md5([VERSION, sigOf(file), q.s, qd, vf, af, enc.name]);
+      const key = md5([VERSION, sigOf(file), q.s, qd, vf, af, enc.name, ...(exact ? [nv] : [])]);
       const out = path.join(cache, `win_${key}.mkv`);
       if (!fs.existsSync(out)) {
-        jobs.push(['-y', '-v', 'error', '-ss', q.s.toFixed(3), '-t', qd.toFixed(3), '-i', file,
-          '-vf', vf, '-af', af, '-t', qo.toFixed(3), ...enc.args, '-c:a', 'pcm_s16le', '-ar', '48000', '-ac', '2', out + '.tmp.mkv']);
+        jobs.push(['-y', '-v', 'error', '-ss', q.s.toFixed(exact ? 6 : 3), '-t', (exact ? qd + 0.1 : qd).toFixed(exact ? 6 : 3), '-i', file,
+          '-vf', vf, '-af', af, ...(exact ? ['-frames:v', String(nv)] : []), '-t', qo.toFixed(exact ? 6 : 3), ...enc.args,
+          '-c:a', 'pcm_s16le', '-ar', '48000', '-ac', '2', out + '.tmp.mkv']);
         fresh++;
       } else fs.utimesSync(out, new Date(), new Date());
       clips.push(out);

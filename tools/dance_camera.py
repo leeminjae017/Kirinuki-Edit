@@ -5,10 +5,12 @@
 생기지 않도록 이동. 필요시 약간의 줌인, 줌아웃을 허용" -> 멈췄다 옮기는 첫 판은 "너무 부자연스러워 / 가능하면 최대한 계속 트래킹
 하듯이 캐릭터의 중심을 기준으로 따라가야해". 그래서 카메라는 늘 몸 무게중심을 따라간다.
 
-1. 캐릭터: isnet-anime (~/.u2net/isnet-anime.onnx, 애니 캐릭터 분할) 을 FPS 마다 - 상자와 무게중심, 편 폴더 char_track.json 에 캐시.
-2. 가로: 무게중심을 가우스로 조금 다듬어 그대로 따라간다 (늦음 없음). 몸이 상자 밖으로 나가려 하면 그만큼 민다.
-   세로: 머리 위 여백을 느리게 따라간다. 배율: 편 기준 하나, 몸이 안 들어갈 때만 천천히 조금 넓힌다.
-   0.2초마다 키 (in: linear) - shortsmith 가 이어진 키를 한 경로로 굽는다. 거의 직선인 키는 뺀다.
+   -> "최대한 몸 전체가 다 나오게 줌인 아웃" -> "카메라가 캐릭터보다 먼저 이동하거나 늦게 이동하면 안돼".
+1. 캐릭터: isnet-anime (~/.u2net/isnet-anime.onnx, 애니 캐릭터 분할) 윤곽을 FPS 마다 (편 폴더 char_masks.npz 캐시),
+   그 사이 프레임은 윤곽 점을 광학 흐름으로 앞 · 뒤에서 옮겨 섞는다 -> DFPS 마다 몸 상자 · 무게중심.
+2. 카메라는 몸과 같은 프레임에: 가로는 무게중심, 배율은 그 프레임 몸 전체가 여백까지 들어가게 (당길 때만 천천히),
+   세로는 머리 위 · 발 아래 여백이 고르게. 떨림만 앞뒤 한두 프레임 다듬는다.
+   DFPS 마다 키 (in: linear) - shortsmith 가 이어진 키를 한 경로로 굽는다. 거의 직선인 키는 뺀다.
 3. camera.punch (챌린지 순간 확대): [{"s": 12.0, "e": 15.8, "z": 2.0}] - 그 동안 상반신으로 컷 인, 끝나면 컷 아웃.
 
     python tools/dance_camera.py <편 폴더> [--sheet]      edit.json camera.keys 를 쓰고 요약 · 잘림 검사를 찍는다
@@ -17,24 +19,23 @@
 수치 근거는 아래 상수 옆에 적는다 (measured = 잰 것, guess = 짐작).
 """
 import io, json, os, subprocess, sys
+sys.setrecursionlimit(100000)
 import numpy as np
 from scipy.ndimage import gaussian_filter1d, maximum_filter1d, minimum_filter1d
 
 # ---- 수치 ----
 # measured = Damyui-n152-1.mov (사용자가 -0.mov 를 세로로 다시 잡은 것) 카메라를 0.1초마다, 몸을 0.25초마다 재서 맞댐
 # (알림 그림을 몸으로 잡은 7.9-14.2 · 96.8-97.8초는 뺌)
-FPS = 5            # 몸을 뽑는 간격 = 키 간격 (guess)
+FPS = 5            # 윤곽(isnet)을 뽑는 간격 - 한 장 1.3초라 프레임마다는 못 돌린다 (CPU 뿐)
+DFPS = 30          # 몸 위치 · 카메라 키 간격. 윤곽 사이는 광학 흐름으로 채운다
+MW, MH = 480, 270  # 윤곽 · 흐름을 재는 크기
 HEAD = 0.07        # 풀샷 머리 위 여백 / 상자 높이. measured 가운데값 0.073 (사분위 0.059-0.095)
 FOOT = 0.05        # 발 아래 여백. measured 0.053 (0.039-0.079)
-SIG_X = 0.2        # 가로 따라가기 가우스 σ (초). measured: 카메라 가운데를 몸 무게중심 다듬은 것에 맞대 RMS 가 가장 작은 값 0.2초 ·
-                   # 늦음 0초 (16.5px). 카메라-몸 가로 차는 90% 가 너비 ±0.05 안
-SIG_Y = 2.0        # 세로 (머리 위 y) σ. measured 2초가 가장 잘 맞음 - 세로는 거의 안 움직인다 (y 140-203)
-SIG_H = 0.4        # 배율 바뀜 σ (초, guess)
-LOOK_H = 0.6       # 이만큼 앞뒤에서 가장 큰 몸으로 배율을 잡는다 - 차기 · 팔 뻗기 전에 미리 넓힌다 (guess)
-FIT = 1.03         # 다듬으면 꼭대기가 깎이니 조금 넉넉히
-# 배율: 사용자 "최대한 몸 전체가 다 나오게 줌인 아웃을 사용해줘" (2026-10-01). 첫 트래킹 판은 기준의 1.10 배까지만 넓혀
-# 다리 차기 때 발끝이 11-18% 잘렸다 -> 한도 없이 몸 높이 · 너비 둘 다 들어가게 (원본 높이까지). 동작이 끝나면 다시 당긴다
-SIDE = 0.03        # 몸 끝과 상자 가장자리 사이 최소 여유 / 너비 - 이보다 가까우면 카메라를 민다 (guess)
+# 사용자 "카메라가 캐릭터보다 먼저 이동하거나 늦게 이동하면 안돼" (2026-10-01): 앞 판은 σ 0.2초 가우스 + 앞뒤 0.6초 창으로
+# 카메라가 몸보다 먼저 움직이기 시작하고 늦게 멈췄다. 이제 몸 위치를 프레임마다 재고 같은 프레임에 따라간다
+SIG = 0.05         # 흐름 떨림만 누르는 가우스 σ (초) - 앞뒤 한두 프레임
+ZOOM_IN = 0.5      # 몸이 다시 작아질 때 당기는 빠르기 (h/초). 넓힐 때는 그 프레임에 같이 (guess)
+SIDE = 0.03        # 몸 끝과 상자 가장자리 사이 최소 여유 / 너비 (guess)
 TOL = 0.4          # 키를 뺄 때 직선에서 벗어나도 되는 정도 (원본 px)
 PUNCH_Z = 2.0      # 챌린지 확대 배율 (guess - 상반신이 차는 정도)
 PUNCH_HEAD = 0.14  # 확대 중 머리 위 여백. measured R14ZVrYoWSs 19.2-23.2초 (4.0초, 컷 인 · 컷 아웃): 0.14
@@ -66,25 +67,25 @@ def keep_ranges():
     return out
 
 
-# ---- 1. 캐릭터 상자 ----
-def track():
+# ---- 1. 캐릭터: 0.2초마다 윤곽 (isnet), 그 사이는 광학 흐름으로 프레임마다 ----
+def masks_isnet():
+    """FPS 마다 몸 윤곽 (MW x MH bool). 편 폴더 char_masks.npz 에 캐시"""
     st = os.stat(SRC)
-    key = {"src": SRC.replace(os.sep, "/"), "size": st.st_size, "mtime": int(st.st_mtime), "fps": FPS, "v": 2}
-    cache = os.path.join(work, "char_track.json")
-    rows = {}
+    key = json.dumps({"src": SRC.replace(os.sep, "/"), "size": st.st_size, "mtime": int(st.st_mtime), "fps": FPS, "w": MW, "v": 3})
+    cache = os.path.join(work, "char_masks.npz")
+    have = {}
     if os.path.exists(cache):
-        old = json.load(io.open(cache, encoding="utf-8"))
-        if old.get("key") == key:
-            rows = {round(r["t"], 3): r for r in old["rows"]}
+        z = np.load(cache)
+        if str(z["key"]) == key:
+            have = {round(float(t), 3): np.unpackbits(b)[:MW * MH].reshape(MH, MW).astype(bool) for t, b in zip(z["t"], z["m"])}
     want = sorted({round(round(t * FPS) / FPS, 3) for s, e in keep_ranges()
-                   for t in np.arange(max(0, s - 1), min(DUR, e + 1), 1 / FPS)})
-    todo = [t for t in want if t not in rows]
+                   for t in np.arange(max(0, s - 0.4), min(DUR, e + 0.4), 1 / FPS)})
+    todo = [t for t in want if t not in have]
     if todo:
         import cv2, onnxruntime as ort
         sess = ort.InferenceSession(os.path.expanduser("~/.u2net/isnet-anime.onnx"), providers=["CPUExecutionProvider"])
         W, H = 1024, int(round(1024 * SH / SW))
-        # 이어진 덩이마다 ffmpeg 한 번 (프레임마다 따로 찾으면 느리다)
-        groups, g = [], [todo[0]]
+        groups, g = [], [todo[0]]                  # 이어진 덩이마다 ffmpeg 한 번
         for t in todo[1:]:
             if t - g[-1] > 1.5 / FPS:
                 groups.append(g); g = [t]
@@ -105,7 +106,7 @@ def track():
                 o = (o - o.min()) / (o.max() - o.min() + 1e-9)
                 m = (cv2.resize(o, (W, H)) > 0.5).astype(np.uint8)
                 n, lab, s_, _ = cv2.connectedComponentsWithStats(m)
-                r = {"t": t}
+                out = np.zeros((H, W), bool)
                 if n > 1:
                     k = 1 + int(np.argmax(s_[1:, cv2.CC_STAT_AREA]))
                     bx0, bx1 = s_[k, 0], s_[k, 0] + s_[k, 2]
@@ -118,54 +119,94 @@ def track():
                     A = s_[k, cv2.CC_STAT_AREA]
                     keep = [k] + [j for j in range(1, n) if j != k and s_[j, cv2.CC_STAT_AREA] > 0.01 * A and
                                   (near(j, 0) if s_[j, cv2.CC_STAT_AREA] > 0.1 * A else near(j, 0.15 * bh))]
-                    sc = SW / W
-                    r.update(x0=round(min(s_[j, 0] for j in keep) * sc), y0=round(min(s_[j, 1] for j in keep) * sc),
-                             x1=round(max(s_[j, 0] + s_[j, 2] for j in keep) * sc), y1=round(max(s_[j, 1] + s_[j, 3] for j in keep) * sc),
-                             cx=round(float(np.nonzero(np.isin(lab, keep))[1].mean()) * sc, 1))   # 무게중심 - 팔을 뻗어도 덜 흔들린다
-                rows[t] = r
+                    out = np.isin(lab, keep)
+                have[t] = cv2.resize(out.astype(np.uint8), (MW, MH), interpolation=cv2.INTER_NEAREST).astype(bool)
                 done += 1
                 if done % 50 == 0:
-                    print("  상자 %d/%d" % (done, len(todo)), flush=True)
+                    print("  윤곽 %d/%d" % (done, len(todo)), flush=True)
             p.kill()
-        json.dump({"key": key, "rows": sorted(rows.values(), key=lambda r: r["t"])}, io.open(cache, "w", encoding="utf-8"))
-    return [rows[t] for t in want if t in rows]
+        ts = sorted(have)
+        np.savez_compressed(cache, key=key, t=np.array(ts), m=np.array([np.packbits(have[t].ravel()) for t in ts]))
+    return {t: have[t] for t in want if t in have}
 
 
-rows = track()
-T = np.array([r["t"] for r in rows])
-B = np.array([[r.get("x0", np.nan), r.get("y0", np.nan), r.get("x1", np.nan), r.get("y1", np.nan), r.get("cx", np.nan)] for r in rows], float)
-for c in range(5):                               # 못 찾은 칸은 이웃으로 메우고, 3칸 가운데값으로 튀는 것을 누른다
-    ok = ~np.isnan(B[:, c])
-    B[:, c] = np.interp(T, T[ok], B[ok, c])
-    B[:, c] = [np.median(B[max(0, i - 1):i + 2, c]) for i in range(len(B))]
+def stats(pts):
+    """점들 -> [x0, y0, x1, y1, 무게중심 x] (원본 px). 끝은 0.5 / 99.5 백분위 - 흐름이 튄 점 몇 개에 안 끌려가게"""
+    if len(pts) < 20:
+        return [np.nan] * 5
+    sc = SW / MW
+    x0, x1 = np.percentile(pts[:, 0], [0.5, 99.5]); y0, y1 = np.percentile(pts[:, 1], [0.5, 99.5])
+    return [x0 * sc, y0 * sc, x1 * sc, y1 * sc, pts[:, 0].mean() * sc]
+
+
+def dense():
+    """DFPS 마다 몸 [x0, y0, x1, y1, cx]. 윤곽이 있는 시각은 윤곽 그대로, 그 사이는 앞 윤곽의 점을 흐름대로 앞으로 옮긴 것과
+    뒤 윤곽의 점을 거꾸로 옮긴 것을 시간 비율로 섞는다 (한쪽만 쓰면 0.2초 사이에 흐름 오차가 쌓인다)"""
+    import cv2
+    M = masks_isnet()
+    mt = np.array(sorted(M))
+    T, V = [], []
+    for s, e in keep_ranges():
+        a0 = max(0.0, round(round((s - 0.2) * FPS) / FPS, 3))
+        dur = min(DUR, e + 0.4) - a0
+        raw = subprocess.run(["ffmpeg", "-v", "error", "-ss", "%.3f" % a0, "-i", SRC, "-t", "%.3f" % dur, "-vf",
+                              "fps=%d,scale=%d:%d,format=gray" % (DFPS, MW, MH), "-f", "rawvideo", "-"], capture_output=True).stdout
+        F = np.frombuffer(raw, np.uint8).reshape(-1, MH, MW)
+        ft = a0 + np.arange(len(F)) / DFPS
+        flow = lambda i, j: cv2.calcOpticalFlowFarneback(F[i], F[j], None, 0.5, 3, 21, 3, 5, 1.1, 0)
+        anchors = [(int(round((t - a0) * DFPS)), t) for t in mt if a0 - 1e-6 <= t <= ft[-1] + 1e-6]
+        vals = np.full((len(F), 5), np.nan)
+        for ia, ta in anchors:
+            vals[ia] = stats(np.argwhere(M[ta])[:, ::-1].astype(np.float32))
+        for (ia, ta), (ib, tb) in zip(anchors, anchors[1:]):
+            if ib - ia < 2:
+                continue
+            fw = {}
+            p = np.argwhere(M[ta])[::3, ::-1].astype(np.float32)
+            for i in range(ia, ib - 1):
+                fl = flow(i, i + 1)
+                q = np.clip(p.round().astype(int), 0, [MW - 1, MH - 1])
+                p = p + fl[q[:, 1], q[:, 0]]
+                fw[i + 1] = stats(p)
+            p = np.argwhere(M[tb])[::3, ::-1].astype(np.float32)
+            for i in range(ib, ia + 1, -1):
+                fl = flow(i, i - 1)
+                q = np.clip(p.round().astype(int), 0, [MW - 1, MH - 1])
+                p = p + fl[q[:, 1], q[:, 0]]
+                u = (i - 1 - ia) / (ib - ia)
+                vals[i - 1] = (1 - u) * np.array(fw[i - 1]) + u * np.array(stats(p))
+        keep = (ft >= s - 1e-6) & (ft <= e + 1e-6)
+        T.extend(ft[keep]); V.extend(vals[keep])
+    T, V = np.array(T), np.array(V)
+    for c in range(5):                             # 못 찾은 칸은 이웃으로
+        ok = ~np.isnan(V[:, c])
+        V[:, c] = np.interp(T, T[ok], V[ok, c])
+    return T, V
+
+
+T, B = dense()
 x0, y0, x1, y1, mcx = B.T
 
-# ---- 2. 카메라 ----
+# ---- 2. 카메라 - 몸과 같은 프레임에 움직인다 ----
 cam = E.get("camera") or {}
 punch = cam.get("punch") or []
-# 배율: 머리-발이 여백까지, 좌우 끝이 SIDE 여유까지 들어가는 높이. 앞뒤 LOOK_H 안 가장 큰 것을 다듬어 따라간다
-# 앞뒤 LOOK_H 안에서 몸이 가장 넓게 퍼진 범위 - 0.2초마다 좌우로 번갈아 차는 다리를 한 틀에 넣는다 (프레임마다 맞추면 흔들린다)
-win = 2 * int(LOOK_H * FPS) + 1
-ux0, ux1 = minimum_filter1d(x0, win), maximum_filter1d(x1, win)
-uy0, uy1 = minimum_filter1d(y0, win), maximum_filter1d(y1, win)
-need = np.maximum((uy1 - uy0) / (1 - HEAD - FOOT), (ux1 - ux0) / (ASP * (1 - 2 * SIDE)))
-BASE = min(SH, max(HMIN * SH, float(np.percentile(need, 50))))     # 요약에 찍는 가운데값
-H = gaussian_filter1d(need, SIG_H * FPS) * FIT
-H = np.clip(H, HMIN * SH, SH)
+sg = lambda a, sec: gaussian_filter1d(a, sec * DFPS) if sec > 0 else a
+# 배율: 이 프레임의 머리-발이 여백까지, 좌우 끝이 SIDE 여유까지 들어가는 높이. 몸이 퍼지면 그 프레임에 같이 넓히고
+# (미리 넓히면 카메라가 몸보다 먼저 움직인다), 다시 당길 때만 천천히 (ZOOM_IN h/초)
+need = np.maximum((sg(y1, SIG) - sg(y0, SIG)) / (1 - HEAD - FOOT), (sg(x1, SIG) - sg(x0, SIG)) / (ASP * (1 - 2 * SIDE)))
+need = np.clip(need, HMIN * SH, SH)
+H = need.copy()
+for i in range(1, len(H)):
+    H[i] = max(need[i], H[i - 1] - ZOOM_IN * H[i - 1] * (T[i] - T[i - 1]))
+BASE = float(np.percentile(need, 50))
 Wd = H * ASP
-# 가로: 무게중심을 다듬어 따라가고, 몸 끝이 상자 밖으로 나가려 하면 그만큼 민다 (몸이 상자보다 넓으면 무게중심 그대로)
-CX = gaussian_filter1d(mcx, SIG_X * FPS)
-lo, hi = ux1 - Wd / 2 + SIDE * Wd, ux0 + Wd / 2 - SIDE * Wd
-# 넓게 퍼진 범위가 다 들어가면 그 안에서 무게중심을 따르고, 원본 높이까지 넓혀도 안 들어가면 범위 가운데 - 한쪽만 잘리지 않게
-# (다리 차기 65.8-67.2초: 무게중심을 따라 왼쪽 90px 남기고 오른쪽 발이 90px 잘렸다)
+# 가로: 무게중심 그대로 (앞뒤 한두 프레임만 다듬음). 몸 끝이 상자 밖으로 나가려 하면 그 프레임에 민다, 넓혀도 안 들어가면 몸 가운데
+CX = sg(mcx, SIG)
+lo, hi = sg(x1, SIG) - Wd / 2 + SIDE * Wd, sg(x0, SIG) + Wd / 2 - SIDE * Wd
 CX = np.where(lo <= hi, np.clip(CX, lo, hi), (lo + hi) / 2)
-CX = gaussian_filter1d(CX, 0.1 * FPS)
 CX = np.clip(CX, Wd / 2, SW - Wd / 2)
-# 세로: 머리 위 여백을 느리게, 발이 잘리면 내리고 (머리 여백은 반까지만 내준다)
-TOP = gaussian_filter1d(y0 - HEAD * H, SIG_Y * FPS)
-TOP = np.maximum(TOP, np.minimum(y1 - H * (1 - FOOT * 0.5), y0 - HEAD * 0.5 * H))
-TOP = np.minimum(TOP, y0 - HEAD * 0.3 * H)
-TOP = gaussian_filter1d(TOP, 0.3 * FPS)
+# 세로: 머리 위 · 발 아래 여백이 같은 비율로 남게 몸 가운데에 (배율이 몸 높이로 정해진 프레임에서는 여백이 딱 HEAD · FOOT)
+TOP = ((sg(y0, SIG) - HEAD * H) + (sg(y1, SIG) + FOOT * H - H)) / 2
 TOP = np.clip(TOP, 0, SH - H)
 X = CX - Wd / 2
 
@@ -225,12 +266,12 @@ for t, b in zip(T, B):
         clip.append((t, over / k["h"]))
 
 cam["keys"] = keys
-cam["basis"] = "tools/dance_camera.py 트래킹 (isnet-anime %dfps, σ 가로 %.1f 세로 %.1f초, HEAD %.2f FOOT %.2f)" % (FPS, SIG_X, SIG_Y, HEAD, FOOT)
+cam["basis"] = "tools/dance_camera.py 트래킹 (isnet-anime %dfps + 광학 흐름 %dfps, σ %.2f초, HEAD %.2f FOOT %.2f)" % (FPS, DFPS, SIG, HEAD, FOOT)
 E["camera"] = cam
 io.open(os.path.join(work, "edit.json"), "w", encoding="utf-8").write(json.dumps(E, ensure_ascii=False, indent=2) + "\n")
 hs = [k["h"] for k in keys]
 tot = sum(e - s for s, e in keep_ranges())
-sp = np.abs(np.diff(CX)) * FPS / H[1:]
+sp = np.abs(np.diff(CX)) * DFPS / H[1:]
 print("카메라: 트래킹 키 %d (%.1f초) · 확대 %d · 배율 h %d-%d (가운데값 %d, 원본 %d) · 가로 속도 가운데값 %.3f / 95%% %.3f h/초"
       % (len(keys), tot, len(punch), min(hs), max(hs), BASE, SH, np.median(sp), np.percentile(sp, 95)))
 print("몸이 잘리는 순간 (1%% 넘게): %d%s" % (len(clip), "" if not clip else "  " + ", ".join("%.1f초 %.0f%%" % (t, o * 100) for t, o in clip[:12])))
