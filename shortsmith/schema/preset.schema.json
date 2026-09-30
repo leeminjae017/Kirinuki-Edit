@@ -1,0 +1,576 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/shortsmith/shortsmith/schema/preset.schema.json",
+  "title": "shortsmith preset",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "canvas",
+    "layout",
+    "fonts",
+    "captions"
+  ],
+  "$defs": {
+    "color": {
+      "type": "string"
+    },
+    "stroke": {
+      "type": "object",
+      "required": [
+        "width",
+        "color"
+      ],
+      "properties": {
+        "width": {
+          "type": "number"
+        },
+        "color": {
+          "$ref": "#/$defs/color"
+        }
+      }
+    },
+    "shadow": {
+      "type": "object",
+      "required": [
+        "offset",
+        "color"
+      ],
+      "properties": {
+        "offset": {
+          "type": "number"
+        },
+        "color": {
+          "$ref": "#/$defs/color"
+        }
+      }
+    },
+    "anim": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "const": "fade"
+            },
+            "inMs": {
+              "type": "number"
+            },
+            "outMs": {
+              "type": "number"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "ms",
+            "peak"
+          ],
+          "properties": {
+            "type": {
+              "const": "pop"
+            },
+            "ms": {
+              "type": "number"
+            },
+            "peak": {
+              "type": "number"
+            },
+            "wobble": {
+              "type": "boolean"
+            },
+            "upMs": {
+              "type": "number",
+              "description": "time to reach peak; default 60% of ms"
+            }
+          }
+        }
+      ]
+    },
+    "kind": {
+      "type": "object",
+      "required": [
+        "font",
+        "size",
+        "anim"
+      ],
+      "properties": {
+        "use": {
+          "type": "string",
+          "description": "When to pick this kind. Read by editors and the AI skill."
+        },
+        "font": {
+          "type": "string",
+          "description": "Key in fonts."
+        },
+        "size": {
+          "type": "number",
+          "description": "Line box height in px (ascent + descent), the ASS convention."
+        },
+        "fill": {
+          "$ref": "#/$defs/color"
+        },
+        "outline": {
+          "$ref": "#/$defs/stroke"
+        },
+        "shadow": {
+          "$ref": "#/$defs/shadow"
+        },
+        "glow": {
+          "$ref": "#/$defs/stroke"
+        },
+        "box": {
+          "type": "object",
+          "properties": {
+            "pad": {
+              "type": "number"
+            },
+            "color": {
+              "$ref": "#/$defs/color"
+            }
+          }
+        },
+        "wrap": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "anim": {
+          "$ref": "#/$defs/anim"
+        },
+        "look": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/paint"
+          },
+          "description": "Full control over layers. When absent, fill/outline/shadow/glow build it."
+        },
+        "accentColor": {
+          "type": "string",
+          "description": "Whole line in the captions.accent design with this fill."
+        },
+        "blur": {
+          "type": "number"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number",
+          "description": "Line center; default layout.captionY."
+        },
+        "lines": {
+          "type": "object",
+          "description": "Word-wrap into a box, shrinking by shrinkStep until it fits.",
+          "properties": {
+            "maxWidth": {
+              "type": "number"
+            },
+            "maxLines": {
+              "type": "integer"
+            },
+            "shrinkStep": {
+              "type": "number"
+            },
+            "lineGap": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    },
+    "gradient": {
+      "type": "object",
+      "required": [
+        "y0",
+        "y1",
+        "stops"
+      ],
+      "description": "Vertical gradient over the line box; y0/y1 are fractions of size from the line center (negative = up). The last stop color continues past it.",
+      "properties": {
+        "y0": {
+          "type": "number"
+        },
+        "y1": {
+          "type": "number"
+        },
+        "stops": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "paint": {
+      "type": "object",
+      "required": [
+        "z"
+      ],
+      "description": "One paint pass. Passes draw by ascending z and are shared by all word spans, like libass shadow < outline < fill. Colors may be \"$color\" (per-caption color, e.g. a guest) or \"$dark\".",
+      "properties": {
+        "z": {
+          "type": "number"
+        },
+        "dx": {
+          "type": "number"
+        },
+        "dy": {
+          "type": "number"
+        },
+        "fill": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/gradient"
+            }
+          ]
+        },
+        "stroke": {
+          "$ref": "#/$defs/stroke"
+        },
+        "blur": {
+          "type": "number",
+          "description": "edge blur, like ASS \\blur"
+        }
+      }
+    }
+  },
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "name": {
+      "type": "string"
+    },
+    "aliases": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Former names, so saved selections keep pointing at this preset."
+    },
+    "version": {
+      "type": "integer"
+    },
+    "visibility": {
+      "enum": [
+        "public",
+        "private"
+      ]
+    },
+    "extends": {
+      "type": "string",
+      "description": "Preset id to inherit from; this file's keys are merged over it."
+    },
+    "description": {
+      "type": "string"
+    },
+    "canvas": {
+      "type": "object",
+      "required": [
+        "width",
+        "height",
+        "fps"
+      ]
+    },
+    "layout": {
+      "type": "object",
+      "required": [
+        "window",
+        "captionY",
+        "maxTextWidth"
+      ],
+      "properties": {
+        "window": {
+          "type": "object",
+          "required": [
+            "x",
+            "y",
+            "w"
+          ],
+          "description": "Where the cropped source sits. h defaults to w * crop.h / crop.w."
+        },
+        "cropAspect": {
+          "type": "number",
+          "description": "Suggested crop width / height."
+        },
+        "face": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Default zoom center in canvas px."
+        },
+        "captionY": {
+          "type": "number"
+        },
+        "maxTextWidth": {
+          "type": "number"
+        }
+      }
+    },
+    "brand": {
+      "type": "object",
+      "description": "Channel-specific assets. Keep private presets out of public repositories.",
+      "properties": {
+        "background": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "file": {
+              "type": "string"
+            },
+            "offset": {
+              "type": "number"
+            }
+          }
+        },
+        "hostColor": {
+          "$ref": "#/$defs/color"
+        }
+      }
+    },
+    "cut": {
+      "type": "object",
+      "description": "Waveform cut detector (see lib/cuts.mjs)."
+    },
+    "audio": {
+      "type": "object",
+      "properties": {
+        "filters": {
+          "const": "none",
+          "description": "Only a fixed gain is applied. No denoise, highpass, limiter or loudnorm."
+        },
+        "fadeSec": {
+          "type": "number"
+        },
+        "targetLufs": {
+          "type": "number"
+        },
+        "maxTruePeakDb": {
+          "type": "number"
+        }
+      }
+    },
+    "pacing": {
+      "type": "object"
+    },
+    "fonts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "family"
+        ],
+        "properties": {
+          "family": {
+            "type": "string"
+          },
+          "file": {
+            "type": [
+              "string",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "File name (or candidate names) searched in the preset fonts/ folder, SHORTSMITH_FONTS and system font folders."
+          },
+          "lineToEm": {
+            "type": "number",
+            "description": "CSS font-size / line box height. Measured at runtime when absent."
+          },
+          "ascent": {
+            "type": "number",
+            "description": "Ascent share of the line box. Measured at runtime when absent."
+          },
+          "get": {
+            "type": "string",
+            "description": "Where to download it (and its license)."
+          }
+        }
+      }
+    },
+    "captions": {
+      "type": "object",
+      "required": [
+        "defaultKind",
+        "kinds"
+      ],
+      "properties": {
+        "defaultKind": {
+          "type": "string"
+        },
+        "rules": {
+          "type": "object"
+        },
+        "markColors": {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "fill": {
+                    "type": "string"
+                  },
+                  "outline": {
+                    "type": "string"
+                  }
+                }
+              }
+            ]
+          },
+          "description": "Colors for «word|name» marks."
+        },
+        "kinds": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/kind"
+          }
+        },
+        "markStyle": {
+          "enum": [
+            "fill",
+            "accent"
+          ],
+          "description": "How «word|color» marks are drawn."
+        },
+        "accent": {
+          "type": "object",
+          "description": "Accent design: fill, inner edge (light/dark by luminance threshold), outer edge = fill darkened.",
+          "properties": {
+            "inner": {
+              "type": "object"
+            },
+            "outer": {
+              "type": "object"
+            },
+            "sizeScale": {
+              "type": "number"
+            },
+            "gapEm": {
+              "type": "number",
+              "description": "Gap (in em) before and after a marked word so its thick edge does not touch the plain text."
+            }
+          }
+        },
+        "markKinds": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "«word|name» drawn with another kind's look, e.g. balkkeun -> outburst."
+        },
+        "kindNames": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Name written in the captions csv 'kind' column -> kind id (e.g. 강조 -> accent)."
+        },
+        "speakers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": "Caption speaker -> kind; null drops the row."
+        },
+        "speakerSuffix": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Speaker name ending -> kind (e.g. 강조 -> accent)."
+        },
+        "host": {
+          "type": "string"
+        },
+        "guestKind": {
+          "type": "string",
+          "description": "Kind for any other speaker; its \"$color\" comes from guests or guestPalette."
+        },
+        "guests": {
+          "type": "object"
+        },
+        "guestPalette": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "title": {
+      "type": "object"
+    },
+    "chat": {
+      "type": "object"
+    },
+    "image": {
+      "type": "object"
+    },
+    "effects": {
+      "type": "object"
+    },
+    "guidance": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Short editing rules for whoever writes fx.json."
+    },
+    "inserts": {
+      "type": "object",
+      "description": "Defaults for fx.json inserts (still cut from the source shown large over a background).",
+      "properties": {
+        "background": {
+          "type": "string"
+        },
+        "bgScale": {
+          "type": "number"
+        },
+        "maxW": {
+          "type": "number"
+        },
+        "maxH": {
+          "type": "number"
+        },
+        "maxZoom": {
+          "type": "number"
+        },
+        "hideCaptions": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

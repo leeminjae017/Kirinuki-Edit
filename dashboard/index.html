@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>편집 관리 대시보드</title>
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/ai.css">
+<link rel="stylesheet" href="css/editor.css">
+<link rel="stylesheet" href="css/feedback.css">
+<link rel="stylesheet" href="css/projects.css">
+</head>
+<body>
+
+<!-- ===== 아이콘 스프라이트 ===== -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-ai" viewBox="0 0 24 24"><path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3z"/><path d="M18.5 14.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2z"/><path d="M5 14l.6 1.7 1.7.6-1.7.7L5 18.6 4.4 17l-1.7-.7 1.7-.6L5 14z"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><path d="M3 5h18M3 12h18M3 19h18" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/><circle cx="8" cy="5" r="2.4"/><circle cx="15" cy="12" r="2.4"/><circle cx="10" cy="19" r="2.4"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6z"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 3h8l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/></symbol>
+    <symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="6" width="12" height="12" rx="2"/><path d="M16 12l5-3v10l-5-3z"/></symbol>
+    <symbol id="i-audio" viewBox="0 0 24 24"><path d="M4 10h3l4-4v12l-4-4H4z"/><path d="M15 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-caption" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M6.5 12.5h5M6.5 15.5h11M13 12.5h4.5" stroke="#12141a" stroke-width="1.8" stroke-linecap="round" fill="none"/></symbol>
+    <symbol id="i-sfx" viewBox="0 0 24 24"><path d="M3 13h2.5l2-6 3 14 3-11 2 3H21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5l13 7.5-13 7.5z"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="4" width="4.2" height="16" rx="1"/><rect x="14" y="4" width="4.2" height="16" rx="1"/></symbol>
+    <symbol id="i-cut" viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.6" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="18" cy="18" r="2.6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M7.5 16L18 4M16.5 16L6 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-note" viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v9A1.5 1.5 0 0 1 18.5 16H9l-5 4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M7.5 8h9M7.5 11.5h6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 20L19 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 5h7v7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20l1-4.5L15.5 5a2.1 2.1 0 0 1 3 3L8 18.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-region" viewBox="0 0 24 24"><rect x="3" y="5" width="12" height="9" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-dasharray="3 2.4"/><path d="M13 17.5h8v4h-8z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M13.6 17.2L10 14.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-line" viewBox="0 0 24 24"><path d="M4 20L20 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-curve" viewBox="0 0 24 24"><path d="M3.5 18.5c3.5 0 4-11 8.5-11s5 7.5 8 7.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M17 11.6l3.4 3.4-3.4 3.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-eraser" viewBox="0 0 24 24"><path d="M8 19l-4-4a1.8 1.8 0 0 1 0-2.6l7.4-7.4a1.8 1.8 0 0 1 2.6 0l4.4 4.4a1.8 1.8 0 0 1 0 2.6L12 19z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 19h11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-sync" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 13.7-5.6M20 12a8 8 0 0 1-13.7 5.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M18 3v4h-4M6 21v-4h4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="3" width="12" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 19v1a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h1" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-save" viewBox="0 0 24 24"><path d="M5 3h11l3 3v15H5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 3v6h7V3M8 21v-6h8v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-open" viewBox="0 0 24 24"><path d="M12 16V4m0 0L8 8m4-4l4 4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v12m0 0l-4-4m4 4l4-4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 20h16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+    <symbol id="i-analyze" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M16 16l5 5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M8.5 11.5l1.8 1.8 3.4-3.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-apply" viewBox="0 0 24 24"><path d="M4 12l5 5L20 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-log" viewBox="0 0 24 24"><path d="M4 5h16M4 10h16M4 15h10M4 20h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-prompt" viewBox="0 0 24 24"><path d="M4 6l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 17h8" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+    <symbol id="i-lang" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18M12 3c2.5 3 2.5 15 0 18M12 3c-2.5 3-2.5 15 0 18" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="i-render" viewBox="0 0 24 24"><path d="M3 17V7l7 5-7 5z"/><rect x="12" y="6" width="9" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-csv" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3 9h18M9 9v11M15 9v11" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="2.6" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 10h3l4-4v12l-4-4H4z"/><path d="M15 10l5 5M20 10l-5 5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.6"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4.5" y="10.5" width="15" height="10" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="15.5" r="1.5"/></symbol>
+    <symbol id="i-magnet" viewBox="0 0 24 24"><path d="M5 4v8a7 7 0 0 0 14 0V4h-4.5v8a2.5 2.5 0 0 1-5 0V4H5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M5 8h4.5M14.5 8H19" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="18.5" cy="12" r="1.7"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="M8 10l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3l8 4.5-8 4.5-8-4.5L12 3z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M4 12.5l8 4.5 8-4.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M17.5 18v5M15 20.5h5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+    <symbol id="i-vol" viewBox="0 0 24 24"><path d="M4 10h3.5L12 6v12l-4.5-4H4z"/><path d="M15.5 9.5a3.6 3.6 0 0 1 0 5M18 7a7 7 0 0 1 0 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
+<!-- ===== 상단 바 ===== -->
+<header class="topbar">
+  <div class="brand">
+    <svg class="i i-lg brand-mark"><use href="#i-render"/></svg>
+    <span>편집 관리 대시보드</span>
+  </div>
+
+  <button class="pchip" id="projChip" title="프로젝트 매니저 열기">
+    <svg class="i"><use href="#i-folder"/></svg>
+    <span class="pchip-txt">
+      <span class="pchip-name">이름 없는 프로젝트</span>
+      <span class="pchip-sub">스타일 없음</span>
+    </span>
+  </button>
+
+  <nav class="maintabs" role="tablist">
+    <button class="mtab is-active" data-view="ai" role="tab">
+      <svg class="i"><use href="#i-ai"/></svg><span>AI 편집</span>
+    </button>
+    <button class="mtab" data-view="user" role="tab">
+      <svg class="i"><use href="#i-note"/></svg><span>피드백</span>
+    </button>
+  </nav>
+
+  <div class="topbar-actions">
+    <span class="srv-state is-off" id="srvState" title="로컬 서버 없음"><i class="dot"></i></span>
+    <button class="btn btn-ghost btn-icon" id="btnProjSave" title="프로젝트 저장 (Ctrl+S)"><svg class="i"><use href="#i-save"/></svg></button>
+    <div class="menu-wrap">
+      <button class="btn btn-ghost btn-icon" id="btnMenu" title="메뉴"><svg class="i"><use href="#i-menu"/></svg></button>
+      <div class="menu menu-right" id="mainMenu" hidden>
+        <button data-act="new"><svg class="i"><use href="#i-plus"/></svg>새 프로젝트 추가</button>
+        <button data-act="manager"><svg class="i"><use href="#i-grid"/></svg>프로젝트 매니저</button>
+        <hr>
+        <button data-act="save"><svg class="i"><use href="#i-save"/></svg>프로젝트 저장<span class="kbd">Ctrl+S</span></button>
+        <button data-act="import"><svg class="i"><use href="#i-open"/></svg>프로젝트 불러오기</button>
+        <button data-act="export"><svg class="i"><use href="#i-down"/></svg>파일로 내보내기</button>
+        <hr>
+        <button data-act="clear"><svg class="i"><use href="#i-trash"/></svg>이 프로젝트 비우기</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ===================== AI 편집 ===================== -->
+<main class="view is-active" id="view-ai">
+  <div class="ai-grid">
+
+    <!-- 좌: 스타일 적용 / 스타일 분석 (탭). 적용이 먼저다 - 훨씬 자주 쓴다 (사용자 2026-09-28) -->
+    <section class="panel" id="paneStyle">
+      <div class="panel-head">
+        <div class="subtabs" role="tablist">
+          <button class="stab is-active" data-stab="apply" role="tab">
+            <svg class="i"><use href="#i-apply"/></svg><span>스타일 적용</span>
+          </button>
+          <button class="stab" data-stab="analyze" role="tab">
+            <svg class="i"><use href="#i-analyze"/></svg><span>스타일 분석</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 스타일 분석 -->
+      <div class="panel-body stab-body" data-stab-body="analyze">
+        <div class="field">
+          <label class="field-label"><svg class="i"><use href="#i-folder"/></svg>원본 파일 / 폴더</label>
+          <div class="dropzone" data-dz="analyze.src" data-hint="편집 전 원본 영상 폴더를 끌어다 놓기"></div>
+        </div>
+        <div class="field">
+          <label class="field-label"><svg class="i"><use href="#i-folder"/></svg>편집본 파일 / 폴더</label>
+          <div class="dropzone" data-dz="analyze.edited" data-hint="같은 소재의 완성 편집본 폴더를 끌어다 놓기"></div>
+        </div>
+
+        <div class="field">
+          <label class="field-label">스타일 이름</label>
+          <input type="text" class="input" id="styleName" placeholder="예: 담유이 숏폼 v3">
+        </div>
+
+        <div class="row-actions">
+          <button class="btn btn-primary" id="btnAnalyze" title="분석 작업을 정의하고 프롬프트를 클립보드로 넘깁니다"><svg class="i"><use href="#i-analyze"/></svg><span>스타일 분석</span></button>
+          <button class="btn" id="btnAnalyzeSave" title="작업 정의를 JSON으로 저장"><svg class="i"><use href="#i-down"/></svg><span>작업 JSON</span></button>
+        </div>
+
+        <details class="foldout">
+          <summary>분석 결과 등록 (Claude Code 출력 JSON 붙여넣기)</summary>
+          <textarea class="input mono" id="analyzeResult" rows="6" placeholder="{ &quot;name&quot;: &quot;담유이 숏폼 v3&quot;, &quot;cut&quot;: {}, &quot;caption&quot;: {} }&#10;&#10;JSON 파일을 여기에 끌어다 놓아도 됩니다 (styles/ 폴더)"></textarea>
+          <div class="row-actions">
+            <button class="btn btn-primary btn-sm" id="btnStyleRegister"><svg class="i"><use href="#i-plus"/></svg><span>스타일 목록에 등록</span></button>
+          </div>
+        </details>
+
+        <div class="field grow">
+          <label class="field-label">등록된 스타일</label>
+          <ul class="style-list" id="styleList"></ul>
+        </div>
+      </div>
+
+      <!-- 스타일 적용 -->
+      <div class="panel-body stab-body is-active" data-stab-body="apply">
+        <div class="field">
+          <label class="field-label"><svg class="i"><use href="#i-folder"/></svg>편집 대상 파일 / 폴더</label>
+          <div class="dropzone" data-dz="apply.target" data-hint="편집할 원본 영상 폴더를 끌어다 놓기"></div>
+        </div>
+
+        <!-- 연출 소스: 그림 · 사진 · 효과음 · 예시 캡처 등 편집에 넣을 재료 (2026-09-17 지시) -->
+        <div class="field">
+          <label class="field-label"><svg class="i"><use href="#i-file"/></svg>소스 파일 / 폴더 <span class="tag">선택</span></label>
+          <div class="dropzone" data-dz="apply.assets" data-hint="넣을 그림 · 사진 · 효과음 · 예시 캡처를 끌어다 놓기"></div>
+        </div>
+
+        <div class="field">
+          <label class="field-label">스타일 선택</label>
+          <select class="input" id="styleSelect"></select>
+          <p class="hint" id="styleMeta">스타일 분석 탭에서 먼저 등록하세요.</p>
+        </div>
+
+        <div class="field grow">
+          <label class="field-label">출력 예정</label>
+          <ul class="output-list" id="outputList"></ul>
+        </div>
+
+        <div class="row-actions">
+          <button class="btn btn-primary" id="btnApply" title="편집 작업을 정의하고 프롬프트를 클립보드로 넘깁니다"><svg class="i"><use href="#i-apply"/></svg><span>스타일 적용</span></button>
+          <button class="btn" id="btnApplySave"><svg class="i"><use href="#i-down"/></svg><span>작업 JSON</span></button>
+        </div>
+      </div>
+    </section>
+
+    <div class="gutter gutter-x" id="gAiC1" title="드래그: 너비 조절 · 더블클릭: 기본값"><i></i></div>
+
+    <!-- 중: 추가 프롬프트 (공통) -->
+    <section class="panel" id="panePrompt">
+      <div class="panel-head">
+        <h2 class="panel-title"><svg class="i"><use href="#i-prompt"/></svg>추가 프롬프트 <span class="tag">공통</span></h2>
+      </div>
+      <div class="panel-body">
+        <div class="field grow">
+          <label class="field-label">지시문</label>
+          <textarea class="input mono grow-area" id="extraPrompt" placeholder="예) 컷 간격을 조금 더 촘촘하게. 리액션 구간은 남기고 침묵 0.4초 이상만 제거."></textarea>
+          <p class="hint"><span id="promptChars">0</span>자 · 예상 <span id="promptTokens">0</span> 토큰</p>
+        </div>
+
+        <div class="field">
+          <label class="field-label"><svg class="i"><use href="#i-lang"/></svg>다국어 설정</label>
+          <input type="text" class="input" id="langInput" placeholder="예: ko, en, ja">
+          <p class="hint">쉼표로 구분 · <b>자막만</b> 다국어로 생성됩니다</p>
+          <div class="lang-chips" id="langChips"></div>
+        </div>
+
+        <details class="foldout">
+          <summary>AI 호출 정책</summary>
+          <select class="input" id="aiPolicy">
+            <option value="on-demand" selected>필요할 때만 호출 (토큰 절약)</option>
+            <option value="always">단계마다 호출</option>
+            <option value="manual">호출 안 함 (프롬프트만 생성)</option>
+          </select>
+          <p class="hint">Claude API를 직접 호출하지 않습니다. 작업 정의와 프롬프트만 만들고, 실행은 Claude Code에서 합니다.</p>
+        </details>
+      </div>
+    </section>
+
+    <div class="gutter gutter-x" id="gAiC2" title="드래그: 너비 조절 · 더블클릭: 기본값"><i></i></div>
+
+    <!-- 우: 로그 (공통) -->
+    <section class="panel" id="paneLog">
+      <div class="panel-head">
+        <h2 class="panel-title"><svg class="i"><use href="#i-log"/></svg>로그 <span class="tag">공통</span></h2>
+        <div class="head-actions">
+          <select class="input input-sm log-level" title="표시 단계">
+            <option value="INFO" selected>INFO</option>
+            <option value="WARNING">WARNING</option>
+            <option value="ERROR">ERROR</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" id="btnLogCopy" title="로그 복사"><svg class="i"><use href="#i-copy"/></svg></button>
+          <button class="btn btn-ghost btn-sm" id="btnLogClear" title="로그 지우기"><svg class="i"><use href="#i-trash"/></svg></button>
+        </div>
+      </div>
+      <div class="panel-body log-body">
+        <ol class="log" data-log-view></ol>
+      </div>
+      <div class="panel-foot log-foot">
+        <span data-log-count="INFO">INFO 0</span>
+        <span data-log-count="WARNING">WARNING 0</span>
+        <span data-log-count="ERROR">ERROR 0</span>
+      </div>
+    </section>
+  </div>
+</main>
+
+<!-- ===================== 피드백 ===================== -->
+<!--
+  클립을 만지는 편집기가 아니다. 클로드가 낸 1차 작업본을 놓고 그 위에
+  고칠 데를 짚어 주는 화면이다. 그래서 타임라인도 인스펙터도 없다.
+
+      추가 소스 | 영상 (+ 피드백 레이어)
+      자막      | 프롬프트 + 재 편집
+-->
+<main class="view" id="view-user">
+  <div class="fb-grid">
+
+    <!-- ---------- 왼쪽: 추가 소스 / 자막 ---------- -->
+    <section class="panel" id="paneSrc">
+      <div class="panel-head">
+        <h2 class="panel-title"><svg class="i"><use href="#i-folder"/></svg><span>추가 소스</span></h2>
+        <div class="head-actions">
+          <button class="btn btn-ghost btn-sm" id="btnSrcClear" title="비우기"><svg class="i"><use href="#i-trash"/></svg></button>
+        </div>
+      </div>
+      <div class="panel-body src-body">
+        <div class="dropzone dropzone-sm" data-dz="feedback.src" data-hint="더 넣을 영상 · 소리 · 그림 끌어다 놓기"></div>
+      </div>
+    </section>
+
+    <div class="gutter gutter-y" id="gFbR1" title="드래그: 크기 조절 · 더블클릭: 기본값"><i></i></div>
+
+    <section class="panel" id="paneSubs">
+      <div class="panel-head">
+        <div class="itabs" role="tablist">
+          <button class="itab is-active" data-sub="src" role="tab">원본</button>
+          <button class="itab" data-sub="out" role="tab">편집</button>
+        </div>
+        <label class="fb-ripple is-on" id="fbRipple" title="리플 켬: 뺀 자리를 당겨 붙이고 되살린 만큼 뒤를 민다&#10;리플 끔: 뒤 시각을 그대로 둔다 - 뺀 자리는 빈 틈(검은 화면 · 무음), 되살린 말은 옆 내용을 덮어쓴다">
+          <input type="checkbox" checked><span class="sw" aria-hidden="true"></span><span class="lb">리플</span>
+        </label>
+      </div>
+      <div class="panel-body subs-body subs-line" id="subsAll"></div>
+    </section>
+
+    <div class="gutter gutter-x" id="gFbC1" title="드래그: 크기 조절 · 더블클릭: 기본값"><i></i></div>
+
+    <!-- ---------- 오른쪽: 영상 + 프롬프트 + 재 편집 ----------
+         가로 영상: 영상이 위, 그 아래 프롬프트 | 재 편집
+         세로 영상: 왼쪽에 프롬프트 / 재 편집, 오른쪽에 영상 통째로
+         (지시) 배치는 .fb-grid.is-vert 하나로 갈린다. -->
+    <div class="fb-main">
+      <section class="panel" id="paneVideo">
+        <div class="panel-head">
+          <h2 class="panel-title"><svg class="i"><use href="#i-video"/></svg><span>영상</span></h2>
+          <div class="head-actions">
+            <div class="fbtools" role="toolbar">
+              <button class="btn btn-icon btn-sm is-toggle is-on" data-tool="pick" title="선택"><svg class="i"><use href="#i-eye"/></svg></button>
+              <i class="fbtools-sep"></i>
+              <button class="btn btn-icon btn-sm is-toggle" data-tool="note" title="메모"><svg class="i"><use href="#i-note"/></svg></button>
+              <button class="btn btn-icon btn-sm is-toggle" data-tool="region" title="영역 메모 — 영역을 잡고 쪽지를 붙인다"><svg class="i"><use href="#i-region"/></svg></button>
+              <i class="fbtools-sep"></i>
+              <button class="btn btn-icon btn-sm is-toggle" data-tool="line" title="선"><svg class="i"><use href="#i-line"/></svg></button>
+              <button class="btn btn-icon btn-sm is-toggle" data-tool="arrow" title="화살표 (직선)"><svg class="i"><use href="#i-arrow"/></svg></button>
+              <button class="btn btn-icon btn-sm is-toggle" data-tool="curve" title="화살표 (곡선) — 끈 자취를 따라간다"><svg class="i"><use href="#i-curve"/></svg></button>
+              <i class="fbtools-sep"></i>
+              <button class="btn btn-icon btn-sm btn-quiet-danger" id="btnFbClear" title="제거 — 이 영상의 피드백 전부"><svg class="i"><use href="#i-eraser"/></svg></button>
+            </div>
+            <select class="input input-sm" id="fbLang" title="어느 완성본을 볼지"></select>
+          </div>
+        </div>
+        <div class="panel-body video-body">
+          <div class="fb-stage-wrap">
+            <div class="fb-stage" id="fbStage">
+              <video id="fbVideo" playsinline></video>
+              <svg class="fb-draw" id="fbDraw" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <marker id="fbArrowHead" viewBox="0 0 10 10" refX="9" refY="5"
+                          markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+                    <path d="M0 0L10 5L0 10z" fill="currentColor"/>
+                  </marker>
+                </defs>
+                <g id="fbShapes"></g>
+              </svg>
+              <div class="fb-cards" id="fbCards"></div>
+              <div class="fb-pins" id="fbPins"></div>
+              <div class="fb-empty" id="fbEmpty">완성본이 없습니다 — 편집을 먼저 내보내세요</div>
+            </div>
+          </div>
+          <div class="transport fb-transport">
+            <button class="btn btn-icon" id="fbPlay" title="재생 / 일시정지 (Space)"><svg class="i"><use href="#i-play"/></svg></button>
+            <span class="tc" id="fbNow">0:00.00</span>
+            <span class="tc-sep">/</span>
+            <span class="tc tc-dim" id="fbTotal">0:00.00</span>
+            <div class="fb-scrub"><div class="fb-scrub-bar" id="fbScrub"><i class="fb-scrub-fill" id="fbScrubFill"></i></div></div>
+            <label class="btn btn-icon is-toggle is-on" id="fbVolBtn" title="소리">
+              <input type="checkbox" id="fbVol" checked hidden><svg class="i"><use href="#i-vol"/></svg>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <div class="gutter" id="gFbR2" title="드래그: 크기 조절 · 더블클릭: 기본값"><i></i></div>
+
+      <div class="fb-side">
+        <section class="panel" id="panePromptFb">
+          <div class="panel-head">
+            <h2 class="panel-title"><svg class="i"><use href="#i-prompt"/></svg><span>프롬프트</span></h2>
+            <div class="head-actions">
+              <button class="btn btn-ghost btn-sm" id="btnFbCopy" title="피드백 전부 복사 — 클로드에게 넘길 것"><svg class="i"><use href="#i-copy"/></svg></button>
+            </div>
+          </div>
+          <div class="panel-body prompt-body">
+            <textarea class="input fb-prompt" id="fbPrompt" rows="3"
+                      placeholder="영상 전반에 대한 지시 — 말소리가 잘린다, 여백이 길다 …"></textarea>
+            <div class="fb-notes" id="fbNotes"></div>
+          </div>
+        </section>
+
+        <div class="gutter" id="gFbR3" title="드래그: 크기 조절 · 더블클릭: 기본값"><i></i></div>
+
+        <section class="panel" id="paneRender">
+          <div class="panel-head">
+            <h2 class="panel-title"><svg class="i"><use href="#i-render"/></svg><span>재 편집</span></h2>
+            <div class="head-actions">
+              <button class="btn btn-ai btn-sm" id="btnFbEdit" title="편집 (AI): 프롬프트 · 쪽지 · 고친 자막을 저장하고 Claude 작업으로 넘깁니다 - 컷 · 연출 · 판단이 필요한 고침"><svg class="i"><use href="#i-ai"/></svg><span>편집</span></button>
+              <button class="btn btn-primary btn-sm" id="btnFbRender" title="렌더 (AI 없음): 고친 자막과 되살리기 · 빼기(미리보기에서 들은 그대로)를 반영해 바로 다시 굽습니다"><svg class="i"><use href="#i-render"/></svg><span>렌더</span></button>
+            </div>
+          </div>
+          <div class="panel-body render-body">
+            <div class="rnd-prog" id="rndProg" hidden>
+              <div class="rnd-prog-head"><span id="rndStep">준비</span><b id="rndPct">0%</b></div>
+              <div class="rnd-bar"><i id="rndBar"></i></div>
+              <div class="rnd-meta" id="rndMeta"></div>
+              <div class="rnd-log" id="rndLog"></div>
+            </div>
+            <div class="field">
+              <label class="field-label" for="rndDir">작업 폴더</label>
+              <input class="input input-sm" id="rndDir" placeholder="edit/네모비틱">
+            </div>
+            <div class="field">
+              <label class="field-label" for="rndOut">내보낼 곳</label>
+              <input class="input input-sm" id="rndOut" placeholder="비우면 파이프라인 기본값">
+            </div>
+            <div class="field">
+              <label class="field-label" for="rndBase">기준 언어</label>
+              <select class="input input-sm" id="rndBase">
+                <option value="ko">한국어</option>
+                <option value="en">English</option>
+              </select>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- 모달 -->
+<div class="modal-backdrop" id="modalBackdrop" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <h3 id="modalTitle">제목</h3>
+      <button class="btn btn-ghost btn-sm" id="modalClose"><svg class="i"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-foot" id="modalFoot"></div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- ===================== 프로젝트 매니저 ===================== -->
+<main class="view" id="view-projects">
+  <div class="pm">
+    <div class="pm-head">
+      <h2>프로젝트</h2>
+      <span class="pm-count" id="pmCount"></span>
+      <input class="pm-search" id="pmSearch" type="search" placeholder="이름 · 스타일로 찾기">
+      <span class="pm-spacer"></span>
+      <button class="btn btn-primary" id="pmNew"><svg class="i"><use href="#i-plus"/></svg><span>새 프로젝트 추가</span></button>
+      <button class="btn" id="pmImport"><svg class="i"><use href="#i-open"/></svg><span>프로젝트 불러오기</span></button>
+      <button class="btn btn-ghost" id="pmBack"><svg class="i"><use href="#i-x"/></svg><span>닫기</span></button>
+    </div>
+    <div class="pm-grid" id="pmGrid"></div>
+    <div class="pm-where" id="pmWhere"></div>
+  </div>
+</main>
+
+<script src="js/core.js"></script>
+<script src="js/server.js"></script>
+<script src="js/split.js"></script>
+<script src="js/dnd.js"></script>
+<script src="js/csv.js"></script>
+<script src="js/fonts.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/vendor/shortsmith-preview.js"></script>
+<script src="js/feedback.js"></script>
+<script src="js/projects.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+{
+  "name": "shortsmith",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "typecheck": "tsc -p .",
+    "preview:build": "esbuild preview/entry.tsx --bundle --minify --format=iife --global-name=ShortsmithPreview --outfile=dist/preview.js --define:process.env.NODE_ENV=\\\"production\\\""
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.525",
+    "@remotion/cli": "4.0.525",
+    "@remotion/player": "4.0.525",
+    "@remotion/renderer": "4.0.525",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "remotion": "4.0.525"
+  },
+  "devDependencies": {
+    "@types/react": "19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "esbuild": "0.25.10",
+    "typescript": "5.9.2"
+  },
+  "version": "0.1.0",
+  "description": "Cut, caption and render vertical shorts: waveform cuts and GPU encoding with ffmpeg, captions and motion graphics in React (Remotion).",
+  "license": "AGPL-3.0-only",
+  "bin": {
+    "shortsmith": "bin/shortsmith.mjs"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "src",
+    "preview",
+    "presets",
+    "schema",
+    "dist",
+    "skills",
+    ".claude-plugin",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

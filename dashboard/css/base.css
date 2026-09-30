@@ -1,0 +1,261 @@
+/* ============ 토큰 ============ */
+:root{
+  --bg:#101216;
+  --bg-2:#161920;
+  --panel:#1a1e26;
+  --panel-2:#20252f;
+  --line:#2a3140;
+  --line-2:#39445a;
+  --txt:#dfe4ee;
+  --txt-dim:#8d97ab;
+  --txt-mute:#66708a;
+  --accent:#4c8dff;
+  --accent-2:#2f6ede;
+  --ok:#3ecf8e;
+  --warn:#e8b53f;
+  --err:#ef5f5f;
+  --video:#3f7bd4;
+  --audio:#2fa98a;
+  --caption:#b46bd6;
+  --sfx:#d0863a;
+  --r:9px;
+  --r-sm:6px;
+  --head-h:36px;
+  --gut:9px;
+  --font: "Pretendard", "Malgun Gothic", "Segoe UI", system-ui, sans-serif;
+  --mono: "Cascadia Mono", "D2Coding", Consolas, "Courier New", monospace;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--bg); color:var(--txt);
+  font-family:var(--font); font-size:13px; line-height:1.45;
+  display:flex; flex-direction:column; overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{margin:0; font-size:13px; font-weight:600}
+ul,ol{margin:0; padding:0; list-style:none}
+button{font-family:inherit}
+
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#333c4e;border-radius:6px;border:2px solid var(--bg)}
+::-webkit-scrollbar-thumb:hover{background:#44506a}
+
+/* ============ 아이콘 ============ */
+.i{width:15px;height:15px;fill:currentColor;flex:0 0 auto;display:block}
+.i-lg{width:19px;height:19px}
+
+/* ============ 상단 바 ============ */
+.topbar{
+  height:44px; flex:0 0 auto; display:flex; align-items:center; gap:14px;
+  padding:0 10px; background:var(--bg-2); border-bottom:1px solid var(--line);
+}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;letter-spacing:-.2px}
+.brand-mark{color:var(--accent)}
+.maintabs{display:flex;gap:2px;margin-left:2px;background:#141821;border:1px solid var(--line);border-radius:8px;padding:2px}
+.mtab{
+  display:flex;align-items:center;gap:6px;height:26px;padding:0 11px;
+  background:transparent;border:0;border-radius:6px;
+  color:var(--txt-mute);cursor:pointer;font-size:12px;font-weight:650;
+}
+.mtab:hover{color:var(--txt)}
+.mtab.is-active{color:#eaf1ff;background:#2a3448;box-shadow:inset 0 0 0 1px #3b4a68}
+.mtab.is-active .i{color:var(--accent)}
+.topbar-actions{margin-left:auto;display:flex;align-items:center;gap:6px}
+
+/* ============ 뷰 ============ */
+.view{display:none;flex:1 1 auto;min-height:0;padding:9px;overflow:hidden}
+.view.is-active{display:block}
+
+/* ============ 스플리터(거터) ============ */
+.gutter{
+  position:relative;display:flex;align-items:center;justify-content:center;
+  background:transparent;touch-action:none;user-select:none;z-index:9;
+}
+.gutter-x{cursor:col-resize}
+.gutter-y{cursor:row-resize}
+.gutter>i{
+  display:block;background:transparent;border-radius:3px;transition:background .12s;
+}
+.gutter-x>i{width:3px;height:36px}
+.gutter-y>i{width:36px;height:3px}
+.gutter:hover>i{background:var(--line-2)}
+.gutter.is-drag>i,.gutter:active>i{background:var(--accent)}
+.gutter.is-drag{background:rgba(76,141,255,.08)}
+body.is-resizing{cursor:inherit;user-select:none}
+body.is-resizing .panel{pointer-events:none}
+
+/* ============ 패널 ============ */
+.panel{
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden;
+}
+.panel-head{
+  height:var(--head-h);flex:0 0 auto;display:flex;align-items:center;gap:8px;
+  padding:0 9px;border-bottom:1px solid var(--line);background:var(--panel-2);
+}
+/* 패널 이름은 안내가 아니라 이름표다. 작고 조용하게 둔다. */
+.panel-title{display:flex;align-items:center;gap:6px;color:var(--txt-dim)}
+.panel-title span{font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase}
+.panel-title .i{color:var(--txt-mute)}
+.head-actions{margin-left:auto;display:flex;align-items:center;gap:5px}
+.panel-body{flex:1 1 auto;min-height:0;overflow:auto;padding:11px;display:flex;flex-direction:column;gap:12px}
+.panel-foot{flex:0 0 auto;border-top:1px solid var(--line);padding:6px 10px;background:var(--panel-2)}
+.tag{
+  font-size:10.5px;font-weight:600;color:var(--txt-mute);border:1px solid var(--line-2);
+  border-radius:999px;padding:1px 7px;letter-spacing:.2px;
+}
+
+/* ============ 폼 ============ */
+.field{display:flex;flex-direction:column;gap:6px;flex:0 0 auto}
+.field.grow{flex:1 1 auto;min-height:0}
+.field-label{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--txt-dim);letter-spacing:.2px}
+.field-label .i{width:13px;height:13px}
+.input{
+  background:var(--bg);border:1px solid var(--line);border-radius:var(--r-sm);
+  color:var(--txt);padding:7px 9px;font-size:12.5px;font-family:inherit;width:100%;
+  outline:none;transition:border-color .12s;
+}
+.input:focus{border-color:var(--accent)}
+.input:disabled{opacity:.5}
+select.input{cursor:pointer;appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--txt-dim) 50%),linear-gradient(135deg,var(--txt-dim) 50%,transparent 50%);background-position:calc(100% - 15px) 12px,calc(100% - 10px) 12px;background-size:5px 5px;background-repeat:no-repeat;padding-right:26px}
+.input-sm{padding:4px 7px;font-size:11.5px;width:auto;background-position:calc(100% - 13px) 10px,calc(100% - 9px) 10px}
+textarea.input{resize:vertical;min-height:64px;line-height:1.5}
+.mono{font-family:var(--mono);font-size:12px}
+.grow-area{flex:1 1 auto;min-height:100px;resize:none}
+.hint{margin:0;font-size:11px;color:var(--txt-mute);line-height:1.5}
+.hint b{color:var(--txt-dim)}
+.empty-note{margin:0;color:var(--txt-mute);font-size:12px;text-align:center;padding:20px 0}
+.chk{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--txt-dim);cursor:pointer;user-select:none}
+.chk input{accent-color:var(--accent);margin:0}
+
+/* ============ 버튼 ============ */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  height:30px;padding:0 11px;border-radius:var(--r-sm);cursor:pointer;
+  background:var(--panel-2);border:1px solid var(--line-2);color:var(--txt);
+  font-size:12px;font-weight:600;white-space:nowrap;transition:.12s;
+}
+.btn:hover{background:#28303d;border-color:#4a566f}
+.btn:active{transform:translateY(1px)}
+.btn .i{color:var(--txt-dim)}
+.btn:hover .i{color:var(--txt)}
+.btn-primary{background:var(--accent);border-color:var(--accent-2);color:#fff}
+.btn-primary .i,.btn-primary:hover .i{color:#fff}
+.btn-primary:hover{background:#5b98ff;border-color:var(--accent)}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--txt-dim)}
+.btn-ghost:hover{background:#262d3a;color:var(--txt)}
+.btn-sm{height:26px;padding:0 9px;font-size:11.5px}
+/* 아이콘만 있는 버튼. 툴바의 글자를 다 걷어 냈으므로 여기가 기본이 된다 -
+   무엇인지는 title(툴팁)이 말해 준다. */
+.btn-icon{width:28px;height:28px;padding:0;gap:0}
+.btn-icon .i{width:16px;height:16px}
+.btn-icon.btn-sm{width:26px;height:26px}
+.btn-quiet-danger:hover{background:#3a2129;border-color:#6b3340}
+.btn-quiet-danger:hover .i{color:#ff9d9d}
+.btn-danger{background:#3a2129;border-color:#6b3340;color:#ff9d9d}
+.btn-danger:hover{background:#4a2833;border-color:#8a4050}
+.btn.is-toggle{color:var(--txt-mute)}
+.btn.is-toggle.is-on{background:#1f3352;border-color:#39598f;color:#a9c8ff}
+.btn.is-toggle.is-on .i{color:#a9c8ff}
+.row-actions{display:flex;gap:6px;flex-wrap:wrap}
+
+/* ============ 드롭존 ============ */
+.dropzone{
+  border:1.5px dashed var(--line-2);border-radius:var(--r);background:#13161d;
+  min-height:92px;padding:8px;display:flex;flex-direction:column;gap:6px;
+  transition:.12s;position:relative;
+}
+.dropzone.dropzone-sm{min-height:64px}
+.dropzone.is-over{border-color:var(--accent);background:#182338;box-shadow:inset 0 0 0 1px var(--accent)}
+.dz-empty{
+  flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:5px;color:var(--txt-mute);font-size:11.5px;text-align:center;padding:6px;
+}
+.dz-empty .i{width:20px;height:20px;color:#3d475d}
+.dz-list{display:flex;flex-direction:column;gap:3px}
+.dz-item{
+  display:flex;align-items:center;gap:7px;padding:5px 7px;border-radius:var(--r-sm);
+  background:var(--panel-2);border:1px solid var(--line);font-size:11.5px;
+}
+.dz-item .i{color:var(--txt-dim)}
+.dz-item .name{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dz-item .meta{color:var(--txt-mute);font-size:10.5px;font-family:var(--mono);flex:0 0 auto}
+.dz-item .rm{
+  flex:0 0 auto;width:18px;height:18px;display:grid;place-items:center;border:0;
+  background:transparent;color:var(--txt-mute);cursor:pointer;border-radius:4px;
+}
+.dz-item .rm:hover{background:#3a2129;color:#ff9d9d}
+.dz-foot{display:flex;align-items:center;gap:8px;font-size:10.5px;color:var(--txt-mute);padding:0 2px}
+.dz-foot .browse{background:none;border:0;color:var(--accent);cursor:pointer;font-size:10.5px;padding:0;text-decoration:underline}
+
+/* ============ 로그 ============ */
+.log-body{padding:0}
+.log{font-family:var(--mono);font-size:11.5px;padding:6px 0}
+.log-row{display:flex;gap:8px;padding:2px 10px;border-left:2px solid transparent;align-items:baseline}
+.log-row:hover{background:#1e232d}
+.log-row .t{color:var(--txt-mute);flex:0 0 auto}
+.log-row .lv{flex:0 0 62px;font-weight:700;letter-spacing:.3px}
+.log-row .msg{flex:1 1 auto;color:var(--txt);word-break:break-word;white-space:pre-wrap}
+.log-row.lv-INFO .lv{color:#7fa8de}
+.log-row.lv-WARNING{border-left-color:var(--warn);background:#241f14}
+.log-row.lv-WARNING .lv{color:var(--warn)}
+.log-row.lv-ERROR{border-left-color:var(--err);background:#2a1719}
+.log-row.lv-ERROR .lv{color:var(--err)}
+.log-row .src{color:var(--txt-mute)}
+.log-foot{display:flex;gap:14px;font-family:var(--mono);font-size:10.5px;color:var(--txt-mute)}
+
+/* ============ 모달 ============ */
+.modal-backdrop{
+  position:fixed;inset:0;background:rgba(6,8,12,.72);z-index:100;
+  display:flex;align-items:center;justify-content:center;padding:24px;
+}
+.modal-backdrop[hidden]{display:none}
+.modal{
+  width:min(720px,100%);max-height:86vh;background:var(--panel);border:1px solid var(--line-2);
+  border-radius:10px;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.5);
+}
+.modal-head{display:flex;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}
+.modal-head h3{font-size:14px}
+.modal-head .btn{margin-left:auto}
+.modal-body{padding:14px;overflow:auto;display:flex;flex-direction:column;gap:12px}
+.modal-foot{padding:12px 14px;border-top:1px solid var(--line);display:flex;gap:6px;justify-content:flex-end}
+.modal pre{
+  margin:0;background:var(--bg);border:1px solid var(--line);border-radius:var(--r-sm);
+  padding:10px;font-family:var(--mono);font-size:11.5px;max-height:46vh;overflow:auto;white-space:pre-wrap;
+}
+
+/* ============ 토스트 ============ */
+.toast-wrap{position:fixed;right:14px;bottom:14px;z-index:200;display:flex;flex-direction:column;gap:6px}
+.toast{
+  background:var(--panel-2);border:1px solid var(--line-2);border-radius:var(--r);
+  padding:9px 13px;font-size:12px;box-shadow:0 8px 24px rgba(0,0,0,.4);
+  animation:toastIn .16s ease-out;
+}
+.toast.err{border-color:#7a3a44;color:#ffb3b3}
+.toast.warn{border-color:#7a6428;color:#ffdc8f}
+@keyframes toastIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ============ 접이식 ============ */
+.foldout{border:1px solid var(--line);border-radius:var(--r-sm);background:#13161d}
+.foldout>summary{
+  cursor:pointer;padding:7px 10px;font-size:11.5px;font-weight:600;color:var(--txt-dim);
+  list-style:none;user-select:none;
+}
+.foldout>summary::-webkit-details-marker{display:none}
+.foldout>summary::before{content:"› ";color:var(--txt-mute)}
+.foldout[open]>summary::before{content:"⌄ "}
+.foldout>*:not(summary){margin:0 10px 10px}
+
+/* 로컬 서버 상태. 서버가 붙어 있으면 작업이 파일로 나가고, 없으면 클립보드로
+   나간다 - 어느 쪽인지 한눈에 보여야 눌러 놓고 엉뚱한 데서 찾지 않는다. */
+/* 서버가 붙어 있는지는 한 글자도 필요 없다. 점 하나로 족하고, 자세한
+   말은 툴팁이 한다. */
+.srv-state{display:inline-flex;align-items:center;justify-content:center;
+  width:22px;height:22px;margin-right:2px;user-select:none}
+.srv-state .dot{width:8px;height:8px;border-radius:50%;display:block;
+  background:#3a4356;box-shadow:0 0 0 3px rgba(120,132,160,.10)}
+.srv-state.is-on .dot{background:#41d18d;box-shadow:0 0 0 3px rgba(65,209,141,.16)}
+.srv-state .i{display:none}

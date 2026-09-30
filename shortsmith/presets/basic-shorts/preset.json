@@ -1,0 +1,467 @@
+{
+  "$schema": "../../schema/preset.schema.json",
+  "id": "basic-shorts",
+  "name": "Basic Shorts",
+  "version": 2,
+  "visibility": "public",
+  "description": "Vertical 1080x1920 short from a 16:9 recording: the 담유이 Solo Shorts II look (caption kinds, chat card, accent marks) on a plain black canvas, free (OFL) fonts only - no preset background video. Two-line title with key words in color.",
+  "canvas": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 60
+  },
+  "layout": {
+    "window": {
+      "x": 0,
+      "y": 407,
+      "w": 1080
+    },
+    "cropAspect": 0.948,
+    "face": [
+      540,
+      920
+    ],
+    "captionY": 1436,
+    "maxTextWidth": 1000
+  },
+  "brand": {
+    "background": null,
+    "hostColor": "#6FCFF5",
+    "credit": false
+  },
+  "cut": {
+    "source": "waveform",
+    "detector": "hysteresis",
+    "frameSec": 0.01,
+    "thresholdHi": 0.014,
+    "thresholdLo": 0.006,
+    "mergeGapSec": 0.2,
+    "joinGapSec": 0.12,
+    "padSec": 0.08,
+    "headReachSec": 0.4,
+    "footReachSec": 0.6,
+    "minRunSec": 0.06,
+    "minPieceSec": 0.2,
+    "useTranscriptTimesForCuts": false
+  },
+  "audio": {
+    "filters": "none",
+    "fadeSec": 0.008,
+    "targetLufs": -16,
+    "maxTruePeakDb": -1.5
+  },
+  "pacing": {
+    "avgClipSec": 1.8,
+    "cutsPerMin": 33,
+    "targetTotalSec": [
+      30,
+      40
+    ]
+  },
+  "fonts": {
+    "body": {
+      "family": "Pretendard ExtraBold",
+      "file": [
+        "Pretendard-ExtraBold.otf",
+        "Pretendard-ExtraBold.ttf"
+      ],
+      "get": "https://github.com/orioncactus/pretendard (OFL)"
+    },
+    "hand": {
+      "family": "Nanum Brush Script",
+      "file": "NanumBrush.ttf",
+      "lineToEm": 0.8696,
+      "ascent": 0.8,
+      "get": "https://hangeul.naver.com/font"
+    },
+    "punch": {
+      "family": "Black Han Sans",
+      "file": [
+        "BlackHanSans-Regular.ttf",
+        "Black Han Sans Regular.TTF"
+      ],
+      "get": "https://fonts.google.com/specimen/Black+Han+Sans (OFL)"
+    }
+  },
+  "captions": {
+    "defaultKind": "line",
+    "rules": {
+      "noPeriods": true,
+      "keepMarks": "? ! ...",
+      "repeat": "write a short repeat twice; if it overflows use (xN)",
+      "leadSec": 0.05,
+      "sourceOfTruth": "captions csv"
+    },
+    "markColors": {
+      "yellow": "#FFD23F",
+      "sky": "#6FCFF5",
+      "blue": "#8E9CF1",
+      "red": "#E8403A",
+      "mint": "#5EE6B5",
+      "pink": "#FF8FC7"
+    },
+    "kinds": {
+      "line": {
+        "use": "default dialogue",
+        "font": "body",
+        "size": 112,
+        "fill": "#FFFFFF",
+        "outline": {
+          "width": 9,
+          "color": "#101010"
+        },
+        "shadow": {
+          "offset": 4,
+          "color": "rgba(0,0,0,0.56)"
+        },
+        "anim": {
+          "type": "fade",
+          "inMs": 40
+        }
+      },
+      "hand": {
+        "use": "inner thoughts, trailing or drawn-out lines",
+        "font": "hand",
+        "size": 124,
+        "fill": "#FFFFFF",
+        "outline": {
+          "width": 7,
+          "color": "#1E2A3A"
+        },
+        "shadow": {
+          "offset": 3,
+          "color": "rgba(0,0,0,0.56)"
+        },
+        "anim": {
+          "type": "fade",
+          "inMs": 40
+        }
+      },
+      "char": {
+        "use": "host declarations and resolutions in the host color",
+        "font": "body",
+        "size": 114,
+        "fill": "#6FCFF5",
+        "outline": {
+          "width": 8,
+          "color": "#FFFFFF"
+        },
+        "shadow": {
+          "offset": 4,
+          "color": "rgba(30,58,80,0.75)"
+        },
+        "anim": {
+          "type": "fade",
+          "inMs": 40
+        }
+      },
+      "punch": {
+        "use": "punchlines and angry lines, sparingly",
+        "font": "punch",
+        "size": 122,
+        "fill": "#E8403A",
+        "outline": {
+          "width": 8,
+          "color": "#101010"
+        },
+        "glow": {
+          "width": 17,
+          "color": "#FFFFFF"
+        },
+        "anim": {
+          "type": "pop",
+          "ms": 160,
+          "peak": 1.16
+        }
+      },
+      "react": {
+        "use": "one-word reactions (예?, GG, ㅋㅋ)",
+        "font": "punch",
+        "size": 138,
+        "fill": "#FFD23F",
+        "outline": {
+          "width": 9,
+          "color": "#101010"
+        },
+        "shadow": {
+          "offset": 6,
+          "color": "rgba(0,0,0,0.69)"
+        },
+        "anim": {
+          "type": "pop",
+          "ms": 170,
+          "peak": 1.24,
+          "wobble": true
+        }
+      },
+      "outburst": {
+        "use": "angry outbursts (담유이 발끈 look from the solo preset) - where the voice actually snaps",
+        "font": "body",
+        "size": 140,
+        "look": [
+          {
+            "z": 0,
+            "dx": 15,
+            "dy": 15,
+            "fill": "#DAFA78",
+            "stroke": {
+              "width": 3,
+              "color": "#DAFA78"
+            }
+          },
+          {
+            "z": 1,
+            "dx": 11,
+            "dy": 11,
+            "fill": "#0C262A",
+            "stroke": {
+              "width": 3,
+              "color": "#0C262A"
+            }
+          },
+          {
+            "z": 2,
+            "stroke": {
+              "width": 3,
+              "color": "#0C262A"
+            }
+          },
+          {
+            "z": 3,
+            "fill": {
+              "y0": -0.3286,
+              "y1": 0.4,
+              "stops": [
+                [
+                  0.0,
+                  "#DAFD73"
+                ],
+                [
+                  0.067,
+                  "#DAFD73"
+                ],
+                [
+                  0.096,
+                  "#DFEF6E"
+                ],
+                [
+                  0.135,
+                  "#E0DC6A"
+                ],
+                [
+                  0.173,
+                  "#E7CC67"
+                ],
+                [
+                  0.212,
+                  "#E5BB61"
+                ],
+                [
+                  0.25,
+                  "#E4AB61"
+                ],
+                [
+                  0.288,
+                  "#E39B5F"
+                ],
+                [
+                  0.327,
+                  "#F6885B"
+                ],
+                [
+                  0.365,
+                  "#F97652"
+                ],
+                [
+                  0.404,
+                  "#FA6551"
+                ],
+                [
+                  0.423,
+                  "#FB5D4B"
+                ],
+                [
+                  1.0,
+                  "#FB5D4B"
+                ]
+              ]
+            }
+          }
+        ],
+        "anim": {
+          "type": "pop",
+          "ms": 147,
+          "upMs": 80,
+          "peak": 1.07
+        },
+        "basis": "copied 2026-09-21 from damui-solo-shorts outburst (user: 화내는 자막은 삼성 프로젝트의 담유이 발끈 자막으로). measured 2026-09-07 on 아야와 현실 합방.mov 12.5s. Gradient covers the ink box y 1414-1516 at center 1460, only its top 42%; the rest stays #FB5D4B. The dark mass is pushed 11px right-down and lime 4px further - not a thicker outline."
+      },
+      "label": {
+        "use": "editor explanation in a white box",
+        "font": "body",
+        "size": 84,
+        "fill": "#111111",
+        "box": {
+          "pad": 16,
+          "color": "#FFFFFF"
+        },
+        "anim": {
+          "type": "fade",
+          "inMs": 60,
+          "outMs": 60
+        },
+        "lines": {
+          "maxWidth": 940,
+          "maxLines": 2,
+          "shrinkStep": 4
+        }
+      },
+      "note": {
+        "use": "editor stage direction in parentheses",
+        "font": "body",
+        "size": 62,
+        "fill": "#FFE58A",
+        "outline": {
+          "width": 5,
+          "color": "#101010"
+        },
+        "wrap": [
+          "(",
+          ")"
+        ],
+        "anim": {
+          "type": "fade",
+          "inMs": 100,
+          "outMs": 80
+        }
+      },
+      "accent": {
+        "use": "whole-line emphasis (화자 칸 '강조'). Pastel blue by default; red only for full anger",
+        "font": "body",
+        "size": 104,
+        "accentColor": "#45B4EA",
+        "anim": {
+          "type": "pop",
+          "ms": 147,
+          "upMs": 80,
+          "peak": 1.07
+        },
+        "basis": "guess: solo 프리셋 accent 를 이 프리셋 기본 크기(112)에 맞춰 0.93 곱함"
+      },
+      "sad": {
+        "use": "gloomy or downcast lines (화자 칸 '슬픔'). Use with a mono screen effect, sparingly",
+        "font": "body",
+        "size": 108,
+        "fill": "#B9C6D6",
+        "outline": {
+          "width": 9,
+          "color": "#22303D"
+        },
+        "shadow": {
+          "offset": 4,
+          "color": "rgba(10,20,30,0.6)"
+        },
+        "anim": {
+          "type": "fade",
+          "inMs": 140
+        },
+        "basis": "guess 2026-09-28 (user: '슬픔/우울 같은 효과'). 기본 자막에서 채움만 옅은 회청으로 내리고 팝 대신 천천히 뜬다"
+      }
+    },
+    "speakers": {
+      "담유이": "line",
+      "채팅": null,
+      "후원": null,
+      "설명": null
+    },
+    "markStyle": "accent",
+    "markKinds": {
+      "balkkeun": "outburst",
+      "sad": "sad"
+    },
+    "accent": {
+      "inner": {
+        "width": 7,
+        "light": "#FFFFFF",
+        "dark": "#000000",
+        "threshold": 0.35
+      },
+      "outer": {
+        "width": 16,
+        "darken": 0.75
+      },
+      "sizeScale": 0.93,
+      "basis": "copied 2026-09-28 from damui-solo-shorts accent (user-defined design, 삼성 2026-09-13). 부분 강조는 «낱말|sky» 처럼 적는다 gapEm 0.12 는 사용자가 '강조와 비 강조 부분이 너무 붙음' 이라 해서 준 틈 (짐작)",
+      "gapEm": 0.12
+    },
+    "kindNames": {
+      "기본": "line",
+      "부분 강조": "line",
+      "부분 발끈": "line",
+      "강조": "accent",
+      "슬픔": "sad",
+      "발끈": "outburst",
+      "펀치": "punch",
+      "리액션": "react",
+      "캐릭": "char",
+      "손글씨": "hand",
+      "설명": "label",
+      "주석": "note"
+    }
+  },
+  "title": {
+    "font": "punch",
+    "size": 124,
+    "keyScale": 1.15,
+    "keyColor": "#FFD23F",
+    "centerY": 265,
+    "lineGap": 1.13,
+    "top": 170,
+    "fill": "#FFFFFF",
+    "outline": {
+      "width": 5,
+      "color": "#111111"
+    },
+    "shadow": {
+      "offset": 7,
+      "color": "rgba(0,0,0,0.6)"
+    },
+    "maxWidth": 960,
+    "basis": "guess from 다음생 · 삼성 사본 (2026-09-14): 124 / key 142, line centers 195 / 335 in the band above the window. Text: two lines with '\n' or ' / ', key word «word|yellow» / «word|sky»"
+  },
+  "chat": {
+    "height": 208,
+    "border": 22,
+    "radius": 44,
+    "borderColor": "#8AFB93",
+    "fill": "#FFFFFF",
+    "textX": 48,
+    "padRight": 44,
+    "font": "body",
+    "size1": 72,
+    "size2": 62,
+    "textColor": "#000000",
+    "scale": 1.0,
+    "y": 640,
+    "maxWidth": 1000
+  },
+  "image": {
+    "popSec": 0.14
+  },
+  "effects": {
+    "shake": {
+      "amp": 12,
+      "hz": 14,
+      "zoom": 1.06
+    }
+  },
+  "guidance": [
+    "Pick a caption kind per line by purpose; most lines stay 'line'. Big pop kinds (punch, react) are for a few beats only.",
+    "Zoom cuts (1.2, 1.35) only on emotional beats; one slow push per video; shake and mono once each at most.",
+    "Chat: show the stream's own chat as a capture (crop the bubble from the source frame at that moment - each stream's chat overlay looks different, so capture it instead of redrawing it as a chat card). Only messages the host reads or answers. The chat card (`chats` in fx.json) is a fallback when no capture is usable.",
+    "People illustrations: いらすとや. Real products, places, money and charts: real photos. Ask before downloading anything.",
+    "No chapter titles. Focus brackets only when looking at the face.",
+    "Captions csv 는 화자 칸(담유이 · 채팅 · 후원 · 설명)과 kind 칸(기본 · 강조 · 부분 강조 · 슬픔 · 발끈 ...)을 따로 둔다. 화자가 채팅 · 후원 · 설명인 줄은 자막으로 안 그린다 - 그림은 fx.json 이 그린다."
+  ],
+  "basis": "2026-09-29 user: 'Solo Shorts II 를 Basic Shorts 로, 배경 프리셋 영상 포함 안 함, 제목은 다음 생 사본 · 삼성 사본처럼, 제목 폰트는 그대로'. Copied from damui-test-shorts v3; old basic v1 (OFL fonts only) is preset.json.bak / fonts back to OFL (user 2026-09-29 '폰트는 고치자'): body Pretendard ExtraBold, react Black Han Sans, hand Nanum Brush Script (OFL) / chat as captures, not cards (user 2026-09-29: '채팅은 자막을 쓰는 거 대신에 캡쳐로 - 방송마다 채팅 디자인이 다르다'); chat icon (local path) removed"
+}

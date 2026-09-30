@@ -1,0 +1,121 @@
+/* ============ 프로젝트 칩 (상단 바) ============ */
+.pchip{
+  display:flex; align-items:center; gap:8px; height:34px; padding:0 12px 0 10px;
+  background:var(--panel); border:1px solid var(--line); border-radius:var(--r);
+  cursor:pointer; max-width:280px; text-align:left; color:inherit; font-family:inherit;
+}
+.pchip:hover{background:var(--panel-2); border-color:var(--line-2)}
+.pchip .i{color:var(--accent); flex:0 0 auto}
+.pchip-txt{min-width:0; display:flex; flex-direction:column; line-height:1.15}
+.pchip-name{font-weight:650; font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.pchip-sub{font-size:10.5px; color:var(--txt-mute); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.pchip.is-dirty .pchip-sub{color:var(--warn)}
+
+/* ============ 상단 바 메뉴 ============
+   .menu 자체는 타임라인의 "트랙 추가"가 먼저 쓰고 있다. 그쪽은 왼쪽에서
+   내려오고 이쪽은 화면 오른쪽 끝이라 오른쪽에 붙어야 한다. 공용 .menu를
+   덮어쓰면 트랙 추가가 같이 망가지므로 이름을 따로 준다.
+   (left를 auto로 되돌리지 않으면 left:0과 right:0이 같이 걸려 왼쪽이 이긴다) */
+.menu-right{
+  left:auto; right:0; top:calc(100% + 6px); z-index:60; min-width:212px;
+  background:var(--panel); border-color:var(--line-2); border-radius:var(--r);
+  padding:5px; box-shadow:0 12px 30px rgba(0,0,0,.5);
+}
+.menu-right button{
+  display:flex; align-items:center; gap:9px; width:100%; height:30px; padding:0 9px;
+  background:transparent; border:0; border-radius:var(--r-sm);
+  color:var(--txt); font-size:12.5px; text-align:left; cursor:pointer;
+}
+.menu-right button:hover{background:#2a3242}
+.menu-right button .i{color:var(--txt-dim)}
+.menu-right button:hover .i{color:var(--txt)}
+.menu-right button .kbd{margin-left:auto; color:var(--txt-mute); font-family:var(--mono); font-size:10.5px}
+.menu-right hr{border:0; border-top:1px solid var(--line); margin:5px 4px}
+
+/* ============ 프로젝트 매니저 ============ */
+#view-projects{overflow:auto; padding:0}
+.pm{display:flex; flex-direction:column; min-height:100%; padding:14px 16px 18px}
+.pm-head{display:flex; align-items:center; gap:10px; margin-bottom:14px; flex:0 0 auto}
+.pm-head h2{font-size:15px; font-weight:700}
+.pm-count{color:var(--txt-mute); font-size:11.5px}
+.pm-search{
+  width:220px; height:30px; padding:0 10px; margin-left:6px;
+  background:var(--panel); border:1px solid var(--line); border-radius:var(--r);
+  color:var(--txt); font-family:inherit; font-size:12px;
+}
+.pm-search:focus{outline:none; border-color:var(--accent)}
+.pm-spacer{margin-left:auto}
+
+/* 5열 고정. 카드가 줄면 줄었지 한 줄에 다섯 개라는 규칙은 지킨다.
+   폭을 묶어 두지 않으면 넓은 화면에서 카드 하나가 600px를 넘어, 한 화면에
+   한 줄도 안 들어온다. 쇼츠는 9:16이라 세로로 특히 길다. */
+.pm-grid{
+  display:grid; grid-template-columns:repeat(5, minmax(0,1fr));
+  gap:14px; align-content:start; flex:1 1 auto; max-width:1240px;
+}
+.pm-empty{
+  grid-column:1 / -1; padding:26px 4px; color:var(--txt-mute); font-size:12.5px;
+}
+.pm-where{
+  flex:0 0 auto; margin-top:16px; padding-top:10px; border-top:1px solid var(--line);
+  color:var(--txt-mute); font-size:11px; font-family:var(--mono);
+}
+
+/* ---- 카드 ---- */
+.pcard{
+  position:relative; display:flex; flex-direction:column;
+  background:var(--panel); border:1px solid var(--line); border-radius:10px;
+  overflow:hidden; cursor:pointer; transition:border-color .12s, transform .12s;
+}
+.pcard:hover{border-color:var(--line-2); transform:translateY(-2px)}
+.pcard.is-current{border-color:var(--accent)}
+
+.pcard-thumb{
+  position:relative; aspect-ratio:9/16; background:#0e1116;
+  display:flex; align-items:center; justify-content:center; overflow:hidden;
+}
+.pcard-thumb img{width:100%; height:100%; object-fit:cover; display:block}
+.pcard-noimg{
+  font-size:30px; font-weight:800; color:#2f3949; letter-spacing:-1px;
+}
+.pcard-dur{
+  position:absolute; right:6px; bottom:6px; padding:2px 6px; border-radius:5px;
+  background:rgba(6,8,12,.78); color:#cfd7e6; font-size:10.5px; font-family:var(--mono);
+}
+.pcard-open{
+  position:absolute; left:6px; top:6px; padding:2px 7px; border-radius:5px;
+  background:var(--accent); color:#fff; font-size:10px; font-weight:700;
+}
+
+.pcard-body{padding:9px 10px 10px; display:flex; flex-direction:column; gap:2px; min-width:0}
+.pcard-name{
+  font-weight:650; font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.pcard-style{
+  font-size:11px; color:var(--accent); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.pcard-nums{font-size:11px; color:var(--txt-dim)}
+.pcard-date{font-size:10.5px; color:var(--txt-mute)}
+
+/* 손대는 버튼은 평소에 감춘다. 카드 다섯 장이 한 줄에 들어가는데 버튼까지
+   늘 떠 있으면 무엇이 무엇인지 읽히지 않는다. */
+.pcard-acts{
+  position:absolute; left:0; right:0; bottom:0; display:flex; gap:4px;
+  padding:7px; background:linear-gradient(to top, rgba(12,14,19,.97), rgba(12,14,19,.86));
+  opacity:0; transform:translateY(6px); transition:opacity .12s, transform .12s;
+}
+.pcard:hover .pcard-acts{opacity:1; transform:none}
+.pcard-acts .btn{flex:1 1 auto; padding:0 4px; justify-content:center}
+
+/* ---- 새 프로젝트 타일 ---- */
+.pcard-new{
+  align-items:center; justify-content:center; gap:6px; text-align:center;
+  border-style:dashed; background:transparent; min-height:210px; padding:14px;
+}
+.pcard-new:hover{border-color:var(--accent); background:#171d28}
+.pcard-plus{
+  width:44px; height:44px; border-radius:50%; display:flex; align-items:center;
+  justify-content:center; background:#233047; color:var(--accent); margin-bottom:2px;
+}
+.pcard-new .pcard-name{white-space:normal}
+.pcard-new .pcard-style{color:var(--txt-mute)}

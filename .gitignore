@@ -1,0 +1,40 @@
+# Kirinuki-Edit - 올리는 것: 프로그램 · 프롬프트를 돌리는 소스 코드
+# 빼는 것 (사용자 2026-10-01: "프로젝트, 영상, 비공개 프리셋 제외"):
+
+# 프로젝트 · 편 폴더 · 영상
+/projects/
+/edit/
+/edited/
+/jobs/
+*.mp4
+*.mkv
+*.mov
+*.wav
+*.m4a
+*.mp3
+
+# 비공개 프리셋 · 담유이 스타일
+/presets/
+/dashboard/styles/_legacy_ko/
+/docs/damyui_caption_styles.ass
+
+# 그림 자료 (다른 채널 캡처 · 사진 · いらすとや)
+/assets/
+/docs/테스트쇼츠_참고분석/img/
+/docs/테스트쇼츠_참고분석/img2/
+
+# 따로 받은 저장소 · 이 컴퓨터 설정
+/davinci-resolve-mcp/
+/.mcp.json
+.claude/settings.local.json
+
+# 만들어지는 것 · 백업
+node_modules/
+.bundle/
+__pycache__/
+*.pyc
+venv/
+*.bak
+*.bak[0-9]*
+*.tmp.mkv
+/dashboard/_t.txt

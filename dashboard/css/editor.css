@@ -1,0 +1,482 @@
+/* ============ 사용자 편집 레이아웃 ============ */
+.ed-grid{
+  height:100%;
+  display:grid;
+  gap:0;
+  grid-template-columns:
+    var(--ed-c1, 250px) var(--gut)
+    minmax(0, 1fr) var(--gut)
+    var(--ed-c3, 320px);
+  grid-template-rows:
+    var(--ed-r1, 360px) var(--gut)
+    minmax(0, 1fr);
+  grid-template-areas:
+    "bin g1  preview g2  insp"
+    "gr1 gr1 gr1     gr1 gr1"
+    "tl  tl  tl      tl  tl";
+}
+#paneBin{grid-area:bin}
+#panePreview{grid-area:preview}
+#paneInspector{grid-area:insp}
+#paneTimeline{grid-area:tl;position:relative}
+#gEdC1{grid-area:g1}
+#gEdC2{grid-area:g2}
+#gEdR1{grid-area:gr1}
+
+/* ============ 선택(빈) ============ */
+.bin-body{gap:10px}
+.bin-groups{display:flex;flex-direction:column;gap:10px;flex:1 1 auto;min-height:0;overflow:auto}
+.bin-group{display:flex;flex-direction:column;gap:4px}
+.bin-group-title{
+  display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;letter-spacing:.4px;
+  color:var(--txt-mute);text-transform:uppercase;
+}
+.bin-group-title .i{width:12px;height:12px}
+.bin-group-title .cnt{margin-left:auto;font-family:var(--mono);font-size:10px}
+.bin-item{
+  display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:var(--r-sm);
+  background:var(--panel-2);border:1px solid var(--line);font-size:11.5px;cursor:grab;
+}
+.bin-item:hover{border-color:var(--line-2);background:#262d3a}
+.bin-item:active{cursor:grabbing}
+.bin-item.is-dragging{opacity:.45}
+.bin-item .name{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bin-item .meta{font-family:var(--mono);font-size:10px;color:var(--txt-mute);flex:0 0 auto}
+.bin-item .rm{width:18px;height:18px;display:grid;place-items:center;border:0;background:transparent;color:var(--txt-mute);border-radius:4px;cursor:pointer}
+.bin-item .rm:hover{background:#3a2129;color:#ff9d9d}
+.bin-item.k-video .i{color:var(--video)}
+.bin-item.k-audio .i{color:var(--audio)}
+.bin-item.k-caption .i{color:var(--caption)}
+.bin-item.k-sfx .i{color:var(--sfx)}
+.bin-item.k-other .i{color:var(--txt-mute)}
+
+/* ============ 미리보기 ============ */
+.preview-body{padding:9px;gap:8px}
+.stage-wrap{flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center;background:#0a0c10;border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden}
+.stage{
+  position:relative;background:#000;aspect-ratio:9/16;height:100%;max-width:100%;
+  display:flex;align-items:center;justify-content:center;overflow:hidden;
+}
+/* 완성본은 배경 영상 위에 소스 영상을 띠로 얹고 그 위에 자막을 올린다.
+   미리보기가 소스만 꽉 채워 보여주면 실제로 나올 그림과 아주 달라서, 자막
+   위치를 여기서 판단할 수가 없다. 그래서 편집에 있는 영상 클립을 트랙 순서
+   그대로 겹쳐 놓는다 - 위 트랙이 앞에 온다. 자리는 클립의 frame이 정한다. */
+.vid-layer{position:absolute;inset:0;z-index:1}
+.vid-box{position:absolute;overflow:hidden}
+/* 영상 트랙에는 정지 그림도 놓인다 (인용 카드의 LongBG 배경) */
+.vid-box video,.vid-box img{position:absolute;background:transparent;max-width:none}
+
+/* 고른 클립을 직접 끌어 옮기고 늘리는 상자.
+   숫자만으로 자리를 맞추는 건 고문이라, 무대 위에서 바로 잡게 한다. */
+.hit-layer{position:absolute;inset:0;z-index:5}
+.hit-box{
+  position:absolute;border:1px solid var(--accent);cursor:move;
+  box-shadow:0 0 0 1px rgba(0,0,0,.55);
+}
+.hit-box.hit-cap{border-color:var(--caption);border-style:dashed}
+.hit-h{
+  position:absolute;width:9px;height:9px;margin:-5px 0 0 -5px;
+  background:var(--accent);border:1px solid #0b0d12;border-radius:2px;
+}
+.hit-cap .hit-h{background:var(--caption)}
+.hit-nw,.hit-se{cursor:nwse-resize}
+.hit-ne,.hit-sw{cursor:nesw-resize}
+.hit-n,.hit-s{cursor:ns-resize}
+.hit-w,.hit-e{cursor:ew-resize}
+.hit-tip{
+  position:absolute;left:0;bottom:100%;margin-bottom:3px;padding:1px 5px;
+  background:rgba(8,10,15,.9);border-radius:3px;color:#cfd7e6;
+  font-family:var(--mono);font-size:9.5px;white-space:nowrap;pointer-events:none;
+}
+.stage-empty{position:absolute;inset:0;display:grid;place-items:center;color:var(--txt-mute);font-size:11.5px;text-align:center;padding:10px;white-space:pre-line;line-height:1.6}
+.stage-empty[hidden]{display:none}
+.sub-layer{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;justify-content:flex-end;padding:4%;z-index:3}
+.sub-line{
+  position:absolute;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:0 6%;text-align:center;
+}
+.sub-speaker{
+  font-size:10px;font-weight:700;letter-spacing:.4px;color:#0d0f13;background:#e9edf5;
+  border-radius:3px;padding:0 5px;opacity:.9;
+}
+.sub-text{font-weight:800;line-height:1.25;white-space:pre-wrap;word-break:keep-all}
+/* 발끈 자막은 외곽선 겹과 채움 겹을 정확히 포개서 그린다. 두 겹이 같은 상자를
+   써야 줄바꿈 자리가 어긋나지 않는다. */
+.sub-text.is-emph{position:relative}
+.emph-l{display:block;white-space:inherit;word-break:inherit;text-align:inherit}
+.emph-fill{position:absolute;left:0;top:0;width:100%}
+
+.transport{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.tc{font-family:var(--mono);font-size:12px;color:var(--txt)}
+.tc-dim{color:var(--txt-mute)}
+.tc-sep{color:var(--txt-mute)}
+.spacer{flex:1 1 auto}
+
+/* ============ 인스펙터 ============ */
+/* 인스펙터는 폭이 좁다. 제목 · 탭 · 상태표가 한 줄에 다 들어가야 하므로
+   제목은 아이콘만 남기고 글자를 접고, 상태표는 남는 만큼만 쓴다. */
+#paneInspector .panel-head{gap:6px;padding:0 8px;overflow:hidden}
+#paneInspector #inspTag{
+  margin-left:auto;flex:0 1 auto;min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;border:0;padding:0;
+}
+.itabs{display:flex;gap:2px;flex:0 0 auto;background:#141821;border:1px solid var(--line);border-radius:7px;padding:2px}
+.itab{
+  height:22px;padding:0 10px;background:transparent;border:0;
+  border-radius:5px;color:var(--txt-mute);font-size:11.5px;font-family:inherit;cursor:pointer;
+}
+.itab:hover{color:var(--txt)}
+.itab.is-active{background:#2a3448;color:#cfdcf5;font-weight:650}
+
+.insp-body{gap:10px;padding:10px}
+.insp-body[hidden]{display:none}
+
+/* ---- 클립 머리띠 ----
+   클립이 무엇인지는 한 줄로 족하다. 시작 · 길이 · 소스 오프셋 같은 숫자는
+   눌러서 열고, 거기서 다시 "상세 정보"를 누르면 설정 창이 뜬다. 예전에는
+   이 숫자들이 늘 펼쳐져 있어서 정작 고칠 자막 내용이 아래로 밀려났다. */
+.ins-strip{
+  display:flex;align-items:center;gap:8px;width:100%;flex:0 0 auto;
+  padding:0 9px 0 0;height:34px;cursor:pointer;text-align:left;
+  background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r-sm);
+  color:var(--txt);font-family:inherit;font-size:12px;overflow:hidden;
+}
+.ins-strip:hover{border-color:var(--line-2);background:#242b38}
+.ins-strip .bar{width:4px;align-self:stretch;flex:0 0 auto;background:var(--txt-mute)}
+.ins-strip.k-video .bar{background:var(--video)}
+.ins-strip.k-audio .bar{background:var(--audio)}
+.ins-strip.k-caption .bar{background:var(--caption)}
+.ins-strip.k-sfx .bar{background:var(--sfx)}
+.ins-strip.k-video .i:first-of-type{color:var(--video)}
+.ins-strip.k-audio .i:first-of-type{color:var(--audio)}
+.ins-strip.k-caption .i:first-of-type{color:var(--caption)}
+.ins-strip.k-sfx .i:first-of-type{color:var(--sfx)}
+.ins-strip .nm{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;font-weight:650}
+.ins-strip .tc{flex:0 0 auto;font-family:var(--mono);font-size:10.5px;color:var(--txt-mute)}
+.ins-chev{color:var(--txt-mute);transition:transform .14s}
+.ins-strip[aria-expanded="true"] .ins-chev{transform:rotate(180deg)}
+
+.ins-drop{
+  flex:0 0 auto;background:#13161d;border:1px solid var(--line);
+  border-radius:var(--r-sm);padding:8px 10px;display:flex;flex-direction:column;gap:8px;
+}
+.ins-drop[hidden]{display:none}
+.ins-kv{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:0;font-size:11.5px}
+.ins-kv dt{color:var(--txt-mute)}
+.ins-kv dd{margin:0;font-family:var(--mono);font-size:11px;color:var(--txt-dim);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ---- 접이식 묶음 ----
+   많이 쓰는 것만 펼쳐 두고, 나머지는 이름만 남긴다. */
+.ins-fold{border:1px solid var(--line);border-radius:var(--r-sm);background:#161a22;flex:0 0 auto}
+.ins-fold>summary{
+  display:flex;align-items:center;gap:6px;cursor:pointer;list-style:none;user-select:none;
+  padding:7px 9px;font-size:11px;font-weight:700;letter-spacing:.4px;color:var(--txt-dim);
+  text-transform:uppercase;
+}
+.ins-fold>summary::-webkit-details-marker{display:none}
+.ins-fold>summary::after{content:"";width:6px;height:6px;margin-left:auto;
+  border-right:1.6px solid var(--txt-mute);border-bottom:1.6px solid var(--txt-mute);
+  transform:rotate(45deg);transition:transform .14s}
+.ins-fold[open]>summary::after{transform:rotate(225deg)}
+.ins-fold[open]>summary{border-bottom:1px solid var(--line)}
+.ins-fold>summary:hover{color:var(--txt)}
+.ins-fold-body{display:flex;flex-direction:column;gap:8px;padding:9px}
+
+/* ---- 전체 자막 ----
+   자막만 따로 목록으로 본다. 클립을 하나씩 골라 가며 고치면 앞뒤 흐름이
+   안 보여서, 말이 겹치거나 같은 말이 두 번 들어간 걸 놓친다. */
+#inspectorSubs{padding:0;gap:0}
+.subs-head{
+  display:flex;align-items:center;gap:8px;padding:7px 10px;flex:0 0 auto;
+  border-bottom:1px solid var(--line);color:var(--txt-mute);font-size:11px;
+  cursor:help;
+}
+.subs-list{flex:1 1 auto;min-height:0;overflow:auto;padding:6px}
+.subrow{
+  display:grid;grid-template-columns:52px 1fr;gap:6px;align-items:start;
+  padding:6px 8px 6px 10px;border-radius:var(--r-sm);position:relative;cursor:pointer;
+  border:1px solid transparent;
+}
+.subrow:hover{background:#1e2531}
+.subrow::before{
+  content:"";position:absolute;left:2px;top:7px;bottom:7px;width:3px;border-radius:2px;
+  background:transparent;
+}
+/* 지금 재생헤드에 떠 있는 자막은 타임라인의 자막 클립과 같은 색으로 표시한다 */
+.subrow.is-now{background:#241d2e;border-color:#5a3a70}
+.subrow.is-now::before{background:var(--caption)}
+.subrow.is-sel{border-color:var(--accent)}
+.subrow-t{
+  font-family:var(--mono);font-size:10.5px;color:var(--txt-mute);padding-top:5px;line-height:1.3;
+}
+.subrow.is-now .subrow-t{color:var(--caption)}
+.subrow-f{display:flex;flex-direction:column;gap:3px;min-width:0}
+.subrow-spk{
+  height:20px;padding:0 6px;background:#161a22;border:1px solid var(--line);
+  border-radius:4px;color:var(--txt-dim);font-family:inherit;font-size:10.5px;width:100%;
+}
+.subrow-txt{
+  min-height:24px;padding:3px 6px;background:#161a22;border:1px solid var(--line);
+  border-radius:4px;color:var(--txt);font-family:inherit;font-size:12px;line-height:1.35;
+  resize:vertical;width:100%;
+}
+.subrow.is-now .subrow-txt{border-color:#5a3a70;background:#1c1a24}
+.subrow-spk:focus,.subrow-txt:focus{outline:none;border-color:var(--accent);background:#12151b}
+.subrow-emph .subrow-txt{color:#fbb03b}
+.subs-empty{padding:20px 12px;color:var(--txt-mute);font-size:11.5px;text-align:center}
+.insp-sec{display:flex;flex-direction:column;gap:8px;flex:0 0 auto}
+.insp-sec-title{font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--txt-dim);text-transform:uppercase}
+.insp-row{display:grid;grid-template-columns:62px 1fr;align-items:center;gap:8px}
+/* 묶음 제목 오른쪽에 이전 · 다음. 예전에는 "이전 자막" "다음 자막" 두 개가
+   본문 폭을 절반씩 먹고 있었다. */
+.insp-sec-head{display:flex;align-items:center;gap:8px}
+.insp-nav{margin-left:auto;display:flex;gap:3px}
+.insp-nav .is-up .i{transform:rotate(180deg)}
+.insp-row>label{font-size:11.5px;color:var(--txt-dim)}
+.insp-row .input{padding:5px 7px;font-size:12px}
+.insp-grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.color-row{display:flex;align-items:center;gap:6px}
+.color-row input[type=color]{width:34px;height:26px;padding:0;border:1px solid var(--line);border-radius:4px;background:var(--bg);cursor:pointer}
+.seg{display:flex;gap:0;border:1px solid var(--line-2);border-radius:var(--r-sm);overflow:hidden}
+.seg button{
+  flex:1 1 auto;height:26px;background:var(--panel-2);border:0;border-right:1px solid var(--line);
+  color:var(--txt-dim);font-size:11.5px;font-weight:700;cursor:pointer;
+}
+.seg button:last-child{border-right:0}
+.seg button.is-on{background:#1f3352;color:#bfd6ff}
+.range-row{display:flex;align-items:center;gap:8px}
+.range-row input[type=range]{flex:1 1 auto;accent-color:var(--accent)}
+.range-row .val{font-family:var(--mono);font-size:11px;color:var(--txt-dim);width:42px;text-align:right}
+
+/* ============ 타임라인 ============ */
+.timeline-panel{overflow:hidden}
+.tl-head{height:auto;min-height:38px;padding:5px 8px}
+.tl-tools{display:flex;align-items:center;gap:4px;flex-wrap:wrap;width:100%}
+.tl-tools .tc{margin:0 6px 0 2px}
+.vsep{width:1px;height:18px;background:var(--line-2);margin:0 4px}
+.zoom{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--txt-mute);cursor:pointer}
+.zoom .i{width:14px;height:14px}
+.zoom input{width:104px;accent-color:var(--accent)}
+.menu-wrap{position:relative}
+.menu{
+  position:absolute;top:100%;left:0;margin-top:4px;z-index:30;min-width:140px;
+  background:var(--panel-2);border:1px solid var(--line-2);border-radius:var(--r-sm);
+  padding:4px;box-shadow:0 10px 24px rgba(0,0,0,.45);
+}
+.menu[hidden]{display:none}
+.menu li{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:4px;cursor:pointer;font-size:12px}
+.menu li:hover{background:#2f3846}
+
+.tl-body{flex:1 1 auto;min-height:0;display:flex;overflow:hidden;background:#12151b}
+.tl-heads{width:164px;flex:0 0 auto;border-right:1px solid var(--line);overflow:hidden;background:var(--panel)}
+.tl-heads-pad{height:26px;border-bottom:1px solid var(--line);background:var(--panel-2)}
+/* 트랙이 몇 개 안 될 때 위쪽에 몰려 붙으면 아래가 텅 빈다. 남는 높이를
+   반으로 갈라 트랙 묶음을 가운데 놓는다 - 트랙 이름표와 레인이 같은 값을
+   써야 줄이 맞는다 (JS가 --tl-vpad에 넣는다). */
+.tl-heads-gap{height:var(--tl-vpad,0px);flex:0 0 auto}
+#tlLanes{padding-top:var(--tl-vpad,0px)}
+.tl-head-row{
+  height:54px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:6px;
+  padding:0 7px;background:var(--panel);
+}
+.tl-head-row.is-sel{background:#1c2434}
+.tl-head-row .i{width:14px;height:14px;flex:0 0 auto}
+.tl-head-row.k-video .i{color:var(--video)}
+.tl-head-row.k-audio .i{color:var(--audio)}
+.tl-head-row.k-caption .i{color:var(--caption)}
+.tl-head-row.k-sfx .i{color:var(--sfx)}
+.tl-head-row .tname{flex:1 1 auto;font-size:11.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tl-head-row .tbtns{display:flex;gap:2px}
+.tl-head-row .tb{
+  width:20px;height:20px;display:grid;place-items:center;border:0;background:transparent;
+  color:var(--txt-mute);border-radius:4px;cursor:pointer;
+}
+.tl-head-row .tb:hover{background:#2f3846;color:var(--txt)}
+.tl-head-row .tb.is-on{color:#ff9d9d}
+.tl-head-row .tb.rm:hover{background:#3a2129;color:#ff9d9d}
+
+.tl-scroll{flex:1 1 auto;overflow:auto;position:relative}
+/* 트랙 아래 빈 자리를 눌러도 재생선이 움직여야 한다. 안쪽 상자가 스크롤
+   영역 높이를 다 써야 그 자리에서도 눌린 것이 잡힌다. */
+.tl-inner{position:relative;min-width:100%;min-height:100%}
+.tl-ruler{
+  position:sticky;top:0;z-index:6;height:26px;background:var(--panel-2);
+  border-bottom:1px solid var(--line);overflow:hidden;
+}
+.tl-tick{position:absolute;top:0;bottom:0;border-left:1px solid #2c3444}
+.tl-tick.major{border-left-color:#3c4658}
+.tl-tick span{position:absolute;left:4px;top:5px;font-family:var(--mono);font-size:9.5px;color:var(--txt-mute)}
+.tl-lane{
+  position:relative;height:54px;border-bottom:1px solid var(--line);
+  background:linear-gradient(#151920,#151920);
+}
+.tl-lane.k-video{background:#141a24}
+.tl-lane.k-audio{background:#131d1b}
+.tl-lane.k-caption{background:#1a1522}
+.tl-lane.k-sfx{background:#1f1810}
+.tl-lane.is-drop{box-shadow:inset 0 0 0 1.5px var(--accent)}
+.tl-lane.is-locked{opacity:.55}
+
+.clip{
+  position:absolute;top:5px;height:44px;border-radius:5px;overflow:hidden;cursor:grab;
+  border:1px solid rgba(255,255,255,.14);box-shadow:0 1px 3px rgba(0,0,0,.4);
+  display:flex;flex-direction:column;user-select:none;
+}
+.clip.is-drag{cursor:grabbing;z-index:20;opacity:.92}
+.clip.k-video{background:linear-gradient(180deg,#3f7bd4,#2f5da2)}
+.clip.k-audio{background:linear-gradient(180deg,#2fa98a,#1f7a63)}
+.clip.k-caption{background:linear-gradient(180deg,#a05fc4,#7b3f9c)}
+.clip.k-sfx{background:linear-gradient(180deg,#cf8339,#a1602a)}
+.clip.is-sel{border-color:#fff;box-shadow:0 0 0 1.5px #fff,0 2px 6px rgba(0,0,0,.5);z-index:15}
+.clip .clip-label{
+  padding:3px 6px;font-size:10.5px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;text-shadow:0 1px 2px rgba(0,0,0,.5);
+}
+.clip .clip-sub{
+  padding:0 6px;font-size:10px;color:rgba(255,255,255,.82);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;
+}
+.clip .clip-wave{
+  position:absolute;left:0;right:0;bottom:0;height:16px;opacity:.35;
+  background:repeating-linear-gradient(90deg,rgba(255,255,255,.9) 0 1px,transparent 1px 3px);
+}
+/* 6px는 겨냥해서 잡기가 어렵다. 손잡이를 넓히고, 클립 위에 마우스를 올리면
+   어디를 잡아야 하는지 보이게 한다. */
+.clip .grip{position:absolute;top:0;bottom:0;width:10px;cursor:ew-resize;background:rgba(255,255,255,.001)}
+.clip:hover .grip{background:rgba(255,255,255,.14)}
+.clip .grip:hover{background:rgba(255,255,255,.34)}
+.clip .grip.l{left:0}
+.clip .grip.r{right:0}
+.clip.is-grouped::after{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:rgba(255,255,255,.55);
+}
+
+/* 재생선은 어떤 클립보다도 위에 있어야 한다. 예전에는 선택한 클립(z 15)과
+   끌고 있는 클립(z 20)이 선을 가려서, 정작 맞춰야 할 순간에 선이 사라졌다. */
+.playhead{position:absolute;top:0;bottom:0;width:1px;background:#ff5f56;z-index:30;pointer-events:none}
+.playhead-grip{
+  position:absolute;top:0;left:-6px;width:13px;height:13px;background:#ff5f56;
+  clip-path:polygon(0 0,100% 0,50% 100%);
+}
+.snapline{position:absolute;top:0;bottom:0;width:1px;background:#ffd45f;z-index:29;pointer-events:none;display:none}
+.snapline.on{display:block}
+
+/* i · o 로 찍은 잘라낼 구간. 지울 자리가 어디인지 눈에 보여야 Delete 를
+   누르기 전에 확인할 수 있다. */
+.markband{
+  position:absolute;top:26px;bottom:0;z-index:8;pointer-events:none;display:none;
+  background:rgba(255,95,86,.10);
+  border-left:2px solid #ff8a5f;border-right:2px solid #ff8a5f;
+}
+.markband.no-in{border-left:0}
+.markband.no-out{border-right:0;background:none}
+.markband::before,.markband::after{
+  content:"";position:absolute;top:-26px;width:0;height:0;
+  border-top:9px solid #ff8a5f;
+}
+.markband::before{left:-2px;border-right:8px solid transparent}
+.markband::after{right:-2px;border-left:8px solid transparent}
+.markband.no-in::before{display:none}
+.markband.no-out::after{display:none}
+
+/* 빈 자리를 끌어 여러 클립을 한 번에 고른다 */
+.marquee{
+  position:absolute;z-index:28;display:none;pointer-events:none;
+  border:1px solid var(--accent);background:rgba(76,141,255,.14);border-radius:2px;
+}
+
+/* ============ 로그 스트립 ============ */
+
+
+/* ============ 렌더링 설정 · 진행 (인스펙터, 선택 없음) ============ */
+/* 폴더 칸 + 찾기 버튼 */
+.dir-row{display:flex;gap:5px;align-items:center}
+.dir-row .input{flex:1 1 auto;min-width:0}
+.dir-row .btn{flex:0 0 auto}
+
+/* 폴더 고르기 창 */
+.dirpick-path{
+  padding:6px 8px;margin-bottom:6px;border-radius:var(--r-sm);
+  background:var(--panel-2);border:1px solid var(--line);font-size:11.5px;color:var(--txt-dim);
+}
+.dirpick-list{
+  max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:var(--r-sm);
+  background:var(--bg);padding:4px;
+}
+.dirpick-row{
+  display:flex;align-items:center;gap:8px;width:100%;padding:6px 8px;
+  border:0;background:transparent;border-radius:4px;cursor:pointer;text-align:left;
+  color:var(--txt);font-size:12px;
+}
+.dirpick-row:hover{background:#2f3846}
+.dirpick-row.is-up{color:var(--txt-mute)}
+.dirpick-row .nm{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dirpick-row .tag{
+  flex:0 0 auto;font-size:10px;padding:1px 6px;border-radius:999px;
+  background:#12241c;color:#8fe3bb;
+}
+.dirpick .hint{margin:7px 0 0}
+
+.ins-plan{margin-top:6px}
+.plan-row{
+  display:flex;align-items:center;gap:6px;padding:5px 8px;margin-top:4px;
+  border-radius:var(--r-sm);font-size:11.5px;border:1px solid var(--line-2);
+}
+.plan-row::before{content:'';width:6px;height:6px;border-radius:50%;flex:0 0 auto}
+.plan-row.is-go{background:#12241c;color:#8fe3bb}
+.plan-row.is-go::before{background:#3fbf87}
+.plan-row.is-ai{background:#241f12;color:#e3cf8f}
+.plan-row.is-ai::before{background:#bf9a3f}
+
+.ins-prog{margin-top:2px}
+.prog-bar{
+  height:6px;border-radius:3px;background:#232a36;overflow:hidden;margin:2px 0 7px;
+}
+.prog-bar i{
+  display:block;height:100%;border-radius:3px;background:var(--accent);
+  transition:width .35s ease;
+}
+.prog-bar.is-bad i{background:#e05561}
+/* 이 폴더의 첫 렌더는 지난 시간을 몰라 남은 시간을 말할 수 없다. 어림이라는
+   것을 줄무늬로 알린다 - 매끈한 막대는 아는 척이 된다. */
+.prog-bar.is-rough i{
+  background-image:linear-gradient(115deg,
+    rgba(255,255,255,.22) 25%,transparent 25%,transparent 50%,
+    rgba(255,255,255,.22) 50%,rgba(255,255,255,.22) 75%,transparent 75%);
+  background-size:14px 14px;
+  animation:progstripe .9s linear infinite;
+}
+@keyframes progstripe{from{background-position:0 0}to{background-position:14px 0}}
+.prog-meta{margin:0 0 6px;font-size:11px;color:var(--txt-mute)}
+/* 굽는 동안 타임라인 버튼에도 표가 난다 (인스펙터를 안 보고 있을 때) */
+#btnRender.is-busy{opacity:1;animation:progpulse 1.1s ease-in-out infinite;cursor:progress}
+.prog-row .why{margin-left:auto;font-family:var(--mono);font-size:10px;opacity:.8}
+.prog-row.is-skip{color:var(--txt-mute);opacity:.65}
+.prog-row.is-skip::before{background:#3a4354;box-shadow:inset 0 0 0 1px #566}
+.prog-row{
+  display:flex;align-items:center;gap:7px;padding:4px 2px;font-size:11.5px;
+  color:var(--txt-mute);
+}
+.prog-row::before{
+  content:'';width:7px;height:7px;border-radius:50%;flex:0 0 auto;background:#3a4354;
+}
+.prog-row.is-done{color:var(--txt-dim)}
+.prog-row.is-done::before{background:#3fbf87}
+.prog-row.is-now{color:var(--txt);font-weight:600}
+.prog-row.is-now::before{background:var(--accent);animation:progpulse 1.1s ease-in-out infinite}
+.prog-row.is-bad{color:#ff9d9d}
+.prog-row.is-bad::before{background:#e05561}
+@keyframes progpulse{0%,100%{opacity:1}50%{opacity:.25}}
+.prog-err{margin:6px 0 0;font-size:11.5px;color:#ff9d9d}
+.prog-out{
+  margin-top:5px;padding:5px 8px;border-radius:var(--r-sm);font-size:10.5px;
+  background:#12241c;color:#8fe3bb;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.prog-log{
+  margin:8px 0 0;padding:7px 8px;max-height:132px;overflow:auto;
+  background:#0e1116;border:1px solid var(--line);border-radius:var(--r-sm);
+  font-family:var(--mono);font-size:10.5px;line-height:1.5;color:var(--txt-mute);
+  white-space:pre-wrap;word-break:break-all;
+}
