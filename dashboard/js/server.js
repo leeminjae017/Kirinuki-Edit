@@ -46,7 +46,8 @@
      핑 자체를 계속 돌린다 - 붙으면 그때 작업 폴더를 물어보고, 끊기면 다음
      핑에서 알아서 다시 붙는다. 양방향으로 스스로 맞춰진다. */
   function ping() {
-    return post('/api/ping', { id: S.id }).then(function () {
+    /* 숨은 탭은 타이머가 1분에 한 번까지 늦춰진다 - 숨었다고 알려 서버가 기다리게 한다 (server.py HIDDEN_TTL) */
+    return post('/api/ping', { id: S.id, hidden: document.hidden }).then(function () {
       if (S.online) return;
       S.online = true;
       S.warned = false;
@@ -84,6 +85,16 @@
     if (S.timer) clearInterval(S.timer);
     ping();
     S.timer = setInterval(ping, S.interval);
+
+    /* 숨거나 다시 보일 때 바로 알린다 - 늦춰진 다음 핑까지 기다리면 서버가 그 사이 탭이 닫혔다고 본다.
+       멈추기(freeze) 직전에도 숨었다고 한 번 더 남긴다 */
+    document.addEventListener('visibilitychange', function () { ping(); });
+    document.addEventListener('freeze', function () {
+      try {
+        navigator.sendBeacon('/api/ping',
+          new Blob([JSON.stringify({ id: S.id, hidden: true })], { type: 'application/json' }));
+      } catch (e) { /* 남길 곳이 없다 */ }
+    });
 
     /* 탭을 닫거나 다른 페이지로 가면 서버에 알린다. unload는 요즘 브라우저에서
        무시될 수 있어 pagehide를 쓰고, sendBeacon이라 응답을 기다리지 않는다. */

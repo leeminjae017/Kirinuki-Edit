@@ -41,6 +41,10 @@ def _iso(ts):
 # 렉으로도 서버가 내려간다.
 PING_INTERVAL = 3.0
 CLIENT_TTL = 12.0
+# 숨은 탭(다른 탭 · 최소화)은 브라우저가 타이머를 1분에 한 번까지 늦추고, 오래 두면 멈춘다 - 12초로 보면
+# 탭이 살아 있는데 서버가 내려갔다 (2026-10-01: 브라우저 창이 뒤에 있는 동안 두 번 넘게). 숨었다고 알린 페이지는
+# 이만큼 기다린다. 탭을 닫으면 pagehide 의 bye 로 바로 빠지므로 닫기는 그대로 빠르다
+HIDDEN_TTL = 2 * 3600.0
 # 브라우저가 처음 붙기까지 기다려 주는 시간. 이게 없으면 서버가 뜨자마자
 # "붙은 페이지가 없다"며 바로 내려간다.
 STARTUP_GRACE = 45.0
@@ -57,10 +61,10 @@ class Clients:
         # 시작 유예가 끝날 때까지 서버가 남아 있다 - 닫자마자 내려가야 한다.
         self.had_client = False
 
-    def ping(self, cid):
+    def ping(self, cid, hidden=False):
         with self._lock:
             new = cid not in self._seen
-            self._seen[cid] = time.time()
+            self._seen[cid] = (time.time(), HIDDEN_TTL if hidden else CLIENT_TTL)
             self.had_client = True
         return new
 
@@ -71,8 +75,8 @@ class Clients:
     def alive(self):
         now = time.time()
         with self._lock:
-            for cid, t in list(self._seen.items()):
-                if now - t > CLIENT_TTL:
+            for cid, (t, ttl) in list(self._seen.items()):
+                if now - t > ttl:
                     del self._seen[cid]
             return len(self._seen)
 
@@ -1316,7 +1320,7 @@ class Handler(SimpleHTTPRequestHandler):
             cid = str(d.get("id") or "")[:64]
             if not cid:
                 return self._json(400, {"ok": False, "error": "id 없음"})
-            if CLIENTS.ping(cid):
+            if CLIENTS.ping(cid, bool(d.get("hidden"))):
                 sys.stderr.write("  페이지 연결됨 (%d개)\n" % CLIENTS.alive())
             return self._json(200, {"ok": True, "clients": CLIENTS.alive()})
 
