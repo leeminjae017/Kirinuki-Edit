@@ -317,13 +317,15 @@ def plan(T, body, base, ctx):
 #  - 그 위에 느린 숨 (FLOW_BREATH, 4마디 주기) - 같은 크기 마디가 이어져도 서 있지 않게
 #  - 그 마디에 손이 닿는 폭은 늘 화면 안 (샷이 그만큼 넓다), 손을 머리 위로 들면 화면 위도 손까지
 FLOW_CLOSE = 0.62   # 가장 조용한 마디: 머리부터 몸의 이만큼 (허벅지 위). 참고본 밀어 들어간 끝 (2.4 · 9.6초) 이 허벅지 위 (눈으로 봄)
-FLOW_WIDE = 0.74    # 가장 바쁜 마디: 몸이 화면 높이의 이만큼. measured 참고본 넓은 샷 0.55-0.67 (isnet 10fps, 4.5-8.4초) - 담유이 원본은
-                    # 발이 원본 아래 끝이라 그만큼 못 빠진다 (guess - 사용자가 C:S 0.84 를 "여백이 너무 많잖아" 했다)
+FLOW_WIDE = 0.88    # 가장 바쁜 마디: 몸이 화면 높이의 이만큼. 참고본 넓은 샷은 0.55-0.67 (isnet 10fps, 4.5-8.4초) 이지만 0.74 로 둔 가시나0 이
+                    # "C:D 넓은 샷 여백이 너무 많아" (2026-10-02). C:S 는 0.91 에서 여백 말이 없었다 -> 그보다 조금만 넓게 (guess)
 FLOW_PUSH = 4       # 밀기 박 수. measured 참고본 0-2.4초 4.5박에 x2.5 (앞 판 잰 값 VzGB 4.5박 x3.3)
 FLOW_PULL = 2       # 빼기 박 수 - 움직임이 커지는 마디라 더 빨리. measured 앞 판 1.4-2박
 FLOW_BREATH = 0.05  # 숨 폭 (배율 ±) (guess)
 FLOW_HEAD = 0.06    # 밀어 들어갔을 때 머리 위 여백 (화면 높이). 앞 판 CU_HEAD 0.04 + 조금 (guess)
 FLOW_DZ = 0.03      # 가로 흔들림 무시 띠 (화면 높이). C:S DZ_C 0.01 로는 가시나0 방향 바뀜 초당 1.5번 (guess - 아래 결과로 맞춤)
+FLOW_A = 2.0        # 가로 · 세로 가속 한도 (h/초²). C:S 의 A_XS 3 은 h 가 작은 (밀어 들어간) 샷에서 꺾임 0.3 h/초 (0.1초) 를 남겼다 (guess - 아래 결과로)
+FLOW_ENV = 0.6      # 머리 · 든 손 꼭대기를 지난 이만큼 중 가장 높은 자리로 (박 하나 0.48초 + 조금, guess)
 FLOW_AVOID = 0.15   # region 밖 (다른 캐릭터) 쪽으로 화면이 나가면 몸이 안에 남는 한 이만큼 (화면 너비) 까지 반대로 비킨다 (guess)
 
 
@@ -353,20 +355,19 @@ def plan_flow(T, body, base, ctx):
         m = bi == b
         need_w = np.percentile(x1[m] - x0[m], 98) * 1.08 / ASP if m.any() else 0
         tgt[b] = np.clip(max(h_close * (h_wide / h_close) ** rank[b], need_w), h_close, SH)
-    # 배율 길: 마디 첫 박에서 시작하는 코사인 이동
+    # 배율 길: 마디 첫 박에 목표가 바뀌고, 임계 감쇠 용수철로 따라간다 (로그 배율). 앞 판은 마디마다 코사인을 새로 시작해 앞 이동이 덜 끝난
+    # 마디에서 속도가 0 으로 끊겼다 (가시나0 세로 꺾임 12번). 용수철은 속도가 이어진다. 90% 에 닿는 시간 = 밀기 FLOW_PUSH 박 · 빼기 FLOW_PULL 박
+    # 숨 · 지금 손 폭도 목표에 넣는다 - 용수철 뒤에서 손 폭으로 배율을 딱 넓히면 팔을 벌릴 때마다 줌이 툭 튀었다 (9.2 · 11.1초).
+    # 용수철 둘을 잇는다 (가속도 이어짐 - 하나면 마디 첫 박에 가속이 계단으로 바뀐다). 둘 이은 계단 응답 90% ≈ 5.3 / ω
+    g = np.log(np.maximum(tgt[bi] * (1 + FLOW_BREATH * np.sin(2 * np.pi * (T - T[0]) / (16 * beat))), (x1 - x0) * 1.04 / ASP))
     H = np.empty(n)
-    cur, start, frm, to, dur = h_wide, T[0], h_wide, h_wide, 1.0
-    for i, t in enumerate(T):
-        b = bi[i]
-        if i == 0 or b != bi[i - 1]:
-            frm, to, start = cur, tgt[b], t
-            dur = (FLOW_PUSH if to < frm else FLOW_PULL) * beat
-        u = min(1.0, (t - start) / dur)
-        cur = frm + (to - frm) * (1 - np.cos(np.pi * u)) / 2
-        H[i] = cur
-    H *= 1 + FLOW_BREATH * np.sin(2 * np.pi * (T - T[0]) / (16 * beat))
-    # 끝까지 손 폭은 화면 안 - 숨이 넘치면 넓힌다 (지금 프레임 기준, 앞을 안 본다)
-    H = np.clip(np.maximum(H, (x1 - x0) * 1.04 / ASP), 0.24 * SH, SH)
+    z1 = z2 = np.log(h_wide); v1 = v2 = 0.0; dt = 1.0 / DFPS
+    for i in range(n):
+        w = 5.3 / ((FLOW_PUSH if g[i] < z2 else FLOW_PULL) * beat)
+        v1 += (w * w * (g[i] - z1) - 2 * w * v1) * dt; z1 += v1 * dt
+        v2 += (w * w * (z1 - z2) - 2 * w * v2) * dt; z2 += v2 * dt
+        H[i] = np.exp(z2)
+    H = np.clip(H, 0.24 * SH, SH)
     W = H * ASP
     c = np.clip(np.log(h_wide / H) / np.log(h_wide / h_close), 0, 1)   # 0 넓음 - 1 밀어 들어감
     # 가로: 넓을 때 무게중심, 밀어 들어갈수록 상반신 무게중심. region 밖 쪽은 몸이 남는 한 비킨다
@@ -384,17 +385,24 @@ def plan_flow(T, body, base, ctx):
     # 손을 화면 안에 두는 밀기도 거르개 앞에서 (뒤에서 딱 자르면 팔을 뻗을 때마다 화면이 툭 끌려갔다), 뒤에서는 손끝만 안 나가게
     lo, hi = x1 + 0.03 * W - W / 2, x0 - 0.03 * W + W / 2
     cx = ctx["dead"](cx, FLOW_DZ * H, ())
-    CX = track(np.where(lo <= hi, np.clip(cx, lo, hi), (lo + hi) / 2), H)
-    lo, hi = x1 - W / 2, x0 + W / 2
-    CX = np.where(lo <= hi, np.clip(CX, lo, hi), (lo + hi) / 2)
-    CX = np.clip(CX, W / 2, SW - W / 2)
+    CX = track(np.clip(np.where(lo <= hi, np.clip(cx, lo, hi), (lo + hi) / 2), W / 2, SW - W / 2), H)
+    CX = np.clip(ctx["follow"](CX, 1.0, FLOW_A, H, snap=False), W / 2, SW - W / 2)      # 손끝을 딱 붙잡지 않고 가속 한도만
     # 세로: 넓을 때 몸 가운데 = 화면 가운데, 밀어 들어갈수록 머리 꼭대기 아래 FLOW_HEAD. 든 손은 늘 안
-    top_w = (hy + y1) / 2 - H / 2
-    top_c = hy - FLOW_HEAD * H
+    # 머리 · 든 손은 지난 FLOW_ENV 초 중 가장 높았던 자리로 - 박마다 끄덕이는 머리 (가시나0 23.3-23.9초 0.1초에 45px 오르내림) 를 따라 내려갔다가
+    # 다시 올라오는 머리에 머리 선이 툭 걸렸다. 올라가는 쪽은 그 프레임에 바로 (지난 값만 쓴다 - 먼저 안 간다)
+    env = lambda a: np.min(sliding_window_view(np.concatenate([np.full(int(FLOW_ENV * DFPS) - 1, a[0]), a]), int(FLOW_ENV * DFPS)), axis=1)
+    hyE, y0E = env(hy), env(y0)
+    top_w = (hyE + y1) / 2 - H / 2
+    top_c = hyE - FLOW_HEAD * H
     top = (1 - c) * top_w + c * top_c
-    top = np.minimum(top, y0 - 0.03 * H)
-    top = np.where(c < 0.5, np.maximum(top, y1 + 0.02 * H - H), top)      # 넓을 때는 발도 안
-    TOP = track(top, H)
+    top = np.minimum(top, y0E - 0.03 * H)
+    # 발도 안 - 몸이 다 들어가는 배율일 때만 (몸 높이의 4% 여유에 걸쳐 서서히). 스위치로 켜고 끄면 그 자리에서 세로가 꺾였고 (앞 판 c < 0.5),
+    # 몸이 안 들어가는 중간 샷에서 발을 넣으려 내리면 머리가 밀려 나갔다가 머리 선에 툭 걸렸다 (22.1 · 23.5초)
+    wf = np.clip((H - 1.02 * bh) / (0.04 * bh), 0, 1)
+    top = top + wf * np.maximum(0, (y1 + 0.02 * H - H) - top)
+    top = np.minimum(top, hyE - 0.03 * H)
+    top = np.clip(top, 0, SH - H)                                           # 원본 끝도 거르개 앞에서 - 뒤에서만 자르면 끝에 툭 걸린다 (23.5초)
+    TOP = ctx["follow"](track(top, H), 1.0, FLOW_A, H, snap=False)
     TOP = np.minimum(TOP, hy - 0.005 * H)
     TOP = np.clip(TOP, 0, SH - H)
     X = CX - W / 2
