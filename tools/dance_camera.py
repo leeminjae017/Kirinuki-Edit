@@ -116,7 +116,7 @@ def isnet_runner():
 def masks_isnet():
     """FPS 마다 몸 윤곽 (MW x MH bool). 편 폴더 char_masks.npz 에 캐시"""
     st = os.stat(SRC)
-    key = json.dumps({"src": SRC.replace(os.sep, "/"), "size": st.st_size, "mtime": int(st.st_mtime), "fps": FPS, "w": MW, "v": 3})
+    key = json.dumps({"src": SRC.replace(os.sep, "/"), "size": st.st_size, "mtime": int(st.st_mtime), "fps": FPS, "w": MW, "v": 4})
     cache = os.path.join(work, "char_masks.npz")
     have = {}
     if os.path.exists(cache):
@@ -148,6 +148,13 @@ def masks_isnet():
                 f = np.frombuffer(b, np.uint8).reshape(H, W, 3)
                 im = cv2.resize(f, (1024, 1024)).astype(np.float32) / 255 - np.array([0.485, 0.456, 0.406], np.float32)
                 o = infer(im.transpose(2, 0, 1)[None])
+                if o.max() < 0.5:
+                    # 모델이 캐릭터를 못 찾은 장 - 펴서 (정규화) 쓰면 잡음이 윤곽이 된다. 사준완260921 5.6초: 출력 최대 0.099 -> 109점짜리
+                    # "몸" 을 잡아 카메라가 0.3초 확 당겼다 놓았다 (같은 장을 따로 넣으면 정상 - 이어 읽은 그 프레임만). 빈 윤곽으로 두면
+                    # dense() 가 앞뒤 윤곽 사이를 흐름으로 잇는다
+                    have[t] = np.zeros((MH, MW), bool)
+                    done += 1
+                    continue
                 o = (o - o.min()) / (o.max() - o.min() + 1e-9)
                 m = (cv2.resize(o, (W, H)) > 0.5).astype(np.uint8)
                 n, lab, s_, _ = cv2.connectedComponentsWithStats(m)
@@ -210,7 +217,7 @@ def dense():
         F = np.frombuffer(raw, np.uint8).reshape(-1, MH, MW)
         ft = a0 + np.arange(len(F)) / DFPS
         flow = lambda ij: cv2.calcOpticalFlowFarneback(F[ij[0]], F[ij[1]], None, 0.5, 3, 21, 3, 5, 1.1, 0)
-        anchors = [(int(round((t - a0) * DFPS)), t) for t in mt if a0 - 1e-6 <= t <= ft[-1] + 1e-6]
+        anchors = [(int(round((t - a0) * DFPS)), t) for t in mt if a0 - 1e-6 <= t <= ft[-1] + 1e-6 and M[t].any()]   # 빈 윤곽은 건너뛴다
         vals = np.full((len(F), 7), np.nan)
         for ia, ta in anchors:
             vals[ia] = stats(np.argwhere(M[ta])[:, ::-1].astype(np.float32))
