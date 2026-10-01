@@ -17,11 +17,14 @@ const VERSION = 3;
 /* Camera (edit.camera.keys): the crop box follows keyframes in source time - [{ t, x, y, h, in }], source pixels, box width
    = h * window aspect. A key holds until the next one; a next key with in: "linear" is reached at constant speed, anything
    else is a cut on that frame. A held span is a plain crop (cached like any piece). A run of linear keys - a tracking camera
-   puts one every frame it moves - becomes one moving span of up to maxLen seconds / maxPts keys (the expression goes on the
-   command line, 32K on Windows) whose box is a piecewise-linear path, drawn by
+   puts one every frame it moves - becomes one moving span of up to maxLen seconds / maxPts keys whose box is a
+   piecewise-linear path, drawn by
    perspective (sub-pixel, per frame; an integer crop x/y steps visibly on slow pans once magnified 2x).
    Dance reference (Damyui-n152-1, 2026-10-01): the camera follows the body almost all the time, a few one-frame cuts. */
-export function cameraSpans(keys, s, e, aspect, SW, SH, fps, maxLen = 3, maxPts = 40) {
+// Long spans: every piece pays ~2s to open the GPU encoder (measured h264_qsv: 6 frames 2.17s, 180 frames 2.38s), so 3s / 40-key
+// spans (18 pieces for 23s, 허니하트) spent most of the body time starting encoders. The path goes to ffmpeg in a file (-/vf),
+// so the 32K command line no longer caps it.
+export function cameraSpans(keys, s, e, aspect, SW, SH, fps, maxLen = 60, maxPts = Infinity) {
   const snap = (t) => Math.round(t * fps) / fps;
   const K = keys.map((k) => ({ ...k, t: snap(k.t) })).sort((a, b) => a.t - b.t);
   const boxOf = (k, exact) => {
@@ -43,31 +46,46 @@ export function cameraSpans(keys, s, e, aspect, SW, SH, fps, maxLen = 3, maxPts 
   for (let j = 0; j + 1 < cuts.length; j++) {
     const a = cuts[j], b = cuts[j + 1], A = at(a);
     if (b - a < 0.5 / fps) continue;
-    if (!A.moving) { out.push({ s: a, e: b, from: A.box }); continue; }
-    const k0 = K[A.i], k1 = K[A.i + 1];
-    const end = boxOf(lerp(k0, k1, (b - k0.t) / (k1.t - k0.t)), true);
     const last = out[out.length - 1];
-    // continue the previous moving span when it ends here (no cut between) and stays under maxLen
-    if (last && last.path && Math.abs(last.e - a) < 1e-6 && b - last.s <= maxLen + 1e-6 && last.path.length < maxPts) { last.path.push({ t: b, box: end }); last.e = b; }
-    else out.push({ s: a, e: b, path: [{ t: a, box: A.box }, { t: b, box: end }] });
+    const end = A.moving ? boxOf(lerp(K[A.i], K[A.i + 1], (b - K[A.i].t) / (K[A.i + 1].t - K[A.i].t)), true) : A.box;
+    // Join the previous span when it ends here and stays under maxLen. A different box at the join is a cut: a jump point,
+    // drawn on exactly this frame. Each piece pays ~2s to start the GPU encoder, so holds and cuts no longer start pieces
+    // of their own (the 1-frame hold before every cut was one: 14 pieces for 23s, 허니하트). Box values of a hold are
+    // rounded to whole px, a path's to 0.01 - within 0.51px they are the same box.
+    if (last && Math.abs(last.e - a) < 1e-6 && b - last.s <= maxLen + 1e-6 && last.path.length < maxPts) {
+      const p = last.path[last.path.length - 1].box;
+      if (!['x', 'y', 'w', 'h'].every((c) => Math.abs(p[c] - A.box[c]) <= 0.51)) last.path.push({ t: a, box: A.box, jump: true });
+      last.path.push({ t: b, box: end }); last.e = b;
+    } else out.push({ s: a, e: b, path: [{ t: a, box: A.box }, { t: b, box: end }] });
   }
   return out;
 }
 
 /* perspective corners for a path span: v(f) = v0 + sum of each leg's change * clip((f - f_k) / len_k, 0, 1), f = frame in the
-   piece. perspective counts input frames from 1 - using in/N ran a frame ahead (measured 4.5px on a 119px pan). */
-export function pathVf(path, s, fps) {
+   piece. perspective counts input frames from 1 - using in/N ran a frame ahead (measured 4.5px on a 119px pan).
+   The source is first cropped to the area the path sweeps (even offsets, a few px of margin for the cubic taps): perspective
+   works on every pixel of its input, and the full 1726x1080 frame was 3-10x the box it draws from. */
+export function pathVf(path, s, fps, SW = Infinity, SH = Infinity) {
+  const M = 4;
+  const ox = Math.max(0, Math.floor((Math.min(...path.map((p) => p.box.x)) - M) / 2) * 2);
+  const oy = Math.max(0, Math.floor((Math.min(...path.map((p) => p.box.y)) - M) / 2) * 2);
+  const cw = Math.floor((Math.min(SW, Math.ceil(Math.max(...path.map((p) => p.box.x + p.box.w)) + M)) - ox) / 2) * 2;
+  const ch = Math.floor((Math.min(SH, Math.ceil(Math.max(...path.map((p) => p.box.y + p.box.h)) + M)) - oy) / 2) * 2;
+  path = path.map((p) => ({ ...p, box: { ...p.box, x: p.box.x - ox, y: p.box.y - oy } }));
   const F = path.map((p) => Math.round((p.t - s) * fps));
+  // terms summed as a balanced tree: ffmpeg's expression parser fails ("Cannot allocate memory") on a flat a+b+c+... past
+  // ~97 terms (measured, ffmpeg 8.1); (a+b)+(c+d) nests only log2(n) deep - checked up to 300 terms
+  const sum = (t) => (t.length === 1 ? t[0] : `(${sum(t.slice(0, t.length >> 1))}+${sum(t.slice(t.length >> 1))})`);
   const expr = (g) => {
-    let x = `${g(path[0].box)}`;
+    const t = [`${g(path[0].box)}`];
     for (let k = 0; k + 1 < path.length; k++) {
       const d = +(g(path[k + 1].box) - g(path[k].box)).toFixed(2), L = Math.max(1, F[k + 1] - F[k]);
-      if (d) x += `+${d}*clip((in-1-${F[k]})/${L},0,1)`;
+      if (d) t.push(path[k + 1].jump ? `${d}*gte(in-1,${F[k + 1]})` : `${d}*clip((in-1-${F[k]})/${L},0,1)`);   // a cut: on its frame
     }
-    return `'${x}'`;
+    return `'${sum(t)}'`;
   };
   const X0 = (b) => b.x, X1 = (b) => b.x + b.w, Y0 = (b) => b.y, Y1 = (b) => b.y + b.h;
-  return `perspective=x0=${expr(X0)}:y0=${expr(Y0)}:x1=${expr(X1)}:y1=${expr(Y0)}:x2=${expr(X0)}:y2=${expr(Y1)}:x3=${expr(X1)}:y3=${expr(Y1)}`
+  return (Number.isFinite(SW) ? `crop=${cw}:${ch}:${ox}:${oy},` : '') + `perspective=x0=${expr(X0)}:y0=${expr(Y0)}:x1=${expr(X1)}:y1=${expr(Y0)}:x2=${expr(X0)}:y2=${expr(Y1)}:x3=${expr(X1)}:y3=${expr(Y1)}`
     + ':interpolation=cubic:eval=frame';
 }
 const FPS_DEFAULT = 60;
@@ -137,7 +155,9 @@ export async function buildBody(projectDir, edit, preset, cutsList) {
     // a piece's own crop may have another aspect: fill the window, trimming the excess (no stretching)
     const cropVf = (c) => `${c ? `crop=${c.w}:${c.h}:${c.x}:${c.y},` : ''}scale=${W.w}:${wh}:force_original_aspect_ratio=increase:flags=lanczos,crop=${W.w}:${wh},setsar=1` + tail;
     // camera: split the piece where the box holds / moves; only the piece's own ends get the audio fade (music runs on)
-    const spans = cam && !pc.source && !pc.crop ? cameraSpans(cam, pc.s, pc.e, W.w / wh, srcInfo.w, srcInfo.h, srcInfo.fps) : [{ s: pc.s, e: pc.e }];
+    // camera spans: about a third of the piece each (+1s so no sliver is left over), so the three encoders below all have work
+    const spans = cam && !pc.source && !pc.crop ? cameraSpans(cam, pc.s, pc.e, W.w / wh, srcInfo.w, srcInfo.h, srcInfo.fps,
+      Math.max(4, (pc.e - pc.s) / 3 + 1)) : [{ s: pc.s, e: pc.e }];
     let off = 0;
     spans.forEach((q, qi) => {
       // camera pieces fall on any 1/30s: cut them by frame count, not by a 3-decimal -t - 18 pieces came out 1797 frames for
@@ -147,15 +167,24 @@ export async function buildBody(projectDir, edit, preset, cutsList) {
       const qo = qi === spans.length - 1 ? +(outDur - off).toFixed(exact ? 6 : 3) : exact ? Math.round(qd / sp * fps) / fps : +(qd / sp).toFixed(3);
       const nv = Math.round(qo * fps);
       let vf;
-      if (q.path) vf = pathVf(q.path, q.s, srcInfo.fps) + `,scale=${W.w}:${wh}:flags=lanczos,setsar=1` + tail;
+      // fps first: the path counts input frames (in), and an OBS recording drops one now and then - 허니하트 18.807s lost a
+      // frame and the rest of an 8.8s span was drawn a frame late (up to 8px on a moving close-up). Regular frames, regular count.
+      if (q.path) vf = `fps=${srcInfo.fps},` + pathVf(q.path, q.s, srcInfo.fps, srcInfo.w, srcInfo.h) + `,scale=${W.w}:${wh}:flags=lanczos,setsar=1` + tail;
       else vf = cropVf(q.from || pcC);
       const fi = qi === 0 ? `afade=t=in:st=0:d=${fade},` : '', fo = qi === spans.length - 1 ? `,afade=t=out:st=${Math.max(0, qo - fade).toFixed(3)}:d=${fade}` : '';
       const af = `${gain}${sp !== 1 ? `atempo=${sp},` : ''}aresample=48000${fi ? ',' + fi.slice(0, -1) : ''}${fo}`;
       const key = md5([VERSION, sigOf(file), q.s, qd, vf, af, enc.name, ...(exact ? [nv] : [])]);
       const out = path.join(cache, `win_${key}.mkv`);
       if (!fs.existsSync(out)) {
+        // a long camera path is longer than the Windows command line (32K): ffmpeg reads it from a file (-/vf, ffmpeg 7.1+)
+        let vfArg = ['-vf', vf];
+        if (vf.length > 4000) {
+          const vfFile = path.join(cache, `vf_${key}.txt`);
+          fs.writeFileSync(vfFile, vf);
+          vfArg = ['-/vf', vfFile];
+        }
         jobs.push(['-y', '-v', 'error', '-ss', q.s.toFixed(exact ? 6 : 3), '-t', (exact ? qd + 0.1 : qd).toFixed(exact ? 6 : 3), '-i', file,
-          '-vf', vf, '-af', af, ...(exact ? ['-frames:v', String(nv)] : []), '-t', qo.toFixed(exact ? 6 : 3), ...enc.args,
+          ...vfArg, '-af', af, ...(exact ? ['-frames:v', String(nv)] : []), '-t', qo.toFixed(exact ? 6 : 3), ...enc.args,
           '-c:a', 'pcm_s16le', '-ar', '48000', '-ac', '2', out + '.tmp.mkv']);
         fresh++;
       } else fs.utimesSync(out, new Date(), new Date());
@@ -234,14 +263,18 @@ export async function buildBody(projectDir, edit, preset, cutsList) {
     fs.copyFileSync(bgp, path.join(projectDir, 'bg_preview.mp4'));
   } else {
     bgKey = md5([VERSION, 'black', +d.toFixed(2), preset.canvas, enc.name]);
-    run('ffmpeg', ['-y', '-v', 'error', '-f', 'lavfi', '-i', `color=black:s=${preset.canvas.width}x${preset.canvas.height}:r=${fps}`,
-      '-t', (d + 1).toFixed(3), '-vf', 'format=nv12', ...enc.args, bgOut], 'black background');
+    const black = path.join(cache, `black_${bgKey}.mp4`);          // cached: it cost 6s on every body run (1080x1920 60fps, qsv)
+    if (!fs.existsSync(black)) {
+      run('ffmpeg', ['-y', '-v', 'error', '-f', 'lavfi', '-i', `color=black:s=${preset.canvas.width}x${preset.canvas.height}:r=${fps}`,
+        '-t', (d + 1).toFixed(3), '-vf', 'format=nv12', ...enc.args, black], 'black background');
+    }
+    fs.copyFileSync(black, bgOut);
   }
 
   const old = Date.now() - 7 * 86400e3;
   for (const n of fs.readdirSync(cache)) {
     const p = path.join(cache, n);
-    if (/^(win|bgp?)_/.test(n) && fs.statSync(p).mtimeMs < old) fs.rmSync(p);
+    if (/^(win|bgp?|black|vf)_/.test(n) && fs.statSync(p).mtimeMs < old) fs.rmSync(p);
   }
   const body = { duration: +d.toFixed(3), mainDuration: +mainDur.toFixed(3), windowH: wh, bg: bgKey, encoder: enc.name, pieces: keys, crossfadeSec: edit.crossfadeSec ?? preset.audio?.crossfadeSec ?? 0 };
   writeJson(path.join(projectDir, 'body.json'), body);

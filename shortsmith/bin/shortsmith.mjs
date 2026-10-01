@@ -21,7 +21,9 @@ import { spawnSync } from 'node:child_process';
 import { analyze, planCuts } from '../lib/cuts.mjs';
 import { buildBody } from '../lib/body.mjs';
 import { buildScene } from '../lib/scene.mjs';
-import { renderScene, still } from '../lib/render.mjs';
+// render.mjs pulls in Remotion (headless Chrome, bundler): load it only for the commands that draw, so cuts / body / scene
+// start fast and run without node_modules
+const renderer = () => import('../lib/render.mjs');
 import { listPresets, loadPreset } from '../lib/preset.mjs';
 import { encoder } from '../lib/encoder.mjs';
 import { log, readJson, toOutput, writeJson } from '../lib/util.mjs';
@@ -108,7 +110,7 @@ const COMMANDS = {
   },
   async render() {
     const P = project(args[0]);
-    await renderScene(path.join(P.dir, 'scene.json'), path.resolve(P.dir, flag('out', P.edit.out || 'out/short.mp4')));
+    await (await renderer()).renderScene(path.join(P.dir, 'scene.json'), path.resolve(P.dir, flag('out', P.edit.out || 'out/short.mp4')));
   },
 
   async build() {
@@ -118,12 +120,12 @@ const COMMANDS = {
     const pieces = recut || !fs.existsSync(path.join(P.dir, 'cuts.json')) ? await cuts(P) : cutsOf(P);
     const body = await buildBody(P.dir, P.edit, P.loaded.preset, pieces);
     buildScene(P.dir, P.edit, P.loaded, body, pieces);
-    await renderScene(path.join(P.dir, 'scene.json'), path.resolve(P.dir, flag('out', P.edit.out || 'out/short.mp4')));
+    await (await renderer()).renderScene(path.join(P.dir, 'scene.json'), path.resolve(P.dir, flag('out', P.edit.out || 'out/short.mp4')));
   },
 
   async still() {
     const [dir, sec, out] = args;
-    await still(path.join(path.resolve(dir), 'scene.json'), +sec, out);
+    await (await renderer()).still(path.join(path.resolve(dir), 'scene.json'), +sec, out);
     log('wrote', out);
   },
 

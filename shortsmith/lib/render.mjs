@@ -12,7 +12,7 @@
 //    Each chunk pipes its PNGs in order into ffmpeg; three chunks encode in parallel.
 // 4. Join chunks with -c copy and add the window audio with one fixed gain to reach the loudness target (no filters).
 import { bundle } from '@remotion/bundler';
-import { openBrowser, renderFrames, selectComposition } from '@remotion/renderer';
+import { ensureBrowser, openBrowser, renderFrames, selectComposition } from '@remotion/renderer';
 import { spawn, spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -203,6 +203,26 @@ export async function renderScene(scenePath, outPath) {
     const n = Math.min(per, total - f);
     chunks.push({ i, f, n, out: path.join(cache, `chunk_${chunkKey(i, f / fps, (f + n) / fps, bundleKey)}.mkv`) });
   }
+  // Nothing drawn over the window and the window is the whole frame (a dance short without captions): the 2s chunks would
+  // only re-encode window.mkv. Copy its picture instead - measured 허니하트 23s: render 28s -> a few s, and no second
+  // generation of encoding loss. Checked on the real overlay: one image for every frame, fully transparent.
+  const W = scene.window;
+  if (W.x === 0 && W.y === 0 && W.w === scene.width && W.h === scene.height && !fxGraph(0, scene.duration).g.length) {
+    const sig0 = JSON.stringify(overlaySig(0));
+    let same = true;
+    for (let f = 1; f < total && same; f++) same = JSON.stringify(overlaySig(f)) === sig0;
+    if (same) {
+      const k = md5(JSON.stringify([bundleKey, scene.width, scene.height, overlaySig(0)]));
+      const png = path.join(ovDir, k + '.png');
+      if (!fs.existsSync(png)) await capture(new Map([[k, 0]]), ovDir, bundleDir);
+      const a = spawnSync('ffmpeg', ['-v', 'info', '-i', png, '-vf', 'alphaextract,signalstats,metadata=print:key=lavfi.signalstats.YMAX',
+        '-f', 'null', '-'], { encoding: 'utf8' });
+      if (/YMAX=0(\.0+)?\s/.test(a.stderr + '\n')) {
+        log('overlay empty, window fills the frame: picture copied from window.mkv');
+        return finish([`file '../${scene.body.window}'`], cache, outPath, ovDir, TARGET_I, TARGET_TP);
+      }
+    }
+  }
   const dirty = chunks.filter((c) => !fs.existsSync(c.out));
   chunks.filter((c) => !dirty.includes(c)).forEach((c) => fs.utimesSync(c.out, new Date(), new Date()));
 
@@ -215,22 +235,7 @@ export async function renderScene(scenePath, outPath) {
       if (!need.has(k) && !fs.existsSync(path.join(ovDir, k + '.png'))) need.set(k, f);
     }
     log(`overlay: ${need.size} new images for ${frameKey.size} frames`);
-    if (need.size) {
-      const srv = await serve();
-      const frameMap = [...need.values()], keys = [...need.keys()];
-      const inputProps = { scene, urlBase: `http://127.0.0.1:${srv.address().port}/f?p=`, overlay: true, frameMap };
-      const browser = await openBrowser('chrome');
-      const composition = await selectComposition({ serveUrl: bundleDir, id: 'Short', inputProps, puppeteerInstance: browser });
-      await renderFrames({
-        serveUrl: bundleDir, composition, inputProps, puppeteerInstance: browser,
-        imageFormat: 'png', concurrency: Math.max(2, Math.floor(os.cpus().length / 2)), outputDir: null, onStart: () => {},
-        onFrameUpdate: () => {},
-        onFrameBuffer: (buf, i) => fs.writeFileSync(path.join(ovDir, keys[i] + '.png'), buf),
-      });
-      await browser.close({ silent: true });
-      srv.close();
-      log('overlay captured');
-    }
+    if (need.size) await capture(need, ovDir, bundleDir);
     // 2) pipe each chunk's PNGs to ffmpeg in order (hard links fail on exFAT drives); GPU encoders take several sessions
     const png = new Map();
     const read = (k) => { if (!png.has(k)) png.set(k, fs.readFileSync(path.join(ovDir, k + '.png'))); return png.get(k); };
@@ -246,14 +251,36 @@ export async function renderScene(scenePath, outPath) {
     await Promise.all([worker(), worker(), worker()]);
   }
   log(`chunks: ${dirty.length}/${chunks.length} rendered`);
+  await finish(chunks.map((c) => `file '${path.basename(c.out)}'`), cache, outPath, ovDir, TARGET_I, TARGET_TP);
+}
 
+/* Capture the overlay frames in need (key -> frame) to ovDir/<key>.png */
+async function capture(need, ovDir, bundleDir) {
+  const srv = await serve();
+  const frameMap = [...need.values()], keys = [...need.keys()];
+  const inputProps = { scene, urlBase: `http://127.0.0.1:${srv.address().port}/f?p=`, overlay: true, frameMap };
+  const browser = await openBrowser('chrome', { browserExecutable: await chrome() });
+  const composition = await selectComposition({ serveUrl: bundleDir, id: 'Short', inputProps, puppeteerInstance: browser });
+  await renderFrames({
+    serveUrl: bundleDir, composition, inputProps, puppeteerInstance: browser,
+    imageFormat: 'png', concurrency: Math.max(2, Math.floor(os.cpus().length / 2)), outputDir: null, onStart: () => {},
+    onFrameUpdate: () => {},
+    onFrameBuffer: (buf, i) => fs.writeFileSync(path.join(ovDir, keys[i] + '.png'), buf),
+  });
+  await browser.close({ silent: true });
+  srv.close();
+  log('overlay captured');
+}
+
+/* Join the chunk list (concat lines) and add the window audio with one fixed gain; drop chunks / overlays unused for 7 days */
+async function finish(lines, cache, outPath, ovDir, TARGET_I, TARGET_TP) {
   // audio: measure the window audio and apply one fixed gain
   // loudness of the main part only; pieces from other files (outro) were levelled on their own in body
   const mainDur = body.mainDuration && body.mainDuration < scene.duration - 0.05 ? body.mainDuration : null;
   const [I, TP] = measure(path.join(dir, scene.body.window), mainDur);
   const gain = Math.min(TARGET_I - I, TARGET_TP - TP);
   const list = path.join(cache, 'chunks.txt');
-  fs.writeFileSync(list, chunks.map((c) => `file '${path.basename(c.out)}'`).join('\n'));
+  fs.writeFileSync(list, lines.join('\n'));
   fs.mkdirSync(path.dirname(path.resolve(outPath)), { recursive: true });
   const r = spawnSync('ffmpeg', ['-y', '-v', 'error', '-f', 'concat', '-safe', '0', '-i', list, '-i', path.join(dir, scene.body.window),
     '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-af', `volume=${gain.toFixed(2)}dB` + (mainDur ? `:enable='lt(t,${mainDur})'` : ''), '-c:a', 'aac', '-b:a', '192k',
@@ -269,6 +296,19 @@ export async function renderScene(scenePath, outPath) {
   }
 }
 
+
+/* Remotion puts Chrome Headless Shell under node_modules/.remotion of the package that holds process.cwd(), so a
+   render started from an episode folder downloaded its own 521MB copy there. Resolve it once from the shortsmith
+   package and pass the path to every Remotion call. */
+let chromePath;
+export async function chrome() {
+  if (!chromePath) {
+    const cwd = process.cwd();
+    process.chdir(HERE);
+    try { chromePath = (await ensureBrowser()).path; } finally { process.chdir(cwd); }
+  }
+  return chromePath;
+}
 
 export async function ensureBundle() {
   const bundleKey = hashDir(path.join(HERE, 'src'));
@@ -288,7 +328,8 @@ export async function still(scenePath, sec, out) {
   const { bundleDir } = await ensureBundle();
   const srv = await serve();
   const inputProps = { scene: sc, urlBase: `http://127.0.0.1:${srv.address().port}/f?p=` };
-  const composition = await selectComposition({ serveUrl: bundleDir, id: 'Short', inputProps });
-  await renderStill({ serveUrl: bundleDir, composition, inputProps, frame: Math.round(sec * sc.fps), output: path.resolve(out) });
+  const browserExecutable = await chrome();
+  const composition = await selectComposition({ serveUrl: bundleDir, id: 'Short', inputProps, browserExecutable });
+  await renderStill({ serveUrl: bundleDir, composition, inputProps, browserExecutable, frame: Math.round(sec * sc.fps), output: path.resolve(out) });
   srv.close();
 }

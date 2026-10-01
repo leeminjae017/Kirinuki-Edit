@@ -48,6 +48,7 @@
       D.state.ai.selectedStyleId = null;
       D.state.ai.prompt = data.ai.prompt || '';
       D.state.ai.langs = data.ai.langs || [];
+      D.state.ai.outputMode = data.ai.outputMode || 'each';
       D.state.ai.policy = data.ai.policy || 'on-demand';
     }
     D.state.layout = data.layout || null;

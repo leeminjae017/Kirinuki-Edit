@@ -46,10 +46,28 @@
   }
 
   /* ---------- 출력 목록 ---------- */
+  /* 하나로 합치기는 영상이 둘 넘을 때만 뜻이 있다 - 하나면 따로와 같다 */
+  function merging() { return AI.outputMode === 'merge' && videosOf('apply.target').length > 1; }
+  function fileName(p) { return String(p).split(String.fromCharCode(92)).join('/').split('/').pop(); }
+
   function plannedOutputs() {
     var vids = videosOf('apply.target');
     var langs = AI.langs.length ? AI.langs : [''];
     var out = [];
+    if (merging()) {
+      /* 이름: 폴더 하나를 드랍했으면 그 폴더 이름, 아니면 첫 영상 이름 + _합본 */
+      var roots = AI.drops['apply.target'] || [];
+      var name = roots.length === 1 && roots[0].isDir ? baseName(roots[0].name) : baseName(vids[0].name) + '_합본';
+      langs.forEach(function (l) {
+        out.push({
+          lang: l || 'original',
+          file: name + (l ? '_' + l : '_edit') + '.mp4',
+          source: vids.map(function (v) { return v.path; }).join(' + '),
+          sources: vids.map(function (v) { return v.path; })
+        });
+      });
+      return out;
+    }
     vids.forEach(function (v) {
       langs.forEach(function (l) {
         out.push({
@@ -67,6 +85,15 @@
     if (!list) return;
     var outs = plannedOutputs();
     list.innerHTML = '';
+
+    var nv = videosOf('apply.target').length;
+    var mode = D.$('#outMode');
+    if (mode) {
+      mode.hidden = nv < 2;
+      Array.prototype.forEach.call(mode.querySelectorAll('button'), function (b) {
+        b.classList.toggle('is-on', b.getAttribute('data-mode') === (AI.outputMode || 'each'));
+      });
+    }
 
     var sum = D.el('div', { class: 'out-summary' });
     var langCount = AI.langs.length || 1;
@@ -87,6 +114,17 @@
       li.appendChild(D.el('span', { class: 'lang', text: o.lang }));
       list.appendChild(li);
     });
+    if (merging()) {
+      /* 이어 붙일 순서 - 결과 아래에 한 번만 */
+      var src = D.el('ul', { class: 'out-src', title: '이 순서로 이어 붙입니다 (드랍한 순서, 폴더 안은 목록 순서)' });
+      outs[0].sources.forEach(function (p, i) {
+        var li = D.el('li', { title: p });
+        li.appendChild(D.el('span', { class: 'n', text: (i + 1) + '.' }));
+        li.appendChild(document.createTextNode(' ' + fileName(p)));
+        src.appendChild(li);
+      });
+      list.appendChild(src);
+    }
     if (outs.length > 40) list.appendChild(D.el('li', { class: 'hint', text: '외 ' + (outs.length - 40) + '개' }));
   }
 
@@ -297,6 +335,8 @@
       /* 연출에 쓸 재료. 허락 없이 인터넷에서 받지 않도록 여기 넣은 것을 먼저 쓴다 */
       assets: { roots: rootsOf('apply.assets'), files: pathsOf('apply.assets') },
       subtitleLanguages: AI.langs,
+      /* each: 영상마다 결과 한 편 / merge: 대상 영상을 sources 순서대로 이어 결과 한 편 */
+      outputMode: merging() ? 'merge' : 'each',
       outputs: outs,
       outputCount: outs.length,
       extraPrompt: AI.prompt || '',
@@ -366,9 +406,16 @@
         + j.assets.files.slice(0, 40).map(function (f) { return '- ' + f; }).join('\n')
         + (j.assets.files.length > 40 ? '\n- 외 ' + (j.assets.files.length - 40) + '개' : '') + '\n' : '',
       '## 출력 (' + j.outputCount + '개)',
+      j.outputMode === 'merge'
+        ? '출력 방식: 하나로 합치기 - 대상 영상 ' + j.outputs[0].sources.length + '개를 아래 순서대로 이어 결과 한 편으로 만든다 (영상마다 따로 내보내지 않는다). '
+          + 'shortsmith 에서는 편 폴더 하나 (edit.json 하나) 의 keep 에 다른 파일 조각을 { "source": ... } 로 잇는다.'
+        : '출력 방식: 영상마다 따로 - 대상 영상 하나에 결과 한 편',
       langLine,
-      j.outputs.slice(0, 20).map(function (o) { return '- ' + o.file + '  <- ' + o.source + '  [' + o.lang + ']'; }).join('\n'),
-      j.outputs.length > 20 ? '- 외 ' + (j.outputs.length - 20) + '개' : '',
+      j.outputMode === 'merge'
+        ? j.outputs.map(function (o) { return '- ' + o.file + '  [' + o.lang + ']'; }).join('\n') + '\n이어 붙일 순서:\n'
+          + j.outputs[0].sources.map(function (p, i) { return '  ' + (i + 1) + '. ' + p; }).join('\n')
+        : j.outputs.slice(0, 20).map(function (o) { return '- ' + o.file + '  <- ' + o.source + '  [' + o.lang + ']'; }).join('\n')
+          + (j.outputs.length > 20 ? '\n- 외 ' + (j.outputs.length - 20) + '개' : ''),
       '',
       AI.prompt ? '## 추가 지시\n' + AI.prompt + '\n' : '',
       '## 실행 원칙',
@@ -569,13 +616,23 @@
         if (!validateApply()) { D.error('스타일 적용을 중단했습니다.', 'apply'); return; }
         var job = buildApplyJob();
         D.info('대상 영상 ' + videosOf('apply.target').length + '개 · 자막 언어 ' + (AI.langs.length || 1) +
-          '개 → 결과 영상 ' + job.outputCount + '개', 'apply');
+          '개 → 결과 영상 ' + job.outputCount + '개' + (job.outputMode === 'merge' ? ' (하나로 합치기)' : ''), 'apply');
         if (AI.langs.length > 3) D.warn('언어가 ' + AI.langs.length + '개입니다. 렌더 시간이 언어 수에 비례합니다.', 'apply');
         handOff('스타일 적용', applyPrompt(), job);
       });
 
       D.$('#btnApplySave').addEventListener('click', function () {
         D.download('job_style_apply.json', JSON.stringify(buildApplyJob(), null, 2), 'application/json');
+      });
+
+      /* 출력 방식 */
+      D.$('#outMode').addEventListener('click', function (e) {
+        var b = e.target.closest('button[data-mode]');
+        if (!b) return;
+        AI.outputMode = b.getAttribute('data-mode');
+        D.info('출력 방식: ' + (AI.outputMode === 'merge' ? '하나로 합치기' : '영상마다 따로'), 'apply');
+        renderOutputs();
+        D.touch();
       });
 
       renderLangs();

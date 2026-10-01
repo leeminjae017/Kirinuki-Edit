@@ -70,8 +70,9 @@ E = json.load(io.open(os.path.join(work, "edit.json"), encoding="utf-8"))
 SRC = E["source"] if os.path.isabs(E["source"]) else os.path.join(work, E["source"])
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 js = ("import {loadPreset} from 'file:///%s/shortsmith/lib/preset.mjs';"
-      "const r=loadPreset(process.argv[1], process.argv[2]);process.stdout.write(JSON.stringify(r.preset.layout.window))") % ROOT.replace(os.sep, "/")
-Wn = json.loads(subprocess.run(["node", "--input-type=module", "-e", js, E["preset"], work], capture_output=True, text=True, check=True).stdout)
+      "const r=loadPreset(process.argv[1], process.argv[2]);process.stdout.write(JSON.stringify({w:r.preset.layout.window,c:r.preset.camera||{}}))") % ROOT.replace(os.sep, "/")
+PR = json.loads(subprocess.run(["node", "--input-type=module", "-e", js, E["preset"], work], capture_output=True, text=True, check=True).stdout)
+Wn, PCAM = PR["w"], PR["c"]
 ASP = Wn["w"] / Wn["h"]
 pr = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height,duration",
                      "-of", "csv=p=0", SRC], capture_output=True, text=True).stdout.strip().split(",")
@@ -92,6 +93,26 @@ def keep_ranges():
 
 
 # ---- 1. 캐릭터: 0.2초마다 윤곽 (isnet), 그 사이는 광학 흐름으로 프레임마다 ----
+def isnet_runner():
+    """isnet-anime 한 장 -> 1024x1024 출력. 외장 GPU (OpenVINO) 가 있으면 거기서, 없으면 onnxruntime CPU.
+    measured i7-1260P / Arc A350M: CPU 0.97초/장 (스레드 · 세션 수를 바꿔도 0.90-0.97 - 이미 꽉 참), Arc 0.070, 내장 Iris Xe 0.23.
+    GPU 는 반정밀도인데 윤곽 IoU 0.9994-1.0000 (허니하트 6장, CPU 와 견줌). 컴파일 결과는 ~/.cache/openvino 에 (첫 판 ~10초, 그 뒤 ~4초)"""
+    model = os.path.expanduser("~/.u2net/isnet-anime.onnx")
+    try:
+        import openvino as ov
+        core = ov.Core()
+        dev = next(d for d in core.available_devices if d.startswith("GPU") and "dGPU" in core.get_property(d, "FULL_DEVICE_NAME"))
+        core.set_property({"CACHE_DIR": os.path.expanduser("~/.cache/openvino")})
+        cm = core.compile_model(model, dev)
+        print("  윤곽: OpenVINO %s (%s)" % (dev, core.get_property(dev, "FULL_DEVICE_NAME")), flush=True)
+        return lambda x: cm(x)[0][0, 0]
+    except Exception as e:                         # openvino 없음 · 외장 GPU 없음 (StopIteration) · 드라이버 문제
+        import onnxruntime as ort
+        print("  윤곽: onnxruntime CPU (%s)" % (type(e).__name__,), flush=True)
+        sess = ort.InferenceSession(model, providers=["CPUExecutionProvider"])
+        return lambda x: sess.run(None, {"img": x})[0][0, 0]
+
+
 def masks_isnet():
     """FPS 마다 몸 윤곽 (MW x MH bool). 편 폴더 char_masks.npz 에 캐시"""
     st = os.stat(SRC)
@@ -106,8 +127,8 @@ def masks_isnet():
                    for t in np.arange(max(0, s - 0.4), min(DUR, e + 0.4), 1 / FPS)})
     todo = [t for t in want if t not in have]
     if todo:
-        import cv2, onnxruntime as ort
-        sess = ort.InferenceSession(os.path.expanduser("~/.u2net/isnet-anime.onnx"), providers=["CPUExecutionProvider"])
+        import cv2
+        infer = isnet_runner()
         W, H = 1024, int(round(1024 * SH / SW))
         groups, g = [], [todo[0]]                  # 이어진 덩이마다 ffmpeg 한 번
         for t in todo[1:]:
@@ -126,7 +147,7 @@ def masks_isnet():
                     break
                 f = np.frombuffer(b, np.uint8).reshape(H, W, 3)
                 im = cv2.resize(f, (1024, 1024)).astype(np.float32) / 255 - np.array([0.485, 0.456, 0.406], np.float32)
-                o = sess.run(None, {"img": im.transpose(2, 0, 1)[None]})[0][0, 0]
+                o = infer(im.transpose(2, 0, 1)[None])
                 o = (o - o.min()) / (o.max() - o.min() + 1e-9)
                 m = (cv2.resize(o, (W, H)) > 0.5).astype(np.uint8)
                 n, lab, s_, _ = cv2.connectedComponentsWithStats(m)
@@ -155,12 +176,23 @@ def masks_isnet():
 
 
 def stats(pts):
-    """점들 -> [x0, y0, x1, y1, 무게중심 x] (원본 px). 끝은 0.5 / 99.5 백분위 - 흐름이 튄 점 몇 개에 안 끌려가게"""
+    """점들 -> [x0, y0, x1, y1, 무게중심 x, 머리 꼭대기 y, 상반신 무게중심 x] (원본 px). 끝은 0.5 / 99.5 백분위 - 흐름이 튄 점
+    몇 개에 안 끌려가게. 머리 꼭대기 = 무게중심 둘레 띠 (몸 높이의 0.08 양옆) 의 윤곽 꼭대기 - 팔을 들면 손이 몸 상자 꼭대기가 된다.
+    상반신 = 머리 꼭대기부터 몸 높이의 0.35 까지. 뒤 두 칸은 C:D 클로즈업 (dance_beats.py) 이 쓴다"""
     if len(pts) < 20:
-        return [np.nan] * 5
+        return [np.nan] * 7
     sc = SW / MW
     x0, x1 = np.percentile(pts[:, 0], [0.5, 99.5]); y0, y1 = np.percentile(pts[:, 1], [0.5, 99.5])
-    return [x0 * sc, y0 * sc, x1 * sc, y1 * sc, pts[:, 0].mean() * sc]
+    cx, bh = pts[:, 0].mean(), y1 - y0
+    band = pts[np.abs(pts[:, 0] - cx) < 0.08 * bh]
+    hy = np.percentile(band[:, 1], 0.5) if len(band) >= 10 else y0
+    up = pts[pts[:, 1] < hy + 0.35 * bh]
+    ux = up[:, 0].mean() if len(up) >= 10 else cx
+    return [x0 * sc, y0 * sc, x1 * sc, y1 * sc, cx * sc, hy * sc, ux * sc]
+
+
+from concurrent.futures import ThreadPoolExecutor
+POOL = ThreadPoolExecutor(8)       # cv2 는 GIL 을 놓는다 - measured Farneback 480x270 19.8 -> 5.0ms/장 (i7-1260P)
 
 
 def dense():
@@ -177,24 +209,27 @@ def dense():
                               "fps=%d,scale=%d:%d,format=gray" % (DFPS, MW, MH), "-f", "rawvideo", "-"], capture_output=True).stdout
         F = np.frombuffer(raw, np.uint8).reshape(-1, MH, MW)
         ft = a0 + np.arange(len(F)) / DFPS
-        flow = lambda i, j: cv2.calcOpticalFlowFarneback(F[i], F[j], None, 0.5, 3, 21, 3, 5, 1.1, 0)
+        flow = lambda ij: cv2.calcOpticalFlowFarneback(F[ij[0]], F[ij[1]], None, 0.5, 3, 21, 3, 5, 1.1, 0)
         anchors = [(int(round((t - a0) * DFPS)), t) for t in mt if a0 - 1e-6 <= t <= ft[-1] + 1e-6]
-        vals = np.full((len(F), 5), np.nan)
+        vals = np.full((len(F), 7), np.nan)
         for ia, ta in anchors:
             vals[ia] = stats(np.argwhere(M[ta])[:, ::-1].astype(np.float32))
         for (ia, ta), (ib, tb) in zip(anchors, anchors[1:]):
             if ib - ia < 2:
                 continue
             fw = {}
+            # 이 구간에 쓸 흐름 (앞으로 · 뒤로) 을 스레드 8개로 먼저 - 한 줄로 돌리면 23초 (허니하트 1160번), 나눠 돌려도 값은 같다
+            need = [(i, i + 1) for i in range(ia, ib - 1)] + [(i, i - 1) for i in range(ib, ia + 1, -1)]
+            FL = dict(zip(need, POOL.map(flow, need)))
             p = np.argwhere(M[ta])[::3, ::-1].astype(np.float32)
             for i in range(ia, ib - 1):
-                fl = flow(i, i + 1)
+                fl = FL[(i, i + 1)]
                 q = np.clip(p.round().astype(int), 0, [MW - 1, MH - 1])
                 p = p + fl[q[:, 1], q[:, 0]]
                 fw[i + 1] = stats(p)
             p = np.argwhere(M[tb])[::3, ::-1].astype(np.float32)
             for i in range(ib, ia + 1, -1):
-                fl = flow(i, i - 1)
+                fl = FL[(i, i - 1)]
                 q = np.clip(p.round().astype(int), 0, [MW - 1, MH - 1])
                 p = p + fl[q[:, 1], q[:, 0]]
                 u = (i - 1 - ia) / (ib - ia)
@@ -202,14 +237,14 @@ def dense():
         keep = (ft >= s - 1e-6) & (ft <= e + 1e-6)
         T.extend(ft[keep]); V.extend(vals[keep])
     T, V = np.array(T), np.array(V)
-    for c in range(5):                             # 못 찾은 칸은 이웃으로
+    for c in range(V.shape[1]):                    # 못 찾은 칸은 이웃으로
         ok = ~np.isnan(V[:, c])
         V[:, c] = np.interp(T, T[ok], V[ok, c])
     return T, V
 
 
 T, B = dense()
-x0, y0, x1, y1, mcx = B.T
+x0, y0, x1, y1, mcx = B[:, :5].T
 
 # ---- 2. 카메라 ----
 # 작은 움직임은 몸과 같은 프레임에, 큰 움직임은 참고본의 속도 · 가속 한도 안에서 천천히 (넘치는 만큼만 늦는다 - 미리 움직이지는 않는다).
@@ -317,6 +352,14 @@ TOP = np.clip(TOP, 0, SH - H)
 X = CX - Wd / 2
 BASE = href
 
+# C:D (프리셋 camera.mode "dynamic"): 위 트래킹을 베이스로 비트에 맞춰 컷 인 · 밀기 · 빼기 · 순간 확대 (tools/dance_beats.py)
+CUT, DYN = np.zeros(len(T), bool), None
+if PCAM.get("mode") == "dynamic":
+    import dance_beats
+    X, TOP, H, CUT, DYN = dance_beats.plan(T, B, (X, TOP, H), dict(
+        SW=SW, SH=SH, ASP=ASP, DFPS=DFPS, follow=follow, dead=dead, src=SRC, work=work,
+        DZ_X=DZ_X, DZ_Y=DZ_Y, V_X=V_X, A_X=A_X, V_Y=V_Y, A_Y=A_Y))
+
 # 거의 직선인 키는 뺀다 (Douglas-Peucker, x · y · h 가 TOL 안)
 def simplify(i, j, out):
     if j <= i + 1:
@@ -328,13 +371,14 @@ def simplify(i, j, out):
     if err[k - i - 1] > TOL:
         simplify(i, k, out); out.append(k); simplify(k, j, out)
 
-idx = [0]
-simplify(0, len(T) - 1, idx)
-idx = sorted(set(idx + [len(T) - 1]))
 box = lambda i: {"x": round(float(X[i]), 1), "y": round(float(TOP[i]), 1), "h": round(float(H[i]), 1)}
-keys = [dict(t=round(float(T[idx[0]]), 3), **box(idx[0]))] + [dict(t=round(float(T[i]), 3), **box(i), **{"in": "linear"}) for i in idx[1:]]
-moves = len(keys) - 1
-cuts = 0
+keys = []
+segs = [0] + [i for i in range(1, len(T)) if CUT[i]] + [len(T)]
+for a, b in zip(segs, segs[1:]):                   # 컷마다 끊는다 - 조각 첫 키는 in 없이 (그 프레임에 컷)
+    idx = [a]
+    simplify(a, b - 1, idx)
+    idx = sorted(set(idx + [b - 1]))
+    keys += [dict(t=round(float(T[idx[0]]), 3), **box(idx[0]))] + [dict(t=round(float(T[i]), 3), **box(i), **{"in": "linear"}) for i in idx[1:]]
 
 # 챌린지 순간 확대: 그 동안 상반신으로 컷 인 (고정), 끝나면 그 시각 트래킹 자리로 컷 아웃
 for p in punch:
@@ -364,8 +408,8 @@ def cam_at(t):
 
 clip = []
 for t, b in zip(T, B):
-    if not any(s <= t <= e for s, e in keep_ranges()) or any(p["s"] <= t < p["e"] for p in punch):
-        continue                                   # 확대 중에는 몸이 잘리는 게 맞다
+    if not any(s <= t <= e for s, e in keep_ranges()) or any(p["s"] <= t < p["e"] for p in punch) or             (DYN is not None and DYN["kind"][int(np.argmin(abs(T - t)))] != "base"):
+        continue                                   # 확대 · 클로즈업 중에는 몸이 잘리는 게 맞다
     k = cam_at(t)
     w = k["h"] * ASP
     over = max(k["x"] - b[0], b[2] - k["x"] - w, k["y"] - b[1], b[3] - k["y"] - k["h"])
@@ -382,6 +426,11 @@ sp = np.abs(np.diff(CX)) * DFPS / H[1:]
 print("왔다 갔다 구간 %d: %s" % (len(osc), ", ".join("%.1f-%.1f초" % (T[a], T[b]) for a, b in osc)))
 print("카메라: 트래킹 키 %d (%.1f초) · 확대 %d · 배율 h %d-%d (가운데값 %d, 원본 %d) · 가로 속도 가운데값 %.3f / 95%% %.3f h/초"
       % (len(keys), tot, len(punch), min(hs), max(hs), BASE, SH, np.median(sp), np.percentile(sp, 95)))
+if DYN is not None:
+    print("비트: %.1f BPM · 박 %d · 마디 %d · 센스 %.0f%% (덩이 %d) · 순간 확대 %d번 · 컷 %d" % (DYN["bpm"], DYN["beats"], DYN["bars"],
+          DYN["sense"] * 100, DYN["runs"], len(DYN["pulses"]), int(CUT.sum())))
+    print("  손이 움직이는 시간 %.0f%%" % (DYN["hand_dyn"] * 100))
+    print("  샷 시간: " + " · ".join("%s %.0f%%" % (k, v * 100) for k, v in DYN["shots"].items()))
 print("몸이 잘리는 순간 (1%% 넘게): %d%s" % (len(clip), "" if not clip else "  " + ", ".join("%.1f초 %.0f%%" % (t, o * 100) for t, o in clip[:12])))
 
 if "--sheet" in sys.argv:

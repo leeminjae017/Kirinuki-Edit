@@ -137,6 +137,8 @@ window.D = window.D || {};
       selectedStyleId: null,
       prompt: '',
       langs: [],
+      /* 출력 방식: each = 대상 영상마다 결과 한 편, merge = 대상 영상을 순서대로 이어 결과 한 편 (언어마다) */
+      outputMode: 'each',
       policy: 'on-demand'
     },
     editor: {
@@ -411,6 +413,7 @@ window.D = window.D || {};
         styleSel: D.state.ai.styleSel || '',
         prompt: D.state.ai.prompt,
         langs: D.state.ai.langs,
+        outputMode: D.state.ai.outputMode || 'each',
         policy: D.state.ai.policy
       },
       editor: {
