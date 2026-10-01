@@ -151,7 +151,9 @@ export async function buildBody(projectDir, edit, preset, cutsList) {
     }
     const gain = gainDb ? `volume=${gainDb}dB,` : '';
     const pcC = pc.crop || (pc.source ? null : C);
-    const tail = (sp !== 1 ? `,setpts=(PTS-STARTPTS)/${sp}` : '') + `,fps=${fps},format=nv12`;
+    // start_time=0: a source missing the frame right at the cut (260921 합본 38.200s, a seam of joined files) would start at
+    // 1/60s, and fps= began there - the piece came out a frame short and the picture ran 17ms ahead of the sound after it
+    const tail = (sp !== 1 ? `,setpts=(PTS-STARTPTS)/${sp}` : '') + `,fps=${fps}:start_time=0,format=nv12`;
     // a piece's own crop may have another aspect: fill the window, trimming the excess (no stretching)
     const cropVf = (c) => `${c ? `crop=${c.w}:${c.h}:${c.x}:${c.y},` : ''}scale=${W.w}:${wh}:force_original_aspect_ratio=increase:flags=lanczos,crop=${W.w}:${wh},setsar=1` + tail;
     // camera: split the piece where the box holds / moves; only the piece's own ends get the audio fade (music runs on)
@@ -169,7 +171,7 @@ export async function buildBody(projectDir, edit, preset, cutsList) {
       let vf;
       // fps first: the path counts input frames (in), and an OBS recording drops one now and then - 허니하트 18.807s lost a
       // frame and the rest of an 8.8s span was drawn a frame late (up to 8px on a moving close-up). Regular frames, regular count.
-      if (q.path) vf = `fps=${srcInfo.fps},` + pathVf(q.path, q.s, srcInfo.fps, srcInfo.w, srcInfo.h) + `,scale=${W.w}:${wh}:flags=lanczos,setsar=1` + tail;
+      if (q.path) vf = `fps=${srcInfo.fps}:start_time=0,` + pathVf(q.path, q.s, srcInfo.fps, srcInfo.w, srcInfo.h) + `,scale=${W.w}:${wh}:flags=lanczos,setsar=1` + tail;
       else vf = cropVf(q.from || pcC);
       const fi = qi === 0 ? `afade=t=in:st=0:d=${fade},` : '', fo = qi === spans.length - 1 ? `,afade=t=out:st=${Math.max(0, qo - fade).toFixed(3)}:d=${fade}` : '';
       const af = `${gain}${sp !== 1 ? `atempo=${sp},` : ''}aresample=48000${fi ? ',' + fi.slice(0, -1) : ''}${fo}`;

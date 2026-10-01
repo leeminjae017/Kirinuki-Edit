@@ -45,6 +45,8 @@ EDGE_M = 0.01      # 줌아웃은 몸이 이 여백까지 넘을 때만 (화면 
 # "어떻게 처리하는지 내가 예시로 준 영상을 참고 해". 한도는 -1.mov 카메라 (0.1초마다) 의 99 백분위:
 V_X, A_X = 0.31, 1.1   # 가로 속도 h/초 · 가속 h/초². measured 가운데값 0.037 · 90% 0.153 · 99% 0.314 / 가속 99% 1.10
 V_Y, A_Y = 0.07, 0.3   # 세로. measured 속도 99% 0.072 (가속 guess)
+V_ZO, A_ZO = 0.6, 3.0  # 넓히기만 - 몸이 화면을 넘을 때 (guess, 발이 잘리지 않는 쪽이 먼저)
+TR_FC, TR_BETA, TR_DFC = 1.0, 3.0, 1.0   # 자리 트래킹 거르개 (track): 가만히 1Hz · 속도 h/초마다 +3Hz (guess - 아래 검사 수치로 맞춤)
 V_Z, A_Z = 0.10, 0.3   # 배율 바뀜 /초. measured 99% 0.099 · 최대 0.22 (가속 guess). 다리 차기 64-70초: 2.5초에 걸쳐 7% 넓히고 그대로
 DZ_X = 0.025      # 가로: 몸 무게중심이 카메라 가운데에서 너비의 이만큼 안에서 흔들리면 안 따라간다 (넘으면 그 끝을 따라감).
                    # measured -1.mov 카메라-몸 가로 차 사분위 -0.025 ~ 0.015 - 참고본도 이 폭의 흔들림은 안 따라간다
@@ -96,6 +98,89 @@ def keep_ranges():
 
 
 # ---- 1. 캐릭터: 0.2초마다 윤곽 (isnet), 그 사이는 광학 흐름으로 프레임마다 ----
+def seg_frame(f, infer, cv2):
+    """원본 프레임 (RGB) 한 장 -> 몸 윤곽 (MW x MH bool). f 가 원본 일부 (crop) 면 그 크기 그대로 돌려준다"""
+    H, W = f.shape[:2]
+    im = cv2.resize(f, (1024, 1024)).astype(np.float32) / 255 - np.array([0.485, 0.456, 0.406], np.float32)
+    o = infer(im.transpose(2, 0, 1)[None])
+    if o.max() < 0.5:
+        # 모델이 캐릭터를 못 찾은 장 - 펴서 (정규화) 쓰면 잡음이 윤곽이 된다. 사준완260921 5.6초: 출력 최대 0.099 -> 109점짜리
+        # "몸" 을 잡아 카메라가 0.3초 확 당겼다 놓았다 (같은 장을 따로 넣으면 정상 - 이어 읽은 그 프레임만). 빈 윤곽으로 두면
+        # dense() 가 앞뒤 윤곽 사이를 흐름으로 잇는다
+        return np.zeros((H, W), bool)
+    o = (o - o.min()) / (o.max() - o.min() + 1e-9)
+    m = (cv2.resize(o, (W, H)) > 0.5).astype(np.uint8)
+    n, lab, s_, _ = cv2.connectedComponentsWithStats(m)
+    out = np.zeros((H, W), bool)
+    if n > 1:
+        k = 1 + int(np.argmax(s_[1:, cv2.CC_STAT_AREA]))
+        bx0, bx1 = s_[k, 0], s_[k, 0] + s_[k, 2]
+        # 떨어진 손 · 머리칼은 넣고, 몸 밖의 큰 덩이는 뺀다 - 구독 · 후원 알림의 치비 그림을 몸으로 잡았다
+        # (Damyui-n152 7.9-14.2초: 몸 왼쪽 0.3 너비 옆, 몸 넓이의 20% 넘음)
+        by0, by1, bh = s_[k, 1], s_[k, 1] + s_[k, 3], s_[k, 3]
+        def near(j, pad):
+            return (s_[j, 0] < bx1 + pad and s_[j, 0] + s_[j, 2] > bx0 - pad and
+                    s_[j, 1] < by1 + pad and s_[j, 1] + s_[j, 3] > by0 - pad)
+        A = s_[k, cv2.CC_STAT_AREA]
+        keep = [k] + [j for j in range(1, n) if j != k and s_[j, cv2.CC_STAT_AREA] > 0.01 * A and
+                      (near(j, 0) if s_[j, cv2.CC_STAT_AREA] > 0.1 * A else near(j, 0.15 * bh))]
+        out = np.isin(lab, keep)
+    return out
+
+
+def body_box(m):
+    """윤곽 -> (x0, y0, x1, y1, 넓이) MW x MH 칸, 빈 윤곽은 None"""
+    ys, xs = np.nonzero(m)
+    if len(xs) < 20:
+        return None
+    return (xs.min(), ys.min(), xs.max() + 1, ys.max() + 1, len(xs))
+
+
+def same_body(p, q, gap):
+    """q 가 p 와 같은 몸인가 - 자리가 갑자기 옮겨 가거나 (구독 알림 그림만 잡음) 넓이가 확 커지면 (알림 + 몸) 아니다.
+    measured 260921 합본 45-51초 (터미널): 알림 치비 그림만 잡은 장은 가운데가 몸 높이의 0.8 옆, 몸과 붙여 잡은 장은 넓이 1.67배.
+    measured 댄스 편 6개 0.2초 사이: 가운데 이동 (가로 + 세로) 99% 0.11-0.26 · 최대 0.37 몸 높이, 넓이 99% 0.82-1.23배
+    (한 편만 0.50-2.02) -> 한도 0.45 + 0.2초마다 0.1 · 0.6-1.5배 (guess)"""
+    h = p[3] - p[1]
+    d = abs((p[0] + p[2]) / 2 - (q[0] + q[2]) / 2) + abs((p[1] + p[3]) / 2 - (q[1] + q[3]) / 2)
+    return d < h * (0.45 + 0.5 * gap) and 0.6 < q[4] / p[4] < 1.5
+
+
+def check_masks(have, want, infer, W, H):
+    """keep 구간마다 시간 순으로 윤곽이 앞 몸과 이어지는지 본다. 끊긴 장은 앞 몸 둘레만 잘라 (가로 몸 높이 1.5배) 다시 잡고,
+    그래도 아니면 빈 윤곽으로 둔다 (dense() 가 흐름으로 잇는다). 구간 첫 장은 그대로 믿는다"""
+    import cv2
+    fixed = bad = 0
+    R = keep_ranges()
+    for ri, (s, e) in enumerate(R):
+        # 이어 붙은 keep (여러 원본을 이은 합본) 은 경계에서 다른 장면이 된다 - 그 너머 장은 다음 구간이 처음부터 본다
+        e2 = R[ri + 1][0] if ri + 1 < len(R) and R[ri + 1][0] <= e + 0.4 else e + 0.4
+        prev, pt = None, None
+        for t in [t for t in want if s - 1e-6 <= t < e2 - 1e-6 and t in have]:
+            q = body_box(have[t])
+            if q is None:
+                continue
+            if prev is None or same_body(prev, q, t - pt):
+                prev, pt = q, t
+                continue
+            h = prev[3] - prev[1]
+            cx = (prev[0] + prev[2]) / 2
+            a, b = int(max(0, cx - 0.75 * h) * W / MW), int(min(MW, cx + 0.75 * h) * W / MW)
+            fr = subprocess.run(["ffmpeg", "-v", "error", "-ss", "%.3f" % t, "-i", SRC, "-frames:v", "1", "-vf", "scale=%d:%d" % (W, H),
+                                 "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True).stdout
+            full = np.zeros((H, W), bool)
+            if len(fr) == W * H * 3 and b - a > 16:
+                full[:, a:b] = seg_frame(np.frombuffer(fr, np.uint8).reshape(H, W, 3)[:, a:b].copy(), infer, cv2)
+            m = cv2.resize(full.astype(np.uint8), (MW, MH), interpolation=cv2.INTER_NEAREST).astype(bool)
+            q = body_box(m)
+            if q is not None and same_body(prev, q, t - pt):
+                have[t] = m; prev, pt = q, t; fixed += 1
+            else:
+                have[t] = np.zeros((MH, MW), bool); bad += 1
+    if fixed or bad:
+        print("  윤곽: 몸이 아닌 것을 잡은 장 %d - 몸 둘레만 다시 잡음 %d, 비움 %d" % (fixed + bad, fixed, bad), flush=True)
+
+
 def isnet_runner():
     """isnet-anime 한 장 -> 1024x1024 출력. 외장 GPU (OpenVINO) 가 있으면 거기서, 없으면 onnxruntime CPU.
     measured i7-1260P / Arc A350M: CPU 0.97초/장 (스레드 · 세션 수를 바꿔도 0.90-0.97 - 이미 꽉 참), Arc 0.070, 내장 Iris Xe 0.23.
@@ -119,7 +204,7 @@ def isnet_runner():
 def masks_isnet():
     """FPS 마다 몸 윤곽 (MW x MH bool). 편 폴더 char_masks.npz 에 캐시"""
     st = os.stat(SRC)
-    key = json.dumps({"src": SRC.replace(os.sep, "/"), "size": st.st_size, "mtime": int(st.st_mtime), "fps": FPS, "w": MW, "v": 4})
+    key = json.dumps({"src": SRC.replace(os.sep, "/"), "size": st.st_size, "mtime": int(st.st_mtime), "fps": FPS, "w": MW, "v": 7})
     cache = os.path.join(work, "char_masks.npz")
     have = {}
     if os.path.exists(cache):
@@ -141,45 +226,23 @@ def masks_isnet():
                 g.append(t)
         groups.append(g)
         done = 0
+        seg = lambda f: cv2.resize(seg_frame(f, infer, cv2).astype(np.uint8), (MW, MH), interpolation=cv2.INTER_NEAREST).astype(bool)
         for g in groups:
             p = subprocess.Popen(["ffmpeg", "-v", "error", "-ss", "%.3f" % g[0], "-i", SRC, "-t", "%.3f" % (g[-1] - g[0] + 0.5 / FPS),
-                                  "-vf", "fps=%d,scale=%d:%d" % (FPS, W, H), "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], stdout=subprocess.PIPE)
+                                  # round=up: fps 필터는 칸 안의 마지막 프레임을 내놓는다 - 기본 (near) 으로는 t 라고 적은 윤곽이
+                                  # 실제로 t + 0.083초 (60fps 원본) 장이었다. 윤곽 시각은 미래, 그 사이 흐름은 제 시각이라 몸 자리가
+                                  # 0.2초마다 앞섰다 돌아왔다 - 카메라가 몸보다 먼저 · 늦게 갔다 (measured 260921 합본 21.2-21.6초, IoU 최대 자리)
+                                  "-vf", "fps=%d:round=up,scale=%d:%d" % (FPS, W, H), "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], stdout=subprocess.PIPE)
             for t in g:
                 b = p.stdout.read(W * H * 3)
                 if len(b) < W * H * 3:
                     break
-                f = np.frombuffer(b, np.uint8).reshape(H, W, 3)
-                im = cv2.resize(f, (1024, 1024)).astype(np.float32) / 255 - np.array([0.485, 0.456, 0.406], np.float32)
-                o = infer(im.transpose(2, 0, 1)[None])
-                if o.max() < 0.5:
-                    # 모델이 캐릭터를 못 찾은 장 - 펴서 (정규화) 쓰면 잡음이 윤곽이 된다. 사준완260921 5.6초: 출력 최대 0.099 -> 109점짜리
-                    # "몸" 을 잡아 카메라가 0.3초 확 당겼다 놓았다 (같은 장을 따로 넣으면 정상 - 이어 읽은 그 프레임만). 빈 윤곽으로 두면
-                    # dense() 가 앞뒤 윤곽 사이를 흐름으로 잇는다
-                    have[t] = np.zeros((MH, MW), bool)
-                    done += 1
-                    continue
-                o = (o - o.min()) / (o.max() - o.min() + 1e-9)
-                m = (cv2.resize(o, (W, H)) > 0.5).astype(np.uint8)
-                n, lab, s_, _ = cv2.connectedComponentsWithStats(m)
-                out = np.zeros((H, W), bool)
-                if n > 1:
-                    k = 1 + int(np.argmax(s_[1:, cv2.CC_STAT_AREA]))
-                    bx0, bx1 = s_[k, 0], s_[k, 0] + s_[k, 2]
-                    # 떨어진 손 · 머리칼은 넣고, 몸 밖의 큰 덩이는 뺀다 - 구독 · 후원 알림의 치비 그림을 몸으로 잡았다
-                    # (Damyui-n152 7.9-14.2초: 몸 왼쪽 0.3 너비 옆, 몸 넓이의 20% 넘음)
-                    by0, by1, bh = s_[k, 1], s_[k, 1] + s_[k, 3], s_[k, 3]
-                    def near(j, pad):
-                        return (s_[j, 0] < bx1 + pad and s_[j, 0] + s_[j, 2] > bx0 - pad and
-                                s_[j, 1] < by1 + pad and s_[j, 1] + s_[j, 3] > by0 - pad)
-                    A = s_[k, cv2.CC_STAT_AREA]
-                    keep = [k] + [j for j in range(1, n) if j != k and s_[j, cv2.CC_STAT_AREA] > 0.01 * A and
-                                  (near(j, 0) if s_[j, cv2.CC_STAT_AREA] > 0.1 * A else near(j, 0.15 * bh))]
-                    out = np.isin(lab, keep)
-                have[t] = cv2.resize(out.astype(np.uint8), (MW, MH), interpolation=cv2.INTER_NEAREST).astype(bool)
+                have[t] = seg(np.frombuffer(b, np.uint8).reshape(H, W, 3))
                 done += 1
                 if done % 50 == 0:
                     print("  윤곽 %d/%d" % (done, len(todo)), flush=True)
             p.kill()
+        check_masks(have, want, infer, W, H)
         ts = sorted(have)
         np.savez_compressed(cache, key=key, t=np.array(ts), m=np.array([np.packbits(have[t].ravel()) for t in ts]))
     return {t: have[t] for t in want if t in have}
@@ -191,14 +254,16 @@ def stats(pts):
     상반신 = 머리 꼭대기부터 몸 높이의 0.35 까지. 뒤 두 칸은 C:D 클로즈업 (dance_beats.py) 이 쓴다"""
     if len(pts) < 20:
         return [np.nan] * 7
-    sc = SW / MW
+    # 윤곽은 원본 비율과 상관없이 MW x MH 로 늘여 둔다 - 가로 세로 배율이 다르다. 한 배율(SW/MW)로 쓰면 16:9 가 아닌 원본에서
+    # 몸이 세로로 줄어 발이 실제보다 높게 잡혔다 (260921 합본 1726x1080: 발 105px 위, 완성본 90% 프레임에서 발목 아래가 잘렸다)
+    sx, sy = SW / MW, SH / MH
     x0, x1 = np.percentile(pts[:, 0], [0.5, 99.5]); y0, y1 = np.percentile(pts[:, 1], [0.5, 99.5])
     cx, bh = pts[:, 0].mean(), y1 - y0
     band = pts[np.abs(pts[:, 0] - cx) < 0.08 * bh]
     hy = np.percentile(band[:, 1], 0.5) if len(band) >= 10 else y0
     up = pts[pts[:, 1] < hy + 0.35 * bh]
     ux = up[:, 0].mean() if len(up) >= 10 else cx
-    return [x0 * sc, y0 * sc, x1 * sc, y1 * sc, cx * sc, hy * sc, ux * sc]
+    return [x0 * sx, y0 * sy, x1 * sx, y1 * sy, cx * sx, hy * sy, ux * sx]
 
 
 from concurrent.futures import ThreadPoolExecutor
@@ -215,13 +280,16 @@ def dense():
     R = keep_ranges()
     for ri, (s, e) in enumerate(R):
         a0 = max(0.0, round(round((s - 0.2) * FPS) / FPS, 3))
+        if ri and R[ri - 1][1] >= s - 1e-6:
+            a0 = s                                 # 앞 구간과 이어 붙었다 - 경계 앞은 다른 장면이라 윤곽 · 흐름을 넘겨 오지 않는다
         dur = min(DUR, e + 0.4) - a0
         raw = subprocess.run(["ffmpeg", "-v", "error", "-ss", "%.3f" % a0, "-i", SRC, "-t", "%.3f" % dur, "-vf",
                               "fps=%d,scale=%d:%d,format=gray" % (DFPS, MW, MH), "-f", "rawvideo", "-"], capture_output=True).stdout
         F = np.frombuffer(raw, np.uint8).reshape(-1, MH, MW)
         ft = a0 + np.arange(len(F)) / DFPS
         flow = lambda ij: cv2.calcOpticalFlowFarneback(F[ij[0]], F[ij[1]], None, 0.5, 3, 21, 3, 5, 1.1, 0)
-        anchors = [(int(round((t - a0) * DFPS)), t) for t in mt if a0 - 1e-6 <= t <= ft[-1] + 1e-6 and M[t].any()]   # 빈 윤곽은 건너뛴다
+        anchors = [(int(round((t - a0) * DFPS)), t) for t in mt if a0 - 1e-6 <= t <= ft[-1] + 1e-6 and M[t].any()
+                   and int(round((t - a0) * DFPS)) < len(F)]   # 빈 윤곽은 건너뛴다
         vals = np.full((len(F), 7), np.nan)
         for ia, ta in anchors:
             vals[ia] = stats(np.argwhere(M[ta])[:, ::-1].astype(np.float32))
@@ -245,6 +313,11 @@ def dense():
                 p = p + fl[q[:, 1], q[:, 0]]
                 u = (i - 1 - ia) / (ib - ia)
                 vals[i - 1] = (1 - u) * np.array(fw[i - 1]) + u * np.array(stats(p))
+        ix = np.arange(len(F))                     # 첫 윤곽 앞 · 끝 윤곽 뒤 · 못 찾은 칸은 이 구간 안의 이웃으로
+        for c in range(vals.shape[1]):
+            ok = ~np.isnan(vals[:, c])
+            if ok.any():
+                vals[:, c] = np.interp(ix, ix[ok], vals[ok, c])
         # 다음 keep 이 바로 이어 붙으면 (원본을 이어 만든 합본) 경계 프레임은 다음 구간 것이다 - 두 번 넣으면 같은 시각 키가 둘
         nxt = R[ri + 1][0] if ri + 1 < len(R) and R[ri + 1][0] <= e + 1e-6 else None
         keep = (ft >= s - 1e-6) & ((ft < nxt - 1e-6) if nxt is not None else (ft <= e + 1e-6))
@@ -368,11 +441,57 @@ def follow(target, vmax, amax, scale, reset=()):
 # 8:2 한도: 캐릭터(구간 안은 오간 폭)가 그 프레임 화면의 FILL 아래로 작아지면 안 된다 (지난 0.3초로 재니 웅크릴 때 0.66 까지 내려갔다)
 ext = np.maximum(ty1 - ty0, (tx1 - tx0) / ASP)
 H_cap = np.clip(ext / FILL, HMIN * SH, SH)
-H = np.clip(np.minimum(follow(np.minimum(H_aim, H_cap), V_Z, A_Z, H_aim, RESET), H_cap), HMIN * SH, SH)
+def zoom_follow(target, reset=()):
+    """배율: 넓히기 (몸이 화면을 넘음) 는 V_ZO 로 빨리 - 발 · 머리를 자르지 않는 게 먼저다. 당기기는 참고본 빠르기 V_Z 로 천천히"""
+    dt = 1.0 / DFPS
+    c, v, out = float(target[0]), 0.0, np.empty(len(target))
+    for i, tg in enumerate(target):
+        if i in reset:
+            c, v = float(tg), 0.0
+        vm, am = (V_ZO, A_ZO) if tg > c else (V_Z, A_Z)
+        vm, am = vm * c, am * c
+        e = tg - c
+        vd = np.sign(e) * min(vm, np.sqrt(2 * am * abs(e)), abs(e) / dt)
+        v += np.clip(vd - v, -am * dt, am * dt)
+        c2 = c + v * dt
+        if (c2 - tg) * (c - tg) < 0:
+            c2, v = float(tg), 0.0
+        c = c2
+        out[i] = c
+    return out
+
+
+def track(target, scale, reset=()):
+    """자리 트래킹 (one-euro 거르개, 지난 값만): 가만히 있을 때는 TR_FC Hz 로 눌러 떨림을 없애고, 빨리 움직일수록 거르는 띠를
+    넓혀 (TR_BETA x 속도 h/초) 몸과 같은 프레임에 붙는다. 미리 움직이지 않는다 - 지난 프레임만 본다"""
+    dt = 1.0 / DFPS
+    a_of = lambda fc: 1.0 / (1.0 + 1.0 / (2 * np.pi * fc * dt))
+    c, d, out = float(target[0]), 0.0, np.empty(len(target))
+    for i, tg in enumerate(target):
+        if i in reset:
+            c, d = float(tg), 0.0
+        d += a_of(TR_DFC) * ((tg - c) / dt - d)
+        c += a_of(TR_FC + TR_BETA * abs(d) / scale[i]) * (tg - c)
+        out[i] = c
+    return out
+
+
+# 사용자 (2026-10-01 둘째): "캐릭터가 이동할 때 늦게 따라가거나 점프할 때 카메라가 같이 올라가지 않는데 ... 트래킹을 하라고".
+# 앞 판은 참고본 속도 한도 (가로 0.31 · 세로 0.07 h/초) 와 흔들림 무시 띠로 따라가서 가로 0.4초 · 세로 0.9초 늦었다 (윤곽 배율 버그 고친 뒤
+# 세로 5프레임). 이제 자리는 한도 없이 몸을 따라가고 (떨림만 거른다), 배율만 천천히 - 몸이 넘으면 빨리 넓힌다
+H = np.clip(np.minimum(zoom_follow(np.minimum(H_aim, H_cap), RESET), H_cap), HMIN * SH, SH)
 CX_aim, TOP_aim = aim(tx0, ty0, tx1, ty1, tmc, H)
-CX = follow(dead(CX_aim, DZ_X * H * ASP, RESET), V_X, A_X, H, RESET)
-TOP = follow(dead(TOP_aim, DZ_Y * H, RESET), V_Y, A_Y, H, RESET)
+CX = track(CX_aim, H, RESET)
+TOP = track(TOP_aim, H, RESET)
+# 그래도 몸이 화면을 넘으면 그 프레임에 바로 밀어 넣는다 (거르개가 남긴 늦음으로 발 · 손이 잘리지 않게)
 Wd = H * ASP
+lo, hi = tx1 - Wd / 2 + EDGE_M * Wd, tx0 + Wd / 2 - EDGE_M * Wd
+CX = np.where(lo <= hi, np.clip(CX, lo, hi), (lo + hi) / 2)
+# 세로는 발 > 머리 > 위로 뻗은 손 차례로 지킨다 - 팔을 번쩍 들 때 배율이 따라 넓어지기 전에 손에 맞추면 발목 아래가 잘렸다 (21.5초)
+foot_lo = y1 + EDGE_M * H - H                      # 이보다 위면 발이 잘린다
+head_hi, hand_hi = B[:, 5] - EDGE_M * H, ty0 - EDGE_M * H
+TOP = np.where(foot_lo <= hand_hi, np.clip(TOP, foot_lo, hand_hi),
+               np.where(foot_lo <= head_hi, np.clip(TOP, foot_lo, head_hi), foot_lo))
 CX = np.clip(CX, Wd / 2, SW - Wd / 2)
 TOP = np.clip(TOP, 0, SH - H)
 X = CX - Wd / 2
