@@ -344,12 +344,18 @@ X0, Y0, X1, Y1, MC = (sg(v, SIG) for v in (x0, y0, x1, y1, mcx))
 #  - 큰 점프만 따라 올라간다 (n153 59.5-60.2초: 머리 여백이 0.11 아래로 줄 때만 머리를 따라 올라가 그 여백을 지키고, 내려오면 제자리)
 #  - 가로는 무게중심, 늦음 0 (10fps 상호상관), 어긋남 가운데값 높이의 0.01. 멈춰 있는 시간 39% · 46%
 #  - 몸 (머리 꼭대기-발) / 화면 높이 가운데값 0.78-0.87 (구간마다) - 0.86 으로 두면 배율이 정답과 1.00 · 1.04
-FILL0 = 0.86       # 구간 배율: 몸 높이 가운데값이 화면의 이만큼 (measured 위)
+FILL0 = 0.82       # 구간 배율: 몸 높이 가운데값이 화면의 이만큼. 0.86 (정답 배율 1.00 · 1.04) 은 위아래 여백이 0.07 · 0.06 뿐이라 조금 앉거나
+                   # 뛰어도 세로가 움직였다 ("뚝뚝"). 0.82: 정답과 배율 1.05 · 1.04, 세로 멈춤 87% · 85% (정답 86 · 84), 합본 꺾임 51 -> 5 (2026-10-01 넷째)
 FILL_HI = 0.97     # 그리고 몸 높이 98 백분위가 이만큼 안 (guess - 정답과 배율 1.00 · 1.04, 잘림 1-2%)
 WIDE_HOLD = 2.0    # 몸이 화면을 넘어 넓힌 배율은 이만큼 쥐고 있다가 천천히 돌아온다 (guess - n153 104-106초 넓힌 뒤 그대로 둠)
 HEAD_KEEP = 0.045  # 몸 꼭대기 (위로 든 손 포함) 위 여백이 이만큼 아래로 줄 때만 따라 올라간다. measured 정답 손 포함 위 여백 1 백분위 0.041 · 0.042. 정답은 평소 춤의 끄덕임에는 안 움직였다 (n152 머리 여백 5 백분위 0.001
                    # 인데 그대로) - 평소 여백의 0.6 으로 두니 세로가 33% 시간 움직였다 (정답 14%). 큰 점프는 n153 59.5초처럼 머리를 따라 올라간다
 FOOT_KEEP = 0.02   # 발 아래 최소 여백
+KNEE = 0.04        # 세로 무른 무릎 (높이 비율): 여백 선에 이만큼 다가오면서부터 천천히 붙기 시작하고 지나면 같이 간다 - 딱 닿는 순간
+                   # 멈춤 -> 몸 속도로 바뀌어 "점프하거나 조금이라도 앉으면 ... 뚝뚝" (2026-10-01 넷째, 합본 20.3초 0.15초에 35px) (guess)
+V_FC, V_BETA = 1.0, 1.5   # 세로 떨림 거르개 (one-euro, Hz · h/초당 Hz) - 무릎이 남긴 꺾임을 펴고, 늦은 만큼은 아래 잘림 선이 받는다.
+                          # 2.0 · 4.0 은 합본 꺾임 6 · 방향 바뀜 초당 0.13, 1.0 · 1.5 는 5 · 0.09 (머리 · 발 잘림 0)
+CUT_M = 0.005      # 거르개를 거친 뒤에도 이 여백 아래로는 안 간다 (머리 · 발 잘림 선)
 DZ_C = 0.01        # 가로 흔들림 무시 띠 (높이 비율) - 정답처럼 멈춰 있는 시간 (39-46%) 이 생기게 (앞 판 32%)
 
 
@@ -405,7 +411,7 @@ def zoom_follow(target, reset=()):
     return out
 
 
-def track(target, scale, reset=()):
+def track(target, scale, reset=(), fc=None, beta=None):
     """자리 트래킹 (one-euro 거르개, 지난 값만): 가만히 있을 때는 TR_FC Hz 로 눌러 떨림을 없애고, 빨리 움직일수록 거르는 띠를
     넓혀 (TR_BETA x 속도 h/초) 몸과 같은 프레임에 붙는다. 미리 움직이지 않는다 - 지난 프레임만 본다"""
     dt = 1.0 / DFPS
@@ -415,7 +421,7 @@ def track(target, scale, reset=()):
         if i in reset:
             c, d = float(tg), 0.0
         d += a_of(TR_DFC) * ((tg - c) / dt - d)
-        c += a_of(TR_FC + TR_BETA * abs(d) / scale[i]) * (tg - c)
+        c += a_of((TR_FC if fc is None else fc) + (TR_BETA if beta is None else beta) * abs(d) / scale[i]) * (tg - c)
         out[i] = c
     return out
 
@@ -439,8 +445,17 @@ CX = track(dead(mcx, DZ_C * H, RESET), H, RESET)
 lo, hi = x1 - Wd / 2 + EDGE_M * Wd, x0 + Wd / 2 - EDGE_M * Wd
 CX = np.clip(np.where(lo <= hi, np.clip(CX, lo, hi), (lo + hi) / 2), Wd / 2, SW - Wd / 2)
 # 세로: 제자리 (몸 가운데 = 화면 가운데). 머리가 위 여백을 파고들 때만 머리를 따라 올라가고 내려오면 제자리, 발은 늘 안에
-TOP = np.minimum(C0 - H / 2, y0 - HEAD_KEEP * H)
-TOP = np.maximum(TOP, y1 + FOOT_KEEP * H - H)
+def knee(p, w):
+    """p > 0 만큼 비켜야 할 때 비킬 양. -w 부터 천천히 (속도가 이어지게 2차 곡선), w 넘으면 p 그대로. 늘 p 이상이라 여백은 지킨다"""
+    return np.where(p <= -w, 0.0, np.where(p >= w, p, (p + w) ** 2 / (4 * w)))
+
+
+home = C0 - H / 2
+TOP = home - knee(home - (y0 - HEAD_KEEP * H), KNEE * H)          # 위: 손 포함 꼭대기가 여백을 파고들면 올라간다
+TOP = TOP + knee((y1 + FOOT_KEEP * H - H) - TOP, KNEE * H)         # 아래: 발이 여백을 파고들면 내려간다 (발이 먼저)
+TOP = track(TOP, H, RESET, V_FC, V_BETA)
+TOP = np.minimum(TOP, B[:, 5] - CUT_M * H)                        # 잘림 선은 머리 - 번쩍 뛰며 든 손끝은 한순간 잘려도 꺾지 않는다 (21.4초)
+TOP = np.maximum(TOP, y1 + CUT_M * H - H)
 TOP = np.clip(TOP, 0, SH - H)
 X = CX - Wd / 2
 BASE = float(np.median(H0))
