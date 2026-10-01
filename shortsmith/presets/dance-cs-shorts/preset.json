@@ -1,0 +1,55 @@
+{
+  "$schema": "../../schema/preset.schema.json",
+  "id": "dance-cs-shorts",
+  "name": "Dance(C:S) Solo Shorts",
+  "extends": "basic-shorts",
+  "version": 1,
+  "visibility": "public",
+  "description": "Vertical dance short of one performer from a 16:9 stage recording: the whole 9:16 frame is the source, reframed by a camera that keeps tracking the centre of the body in a full shot - head to feet, little empty space - and zooms only as far as needed to keep the whole body in. The music runs uncut. No title, captions only if asked.",
+  "layout": {
+    "window": {
+      "x": 0,
+      "y": 0,
+      "w": 1080,
+      "h": 1920
+    },
+    "cropAspect": 0.5625,
+    "cropRule": "No fixed crop: tools/dance_camera.py writes edit.json camera.keys from the performer's mask (isnet-anime) - every frame it moves, cuts only for camera.punch. The full shot is narrower than the stage, so stream overlays at the sides (chat) stay out.",
+    "captionY": 1560,
+    "maxTextWidth": 980
+  },
+  "pacing": {
+    "avgClipSec": null,
+    "cutsPerMin": null,
+    "targetTotalSec": null,
+    "note": "A dance short is the song part the user picks, uncut: keep = [{ \"s\": .., \"e\": .., \"raw\": true }] so the waveform cutter never trims the music."
+  },
+  "camera": {
+    "mode": "track",
+    "tool": "python tools/dance_camera.py <dir> [--sheet]",
+    "fullShot": "head to feet in frame, body centred, little empty space around",
+    "requires": {
+      "model": "~/.u2net/isnet-anime.onnx",
+      "get": "https://github.com/danielgatis/rembg/releases (isnet-anime.onnx - anime character segmentation, SkyTNT/anime-segmentation)"
+    },
+    "basis": "measured 2026-10-01 on a creator's own vertical reframe of a stream dance (private file) and 4 reference shorts - every number with its basis in tools/dance_camera.py"
+  },
+  "guidance": [
+    "The camera tracks the body centre and never moves ahead of it; small sways inside a narrow band are ignored. Big or sudden changes go slowly, within the speed / acceleration / zoom-rate limits measured on a hand-made reframe - large quick moves and zooms are dizzying.",
+    "Motion leads, the camera follows or moves with it - never the camera before the motion. Zoom out only once the body actually goes past the frame, slowly, and never past 8:2 - the performer fills at least 80% of the frame. Once a back-and-forth ends, zoom back in to the tight full shot; while the body goes back and forth, widen to the range it has covered so far and do not zoom in until it ends.",
+    "A walk-off ending may be left to leave the frame - cut the keep there or let it go.",
+    "If the prompt calls it a challenge, look at several published versions of that challenge first: challenges punch in on beats (one reference: the upper body for ~4s). Put those moments in edit.json camera.punch ([{ \"s\": 12.0, \"e\": 15.8, \"z\": 2.0 }]) and rerun the camera tool.",
+    "Music runs through: no cuts inside the dance, no audio fades except at the two ends, no audio filters - one fixed gain to the loudness target.",
+    "If the source's audio starts later or earlier than its video (ffprobe stream start_time), body warns - beat and level times are on the video clock."
+  ],
+  "sources": {
+    "measuredFrom": [
+      "a creator's own 9:16 reframe of a 16:9 stream dance (private)",
+      "youtube.com/shorts/9PiDvmhfIRQ",
+      "youtube.com/shorts/X_jpUuMEYEQ",
+      "youtube.com/shorts/rVf-2blE5Co",
+      "youtube.com/shorts/R14ZVrYoWSs (challenge)"
+    ],
+    "createdAt": "2026-10-01"
+  }
+}
