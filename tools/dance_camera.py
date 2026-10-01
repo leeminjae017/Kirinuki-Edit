@@ -93,6 +93,26 @@ def keep_ranges():
 
 
 # ---- 1. 캐릭터: 0.2초마다 윤곽 (isnet), 그 사이는 광학 흐름으로 프레임마다 ----
+def isnet_runner():
+    """isnet-anime 한 장 -> 1024x1024 출력. 외장 GPU (OpenVINO) 가 있으면 거기서, 없으면 onnxruntime CPU.
+    measured i7-1260P / Arc A350M: CPU 0.97초/장 (스레드 · 세션 수를 바꿔도 0.90-0.97 - 이미 꽉 참), Arc 0.070, 내장 Iris Xe 0.23.
+    GPU 는 반정밀도인데 윤곽 IoU 0.9994-1.0000 (허니하트 6장, CPU 와 견줌). 컴파일 결과는 ~/.cache/openvino 에 (첫 판 ~10초, 그 뒤 ~4초)"""
+    model = os.path.expanduser("~/.u2net/isnet-anime.onnx")
+    try:
+        import openvino as ov
+        core = ov.Core()
+        dev = next(d for d in core.available_devices if d.startswith("GPU") and "dGPU" in core.get_property(d, "FULL_DEVICE_NAME"))
+        core.set_property({"CACHE_DIR": os.path.expanduser("~/.cache/openvino")})
+        cm = core.compile_model(model, dev)
+        print("  윤곽: OpenVINO %s (%s)" % (dev, core.get_property(dev, "FULL_DEVICE_NAME")), flush=True)
+        return lambda x: cm(x)[0][0, 0]
+    except Exception as e:                         # openvino 없음 · 외장 GPU 없음 (StopIteration) · 드라이버 문제
+        import onnxruntime as ort
+        print("  윤곽: onnxruntime CPU (%s)" % (type(e).__name__,), flush=True)
+        sess = ort.InferenceSession(model, providers=["CPUExecutionProvider"])
+        return lambda x: sess.run(None, {"img": x})[0][0, 0]
+
+
 def masks_isnet():
     """FPS 마다 몸 윤곽 (MW x MH bool). 편 폴더 char_masks.npz 에 캐시"""
     st = os.stat(SRC)
@@ -107,8 +127,8 @@ def masks_isnet():
                    for t in np.arange(max(0, s - 0.4), min(DUR, e + 0.4), 1 / FPS)})
     todo = [t for t in want if t not in have]
     if todo:
-        import cv2, onnxruntime as ort
-        sess = ort.InferenceSession(os.path.expanduser("~/.u2net/isnet-anime.onnx"), providers=["CPUExecutionProvider"])
+        import cv2
+        infer = isnet_runner()
         W, H = 1024, int(round(1024 * SH / SW))
         groups, g = [], [todo[0]]                  # 이어진 덩이마다 ffmpeg 한 번
         for t in todo[1:]:
@@ -127,7 +147,7 @@ def masks_isnet():
                     break
                 f = np.frombuffer(b, np.uint8).reshape(H, W, 3)
                 im = cv2.resize(f, (1024, 1024)).astype(np.float32) / 255 - np.array([0.485, 0.456, 0.406], np.float32)
-                o = sess.run(None, {"img": im.transpose(2, 0, 1)[None]})[0][0, 0]
+                o = infer(im.transpose(2, 0, 1)[None])
                 o = (o - o.min()) / (o.max() - o.min() + 1e-9)
                 m = (cv2.resize(o, (W, H)) > 0.5).astype(np.uint8)
                 n, lab, s_, _ = cv2.connectedComponentsWithStats(m)

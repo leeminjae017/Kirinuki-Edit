@@ -3256,4 +3256,7 @@ Basic Shorts(공개 프리셋) 첫 쓰임. 영도모캡랜디.mp4 8.60-11.60 한
 - 렌더: 오버레이가 모든 프레임 한 장 · 완전 투명 (alphaextract YMAX 0) · 창 = 화면 전체 · 창 효과 없음이면 조각을 안 굽고 window.mkv 그림을 복사. 28 -> 5초.
 - CLI: render.mjs (Remotion) 를 render · build · still 때만 불러온다 - cuts 1.7 -> 0.3초, node_modules 없이 cuts · body · scene 이 돈다.
 - 보통 편 (봉누도2귀신, 자막 24 · 효과 7) 은 고치기 전 코드와 같은 환경에서 비트 단위로 같은 영상 (PSNR inf).
-- 남은 것: isnet 115초는 GPU 가 아니면 못 줄인다 (onnxruntime 이 CPU 판만 깔려 있음).
+- isnet 윤곽을 외장 GPU 로 (사용자 허락): 이미 깔려 있던 OpenVINO 2024.6 으로 Arc A350M 0.070초/장 (CPU 0.97, 내장 Iris Xe 0.23).
+  onnxruntime-directml 은 안 깔았다 - onnxruntime 은 faster-whisper 가 쓴다. 반정밀도지만 윤곽 IoU 0.9994-1.0000 (6장),
+  카메라 키는 컷 같음 · 상자 가운데값 0.1px (최대 9.6px 한 곳). GPU 가 없으면 onnxruntime CPU 로 떨어진다. 컴파일 캐시 ~/.cache/openvino.
+  카메라 첫 판 158 -> ~40초 (컴파일 캐시가 처음 생기는 판은 ~70초).
