@@ -76,8 +76,16 @@ REG = (E.get("camera") or {}).get("region") or [0, 1]
 
 
 def seg_region(f, infer, cv2):
-    """원본 프레임 한 장 -> region 띠 안에서만 잡은 윤곽 (f 크기)"""
+    """원본 프레임 한 장 -> region 띠의 캐릭터 윤곽 (f 크기). 전체 화면에서 잡고 띠에 가장 많이 든 덩이를 고른다 - 띠로 잘라 잡으면
+    띠 밖으로 뻗은 팔이 잘려 카메라가 팔을 몰랐다 (가시나0 셋째 판 11.5-12.5초 "팔이 화면 밖으로 나갈 때 왼쪽 여백이 많음에도 ... 안 찍었고").
+    두 캐릭터가 닿아 한 덩이가 되면 (띠 밖 몫이 15% 넘음) 띠로 잘라 잡는다"""
+    if REG == [0, 1]:
+        return seg_frame(f, infer, cv2)
     a, b = int(REG[0] * f.shape[1]), int(REG[1] * f.shape[1])
+    m = seg_frame(f, infer, cv2, (a, b))
+    pad = int(0.03 * f.shape[1])
+    if m[:, :max(0, a - pad)].sum() + m[:, b + pad:].sum() <= 0.15 * max(1, m.sum()):
+        return m
     out = np.zeros(f.shape[:2], bool)
     out[:, a:b] = seg_frame(f[:, a:b].copy(), infer, cv2)
     return out
@@ -97,8 +105,9 @@ def keep_ranges():
 
 
 # ---- 1. 캐릭터: 0.2초마다 윤곽 (isnet), 그 사이는 광학 흐름으로 프레임마다 ----
-def seg_frame(f, infer, cv2):
-    """원본 프레임 (RGB) 한 장 -> 몸 윤곽 (MW x MH bool). f 가 원본 일부 (crop) 면 그 크기 그대로 돌려준다"""
+def seg_frame(f, infer, cv2, band=None):
+    """원본 프레임 (RGB) 한 장 -> 몸 윤곽 (MW x MH bool). f 가 원본 일부 (crop) 면 그 크기 그대로 돌려준다.
+    band = (a, b) 열: 그 띠 안에 가장 많이 든 덩이가 몸, 띠 밖이 중심인 큰 덩이 (다른 캐릭터) 는 뺀다"""
     H, W = f.shape[:2]
     im = cv2.resize(f, (1024, 1024)).astype(np.float32) / 255 - np.array([0.485, 0.456, 0.406], np.float32)
     o = infer(im.transpose(2, 0, 1)[None])
@@ -109,10 +118,16 @@ def seg_frame(f, infer, cv2):
         return np.zeros((H, W), bool)
     o = (o - o.min()) / (o.max() - o.min() + 1e-9)
     m = (cv2.resize(o, (W, H)) > 0.5).astype(np.uint8)
-    n, lab, s_, _ = cv2.connectedComponentsWithStats(m)
+    n, lab, s_, cen = cv2.connectedComponentsWithStats(m)
     out = np.zeros((H, W), bool)
     if n > 1:
-        k = 1 + int(np.argmax(s_[1:, cv2.CC_STAT_AREA]))
+        if band is None:
+            k = 1 + int(np.argmax(s_[1:, cv2.CC_STAT_AREA]))
+        else:
+            inb = np.bincount(lab[:, band[0]:band[1]].ravel(), minlength=n)
+            k = 1 + int(np.argmax(inb[1:]))
+            if inb[k] < 20:
+                return out
         bx0, bx1 = s_[k, 0], s_[k, 0] + s_[k, 2]
         # 떨어진 손 · 머리칼은 넣고, 몸 밖의 큰 덩이는 뺀다 - 구독 · 후원 알림의 치비 그림을 몸으로 잡았다
         # (Damyui-n152 7.9-14.2초: 몸 왼쪽 0.3 너비 옆, 몸 넓이의 20% 넘음)
@@ -121,7 +136,8 @@ def seg_frame(f, infer, cv2):
             return (s_[j, 0] < bx1 + pad and s_[j, 0] + s_[j, 2] > bx0 - pad and
                     s_[j, 1] < by1 + pad and s_[j, 1] + s_[j, 3] > by0 - pad)
         A = s_[k, cv2.CC_STAT_AREA]
-        keep = [k] + [j for j in range(1, n) if j != k and s_[j, cv2.CC_STAT_AREA] > 0.01 * A and
+        other = lambda j: band is not None and s_[j, cv2.CC_STAT_AREA] > 0.3 * A and not band[0] <= cen[j, 0] < band[1]
+        keep = [k] + [j for j in range(1, n) if j != k and s_[j, cv2.CC_STAT_AREA] > 0.01 * A and not other(j) and
                       (near(j, 0) if s_[j, cv2.CC_STAT_AREA] > 0.1 * A else near(j, 0.15 * bh))]
         out = np.isin(lab, keep)
     return out
@@ -203,7 +219,7 @@ def isnet_runner():
 def masks_isnet():
     """FPS 마다 몸 윤곽 (MW x MH bool). 편 폴더 char_masks.npz 에 캐시"""
     st = os.stat(SRC)
-    key = json.dumps({"src": SRC.replace(os.sep, "/"), "size": st.st_size, "mtime": int(st.st_mtime), "fps": FPS, "w": MW, "v": 7, **({"region": REG} if REG != [0, 1] else {})})
+    key = json.dumps({"src": SRC.replace(os.sep, "/"), "size": st.st_size, "mtime": int(st.st_mtime), "fps": FPS, "w": MW, "v": 7, **({"region": REG, "rv": 2} if REG != [0, 1] else {})})
     cache = os.path.join(work, "char_masks.npz")
     have = {}
     if os.path.exists(cache):
@@ -256,7 +272,12 @@ def stats(pts):
     # 윤곽은 원본 비율과 상관없이 MW x MH 로 늘여 둔다 - 가로 세로 배율이 다르다. 한 배율(SW/MW)로 쓰면 16:9 가 아닌 원본에서
     # 몸이 세로로 줄어 발이 실제보다 높게 잡혔다 (260921 합본 1726x1080: 발 105px 위, 완성본 90% 프레임에서 발목 아래가 잘렸다)
     sx, sy = SW / MW, SH / MH
-    x0, x1 = np.percentile(pts[:, 0], [0.5, 99.5]); y0, y1 = np.percentile(pts[:, 1], [0.5, 99.5])
+    # 가로 끝은 끝에서 k 번째 점 (백분위 아님) - 옆으로 뻗은 가는 팔은 점의 1% 도 안 돼서 0.5 / 99.5 백분위로는 손끝이 빠졌다
+    # (가시나0 12초: 손끝 941px, 화면 끝 913 -> "팔이 화면 밖으로 나갈 때 ... 안 찍었고"). k 개가 같이 튀어야 끝이 흔들린다
+    k = max(3, int(0.0005 * len(pts)))
+    xs = np.partition(pts[:, 0], (k, len(pts) - 1 - k))
+    x0, x1 = xs[k], xs[len(pts) - 1 - k]
+    y0, y1 = np.percentile(pts[:, 1], [0.5, 99.5])
     cx, bh = pts[:, 0].mean(), y1 - y0
     band = pts[np.abs(pts[:, 0] - cx) < 0.08 * bh]
     hy = np.percentile(band[:, 1], 0.5) if len(band) >= 10 else y0
@@ -487,6 +508,9 @@ if PCAM.get("mode") == "dynamic":
     X, TOP, H, CUT, DYN = dance_beats.plan(T, B, (X, TOP, H), dict(
         SW=SW, SH=SH, ASP=ASP, DFPS=DFPS, follow=follow, dead=dead, src=SRC, work=work,
         DZ_X=DZ_X, DZ_Y=DZ_Y, V_X=V_X, A_X=A_X, V_Y=V_Y, A_Y=A_Y))
+if PCAM.get("mode") == "flow":                     # C:D 둘째 (2026-10-02): 컷 없이 늘 이어 움직이는 밀기 · 빼기 (dance_beats.plan_flow)
+    import dance_beats
+    X, TOP, H, CUT, DYN = dance_beats.plan_flow(T, B, (X, TOP, H), dict(SW=SW, SH=SH, ASP=ASP, DFPS=DFPS, track=track, dead=dead, src=SRC, REG=REG))
 CUT[sorted(RESET)] = True                          # keep 구간 시작은 늘 컷
 
 # 거의 직선인 키는 뺀다 (Douglas-Peucker, x · y · h 가 TOL 안)
@@ -555,7 +579,10 @@ tot = sum(e - s for s, e in keep_ranges())
 sp = np.abs(np.diff(CX)) * DFPS / H[1:]
 print("카메라: 트래킹 키 %d (%.1f초) · 확대 %d · 배율 h %d-%d (가운데값 %d, 원본 %d) · 가로 속도 가운데값 %.3f / 95%% %.3f h/초"
       % (len(keys), tot, len(punch), min(hs), max(hs), BASE, SH, np.median(sp), np.percentile(sp, 95)))
-if DYN is not None:
+if DYN is not None and DYN.get("flow"):
+    print("흐름: %.1f BPM · 마디 %d · 배율 h %d (허벅지 위) - %d (넓음) · 배율이 움직이는 시간 %.0f%% · 샷 시간 " % (DYN["bpm"], DYN["bars"], DYN["h"][0], DYN["h"][1], DYN["moving"] * 100)
+          + " · ".join("%s %.0f%%" % (k, v * 100) for k, v in DYN["shots"].items()))
+elif DYN is not None:
     print("비트: %.1f BPM · 박 %d · 마디 %d · 센스 %.0f%% (덩이 %d) · 순간 확대 %d번 · 컷 %d" % (DYN["bpm"], DYN["beats"], DYN["bars"],
           DYN["sense"] * 100, DYN["runs"], len(DYN["pulses"]), int(CUT.sum())))
     print("  손이 움직이는 시간 %.0f%%" % (DYN["hand_dyn"] * 100))
