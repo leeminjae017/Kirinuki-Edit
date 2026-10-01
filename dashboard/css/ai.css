@@ -53,6 +53,13 @@
 
 /* 출력 목록 */
 .output-list{display:flex;flex-direction:column;gap:4px;overflow:auto}
+.out-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.out-mode[hidden]{display:none}
+.out-mode button{display:inline-flex;align-items:center;gap:4px;padding:0 9px}
+.out-mode .i{width:13px;height:13px}
+.out-src{list-style:none;margin:0 0 2px 26px;padding:0;display:flex;flex-direction:column;gap:2px;font-size:11.5px;color:var(--txt-mute)}
+.out-src li{font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.out-src .n{display:inline-block;min-width:18px;color:#8fb4ee}
 .out-item{
   display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:var(--r-sm);
   background:#13161d;border:1px solid var(--line);font-size:11.5px;

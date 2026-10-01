@@ -177,7 +177,14 @@
         </div>
 
         <div class="field grow">
-          <label class="field-label">출력 예정</label>
+          <div class="out-head">
+            <label class="field-label">출력 예정</label>
+            <!-- 대상 영상이 둘 넘을 때만 보인다 (ai.js renderOutputs) -->
+            <div class="seg out-mode" id="outMode" hidden>
+              <button type="button" data-mode="each" title="영상마다 따로: 대상 영상 하나에 결과 영상 하나"><svg class="i"><use href="#i-grid"/></svg><span>따로</span></button>
+              <button type="button" data-mode="merge" title="하나로 합치기: 대상 영상을 순서대로 이어 결과 한 편 (언어마다 한 편)"><svg class="i"><use href="#i-layers"/></svg><span>하나로</span></button>
+            </div>
+          </div>
           <ul class="output-list" id="outputList"></ul>
         </div>
 

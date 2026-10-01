@@ -390,6 +390,7 @@
         selectedStyleId: D.state.ai.selectedStyleId || null,
         prompt: '',
         langs: D.state.ai.langs || [],
+        outputMode: 'each',
         policy: D.state.ai.policy || 'on-demand'
       },
       editor: {
