@@ -76,6 +76,9 @@ Wn, PCAM = PR["w"], PR["c"]
 ASP = Wn["w"] / Wn["h"]
 pr = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height,duration",
                      "-of", "csv=p=0", SRC], capture_output=True, text=True).stdout.strip().split(",")
+if pr[2] == "N/A":                                 # mkv 는 스트림 길이를 안 적는다 (합본 중간 원본 src_merged.mkv) - 파일 길이로
+    pr[2] = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", SRC],
+                           capture_output=True, text=True).stdout.strip()
 SW, SH, DUR = int(pr[0]), int(pr[1]), float(pr[2])
 
 
@@ -209,7 +212,8 @@ def dense():
     M = masks_isnet()
     mt = np.array(sorted(M))
     T, V = [], []
-    for s, e in keep_ranges():
+    R = keep_ranges()
+    for ri, (s, e) in enumerate(R):
         a0 = max(0.0, round(round((s - 0.2) * FPS) / FPS, 3))
         dur = min(DUR, e + 0.4) - a0
         raw = subprocess.run(["ffmpeg", "-v", "error", "-ss", "%.3f" % a0, "-i", SRC, "-t", "%.3f" % dur, "-vf",
@@ -241,7 +245,9 @@ def dense():
                 p = p + fl[q[:, 1], q[:, 0]]
                 u = (i - 1 - ia) / (ib - ia)
                 vals[i - 1] = (1 - u) * np.array(fw[i - 1]) + u * np.array(stats(p))
-        keep = (ft >= s - 1e-6) & (ft <= e + 1e-6)
+        # 다음 keep 이 바로 이어 붙으면 (원본을 이어 만든 합본) 경계 프레임은 다음 구간 것이다 - 두 번 넣으면 같은 시각 키가 둘
+        nxt = R[ri + 1][0] if ri + 1 < len(R) and R[ri + 1][0] <= e + 1e-6 else None
+        keep = (ft >= s - 1e-6) & ((ft < nxt - 1e-6) if nxt is not None else (ft <= e + 1e-6))
         T.extend(ft[keep]); V.extend(vals[keep])
     T, V = np.array(T), np.array(V)
     for c in range(V.shape[1]):                    # 못 찾은 칸은 이웃으로
@@ -259,6 +265,12 @@ x0, y0, x1, y1, mcx = B[:, :5].T
 cam = E.get("camera") or {}
 punch = cam.get("punch") or []
 sg = lambda a, sec: gaussian_filter1d(a, sec * DFPS) if sec > 0 else a
+# keep 구간이 둘 넘으면 구간마다 따로 찍은 장면이다 (여러 원본을 이어 만든 합본 - 260921 사준완 · 제로투 · 터미널, 2026-10-01).
+# 구간 첫 프레임에서 카메라 상태 (따라가기 · 흔들림 무시 · 배율) 를 새로 시작하고 거기서 컷 - 이어 따라가면 앞 장면 자리에서 미끄러져 온다
+KSTART = {int(np.searchsorted(T, s0 - 1e-6)): s0 for s0, _ in keep_ranges()[1:]}
+KSTART = {i: s0 for i, s0 in KSTART.items() if 0 < i < len(T)}
+RESET = set(KSTART)
+SEGSTART = np.maximum.accumulate(np.where(np.isin(np.arange(len(T)), list(RESET | {0})), np.arange(len(T)), 0))
 X0, Y0, X1, Y1, MC = (sg(v, SIG) for v in (x0, y0, x1, y1, mcx))
 
 
@@ -294,6 +306,7 @@ if g:
     osc.append(g)
 # 구간 = 첫 꺾임 0.3초 앞부터 마지막 꺾임까지 (봉우리 발치는 한참 앞까지 거슬러 가서 56-67초가 한 구간이 됐다)
 osc = [(max(0, min(i for i, _ in g) - int(0.3 * DFPS)), max(i for i, _ in g)) for g in osc if len(g) >= OSC_N]
+osc = [(max(a, int(SEGSTART[b])), b) for a, b in osc]          # 구간 경계를 넘어 거슬러 가지 않는다
 # 구간 안에서는 그때까지 실제로 오간 폭만 본다 (앞으로 갈 곳을 미리 보면 카메라가 동작보다 먼저 움직인다 - 사용자 "카메라 -> 동작은 절대 금지")
 tx0, ty0, tx1, ty1, tmc = X0.copy(), Y0.copy(), X1.copy(), Y1.copy(), MC.copy()
 in_osc = np.zeros(len(T), bool)
@@ -305,9 +318,11 @@ for a, b in osc:
 # 배율 겨냥: 몸이 지금 화면을 넘을 때만 넓힌다 ("동작이 화면 밖으로 나가기 전까지는 줌아웃하면 안돼") - 여백 EDGE_M 만 두고 딱 들어가게.
 # 당기기는 지난 ZWIN 의 풀샷 높이가 지금보다 DZ_H 넘게 작을 때만, 왔다 갔다 구간 안에서는 안 당긴다
 need_edge = np.clip(np.maximum((ty1 - ty0) / (1 - 2 * EDGE_M), (tx1 - tx0) / (ASP * (1 - 2 * EDGE_M))), HMIN * SH, SH)
-nf_hold = np.array([need[max(0, i - int(ZWIN * DFPS)):i + 1].max() for i in range(len(need))])
+nf_hold = np.array([need[max(int(SEGSTART[i]), i - int(ZWIN * DFPS)):i + 1].max() for i in range(len(need))])
 H_aim, cur = np.empty(len(T)), float(need[0])
 for i in range(len(T)):
+    if i in RESET:
+        cur = float(need[i])
     if need_edge[i] > cur:
         cur = float(need_edge[i])
     elif not in_osc[i] and nf_hold[i] < cur * (1 - DZ_H):
@@ -318,21 +333,25 @@ for i in range(len(T)):
 
 
 
-def dead(target, band):
-    """band 안의 흔들림은 무시 - 밖으로 나가면 그 끝을 따라간다 (지난 값만 쓴다)"""
+def dead(target, band, reset=()):
+    """band 안의 흔들림은 무시 - 밖으로 나가면 그 끝을 따라간다 (지난 값만 쓴다). reset 프레임에서는 그 자리에서 새로"""
     out, c = np.empty(len(target)), float(target[0])
     for i, tg in enumerate(target):
+        if i in reset:
+            c = float(tg)
         c = min(max(c, tg - band[i]), tg + band[i])
         out[i] = c
     return out
 
-def follow(target, vmax, amax, scale):
+def follow(target, vmax, amax, scale, reset=()):
     vmax, amax = np.broadcast_to(vmax, target.shape), np.broadcast_to(amax, target.shape)
     """target 을 따라간다. 속도 vmax · 가속 amax (scale 곱) 안이면 같은 프레임에 딱 맞고, 넘치면 그만큼만 천천히.
     멈출 거리를 봐서 넘어가지 않게 줄인다. 앞 프레임 값만 쓴다 (미리 움직이지 않는다)"""
     dt = 1.0 / DFPS
     c, v, out = float(target[0]), 0.0, np.empty(len(target))
     for i, tg in enumerate(target):
+        if i in reset:                              # 컷: 그 자리에서 멈춘 채로 새로
+            c, v = float(tg), 0.0
         vm, am = vmax[i] * scale[i], amax[i] * scale[i]
         e = tg - c
         vd = np.sign(e) * min(vm, np.sqrt(2 * am * abs(e)), abs(e) / dt)
@@ -349,10 +368,10 @@ def follow(target, vmax, amax, scale):
 # 8:2 한도: 캐릭터(구간 안은 오간 폭)가 그 프레임 화면의 FILL 아래로 작아지면 안 된다 (지난 0.3초로 재니 웅크릴 때 0.66 까지 내려갔다)
 ext = np.maximum(ty1 - ty0, (tx1 - tx0) / ASP)
 H_cap = np.clip(ext / FILL, HMIN * SH, SH)
-H = np.clip(np.minimum(follow(np.minimum(H_aim, H_cap), V_Z, A_Z, H_aim), H_cap), HMIN * SH, SH)
+H = np.clip(np.minimum(follow(np.minimum(H_aim, H_cap), V_Z, A_Z, H_aim, RESET), H_cap), HMIN * SH, SH)
 CX_aim, TOP_aim = aim(tx0, ty0, tx1, ty1, tmc, H)
-CX = follow(dead(CX_aim, DZ_X * H * ASP), V_X, A_X, H)
-TOP = follow(dead(TOP_aim, DZ_Y * H), V_Y, A_Y, H)
+CX = follow(dead(CX_aim, DZ_X * H * ASP, RESET), V_X, A_X, H, RESET)
+TOP = follow(dead(TOP_aim, DZ_Y * H, RESET), V_Y, A_Y, H, RESET)
 Wd = H * ASP
 CX = np.clip(CX, Wd / 2, SW - Wd / 2)
 TOP = np.clip(TOP, 0, SH - H)
@@ -366,6 +385,7 @@ if PCAM.get("mode") == "dynamic":
     X, TOP, H, CUT, DYN = dance_beats.plan(T, B, (X, TOP, H), dict(
         SW=SW, SH=SH, ASP=ASP, DFPS=DFPS, follow=follow, dead=dead, src=SRC, work=work,
         DZ_X=DZ_X, DZ_Y=DZ_Y, V_X=V_X, A_X=A_X, V_Y=V_Y, A_Y=A_Y))
+CUT[sorted(RESET)] = True                          # keep 구간 시작은 늘 컷
 
 # 거의 직선인 키는 뺀다 (Douglas-Peucker, x · y · h 가 TOL 안)
 def simplify(i, j, out):
@@ -385,7 +405,8 @@ for a, b in zip(segs, segs[1:]):                   # 컷마다 끊는다 - 조�
     idx = [a]
     simplify(a, b - 1, idx)
     idx = sorted(set(idx + [b - 1]))
-    keys += [dict(t=round(float(T[idx[0]]), 3), **box(idx[0]))] + [dict(t=round(float(T[i]), 3), **box(i), **{"in": "linear"}) for i in idx[1:]]
+    t0 = KSTART.get(a, float(T[idx[0]]))          # keep 구간 첫 키는 구간 시작에 딱 (키 격자 1/30초라 한 프레임 늦게 컷이 났다)
+    keys += [dict(t=round(t0, 3), **box(idx[0]))] + [dict(t=round(float(T[i]), 3), **box(i), **{"in": "linear"}) for i in idx[1:]]
 
 # 챌린지 순간 확대: 그 동안 상반신으로 컷 인 (고정), 끝나면 그 시각 트래킹 자리로 컷 아웃
 for p in punch:
