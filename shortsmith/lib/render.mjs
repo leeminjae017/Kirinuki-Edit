@@ -12,7 +12,7 @@
 //    Each chunk pipes its PNGs in order into ffmpeg; three chunks encode in parallel.
 // 4. Join chunks with -c copy and add the window audio with one fixed gain to reach the loudness target (no filters).
 import { bundle } from '@remotion/bundler';
-import { openBrowser, renderFrames, selectComposition } from '@remotion/renderer';
+import { ensureBrowser, openBrowser, renderFrames, selectComposition } from '@remotion/renderer';
 import { spawn, spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -219,7 +219,7 @@ export async function renderScene(scenePath, outPath) {
       const srv = await serve();
       const frameMap = [...need.values()], keys = [...need.keys()];
       const inputProps = { scene, urlBase: `http://127.0.0.1:${srv.address().port}/f?p=`, overlay: true, frameMap };
-      const browser = await openBrowser('chrome');
+      const browser = await openBrowser('chrome', { browserExecutable: await chrome() });
       const composition = await selectComposition({ serveUrl: bundleDir, id: 'Short', inputProps, puppeteerInstance: browser });
       await renderFrames({
         serveUrl: bundleDir, composition, inputProps, puppeteerInstance: browser,
@@ -270,6 +270,19 @@ export async function renderScene(scenePath, outPath) {
 }
 
 
+/* Remotion puts Chrome Headless Shell under node_modules/.remotion of the package that holds process.cwd(), so a
+   render started from an episode folder downloaded its own 521MB copy there. Resolve it once from the shortsmith
+   package and pass the path to every Remotion call. */
+let chromePath;
+export async function chrome() {
+  if (!chromePath) {
+    const cwd = process.cwd();
+    process.chdir(HERE);
+    try { chromePath = (await ensureBrowser()).path; } finally { process.chdir(cwd); }
+  }
+  return chromePath;
+}
+
 export async function ensureBundle() {
   const bundleKey = hashDir(path.join(HERE, 'src'));
   const bundleDir = path.join(HERE, '.bundle', bundleKey);
@@ -288,7 +301,8 @@ export async function still(scenePath, sec, out) {
   const { bundleDir } = await ensureBundle();
   const srv = await serve();
   const inputProps = { scene: sc, urlBase: `http://127.0.0.1:${srv.address().port}/f?p=` };
-  const composition = await selectComposition({ serveUrl: bundleDir, id: 'Short', inputProps });
-  await renderStill({ serveUrl: bundleDir, composition, inputProps, frame: Math.round(sec * sc.fps), output: path.resolve(out) });
+  const browserExecutable = await chrome();
+  const composition = await selectComposition({ serveUrl: bundleDir, id: 'Short', inputProps, browserExecutable });
+  await renderStill({ serveUrl: bundleDir, composition, inputProps, browserExecutable, frame: Math.round(sec * sc.fps), output: path.resolve(out) });
   srv.close();
 }
