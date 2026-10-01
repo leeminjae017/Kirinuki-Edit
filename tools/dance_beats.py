@@ -304,3 +304,102 @@ def plan(T, body, base, ctx):
                 downbeats=[float(t) for t in down],
                 shots={kd: float(np.mean(kind == kd)) for kd in ("base", "pulse", "push", "close", "mid", "pull")}, hand_dyn=float(dyn.mean()), kind=kind)
     return oX, oT, oH, cut, info
+
+
+# ---- 흐름 카메라 (C:D 둘째, 2026-10-02) ----
+# 사용자 (가시나0, C:D 첫 판 3/10): "동작이 중요할때는 너무 확대해버리고 큰 움직임이 없을때는 오히려 반대로 움직이고 너무 기계적이야
+# 자연스럽게 진행 되야하는데 줌 인 아웃이 너무 인위적이야 ... VzGBBlqDzqA 이런 느낌이어야 하는데 너무 C:S적인 요소를 많이 쓰는 거 같아 동적이지가 않아".
+# 참고본을 5fps 로 다시 보니 (눈으로 봄) 앞 12초에 컷이 없다 - 0-2.4초 작은 풀샷에서 허벅지 위까지 한 번에 미끄러지듯 밀고, 2.4-8초 천천히
+# 넓은 풀샷 (몸이 화면 높이의 0.55-0.6, isnet 10fps) 으로 빠지고, 8-9.6초 다시 민다. 카메라가 멈춰 있는 때가 거의 없다.
+# 그래서 컷 · 순간 확대 · 고정 클로즈업을 버리고 배율이 늘 이어서 움직이는 길 하나로:
+#  - 마디마다 몸 움직임 (몸 상자 끝 · 무게중심 빠르기) 순위로 샷 크기 - 많이 움직이는 마디는 넓게, 조용한 마디는 허벅지 위까지 (머리-가슴 클로즈업 없음)
+#  - 그 마디 첫 박에서 움직이기 시작해 코사인으로 (밀기 FLOW_PUSH 박, 빼기 FLOW_PULL 박) - 몸보다 먼저 안 간다
+#  - 그 위에 느린 숨 (FLOW_BREATH, 4마디 주기) - 같은 크기 마디가 이어져도 서 있지 않게
+#  - 그 마디에 손이 닿는 폭은 늘 화면 안 (샷이 그만큼 넓다), 손을 머리 위로 들면 화면 위도 손까지
+FLOW_CLOSE = 0.62   # 가장 조용한 마디: 머리부터 몸의 이만큼 (허벅지 위). 참고본 밀어 들어간 끝 (2.4 · 9.6초) 이 허벅지 위 (눈으로 봄)
+FLOW_WIDE = 0.74    # 가장 바쁜 마디: 몸이 화면 높이의 이만큼. measured 참고본 넓은 샷 0.55-0.67 (isnet 10fps, 4.5-8.4초) - 담유이 원본은
+                    # 발이 원본 아래 끝이라 그만큼 못 빠진다 (guess - 사용자가 C:S 0.84 를 "여백이 너무 많잖아" 했다)
+FLOW_PUSH = 4       # 밀기 박 수. measured 참고본 0-2.4초 4.5박에 x2.5 (앞 판 잰 값 VzGB 4.5박 x3.3)
+FLOW_PULL = 2       # 빼기 박 수 - 움직임이 커지는 마디라 더 빨리. measured 앞 판 1.4-2박
+FLOW_BREATH = 0.05  # 숨 폭 (배율 ±) (guess)
+FLOW_HEAD = 0.06    # 밀어 들어갔을 때 머리 위 여백 (화면 높이). 앞 판 CU_HEAD 0.04 + 조금 (guess)
+FLOW_DZ = 0.03      # 가로 흔들림 무시 띠 (화면 높이). C:S DZ_C 0.01 로는 가시나0 방향 바뀜 초당 1.5번 (guess - 아래 결과로 맞춤)
+FLOW_AVOID = 0.15   # region 밖 (다른 캐릭터) 쪽으로 화면이 나가면 몸이 안에 남는 한 이만큼 (화면 너비) 까지 반대로 비킨다 (guess)
+
+
+def plan_flow(T, body, base, ctx):
+    SW, SH, ASP, DFPS, track = ctx["SW"], ctx["SH"], ctx["ASP"], ctx["DFPS"], ctx["track"]
+    x0, y0, x1, y1, mcx, hy, ux = body.T
+    X0, TOP0, H0 = base
+    n = len(T)
+    bt, ph, bpm, _ = beat_grid(ctx["src"], T[0], T[-1] + 0.05)
+    bars = bt[ph::4]
+    if len(bars) == 0 or bars[0] > T[0] + 1e-3:
+        bars = np.concatenate([[T[0]], bars])
+    beat = 60 / bpm
+    bh = np.maximum(y1 - hy, 1)                     # 머리 꼭대기 - 발
+    BH = float(np.median(bh))
+    # 움직임: 몸 상자 끝 · 무게중심 빠르기 (몸 높이 / 초), 0.25초 다듬기
+    sp = lambda a: np.abs(np.gradient(a)) * DFPS / BH
+    act = gaussian_filter1d(sp(x0) + sp(x1) + 2 * sp(y1) + 2 * sp(mcx) + sp(hy), 0.25 * DFPS)
+    bi = np.clip(np.searchsorted(bars, T, side="right") - 1, 0, len(bars) - 1)
+    nb = len(bars)
+    ba = np.array([act[bi == b].mean() if (bi == b).any() else 0 for b in range(nb)])
+    rank = np.argsort(np.argsort(ba)) / max(1, nb - 1)     # 0 조용 - 1 바쁨
+    h_close = FLOW_CLOSE * BH / (1 - FLOW_HEAD)
+    h_wide = min(SH, BH / FLOW_WIDE)
+    tgt = np.empty(nb)
+    for b in range(nb):
+        m = bi == b
+        need_w = np.percentile(x1[m] - x0[m], 98) * 1.08 / ASP if m.any() else 0
+        tgt[b] = np.clip(max(h_close * (h_wide / h_close) ** rank[b], need_w), h_close, SH)
+    # 배율 길: 마디 첫 박에서 시작하는 코사인 이동
+    H = np.empty(n)
+    cur, start, frm, to, dur = h_wide, T[0], h_wide, h_wide, 1.0
+    for i, t in enumerate(T):
+        b = bi[i]
+        if i == 0 or b != bi[i - 1]:
+            frm, to, start = cur, tgt[b], t
+            dur = (FLOW_PUSH if to < frm else FLOW_PULL) * beat
+        u = min(1.0, (t - start) / dur)
+        cur = frm + (to - frm) * (1 - np.cos(np.pi * u)) / 2
+        H[i] = cur
+    H *= 1 + FLOW_BREATH * np.sin(2 * np.pi * (T - T[0]) / (16 * beat))
+    # 끝까지 손 폭은 화면 안 - 숨이 넘치면 넓힌다 (지금 프레임 기준, 앞을 안 본다)
+    H = np.clip(np.maximum(H, (x1 - x0) * 1.04 / ASP), 0.24 * SH, SH)
+    W = H * ASP
+    c = np.clip(np.log(h_wide / H) / np.log(h_wide / h_close), 0, 1)   # 0 넓음 - 1 밀어 들어감
+    # 가로: 넓을 때 무게중심, 밀어 들어갈수록 상반신 무게중심. region 밖 쪽은 몸이 남는 한 비킨다
+    cx = (1 - c) * mcx + c * ux
+    reg = ctx.get("REG") or [0, 1]
+    if reg[1] < 0.98:
+        over = cx + W / 2 - reg[1] * SW
+        room = np.maximum(0, (x0 - 0.03 * W) - (cx - W / 2))
+        cx = cx - np.clip(np.minimum(over, room), 0, FLOW_AVOID * W)
+    if reg[0] > 0.02:
+        over = reg[0] * SW - (cx - W / 2)
+        room = np.maximum(0, (cx + W / 2) - (x1 + 0.03 * W))
+        cx = cx + np.clip(np.minimum(over, room), 0, FLOW_AVOID * W)
+    # 박마다 좌우로 흔드는 몸을 그대로 따르면 화면이 초당 1.5번 방향을 바꿨다 - 그 폭 (FLOW_DZ) 은 무시하고 넘으면 따라간다
+    # 손을 화면 안에 두는 밀기도 거르개 앞에서 (뒤에서 딱 자르면 팔을 뻗을 때마다 화면이 툭 끌려갔다), 뒤에서는 손끝만 안 나가게
+    lo, hi = x1 + 0.03 * W - W / 2, x0 - 0.03 * W + W / 2
+    cx = ctx["dead"](cx, FLOW_DZ * H, ())
+    CX = track(np.where(lo <= hi, np.clip(cx, lo, hi), (lo + hi) / 2), H)
+    lo, hi = x1 - W / 2, x0 + W / 2
+    CX = np.where(lo <= hi, np.clip(CX, lo, hi), (lo + hi) / 2)
+    CX = np.clip(CX, W / 2, SW - W / 2)
+    # 세로: 넓을 때 몸 가운데 = 화면 가운데, 밀어 들어갈수록 머리 꼭대기 아래 FLOW_HEAD. 든 손은 늘 안
+    top_w = (hy + y1) / 2 - H / 2
+    top_c = hy - FLOW_HEAD * H
+    top = (1 - c) * top_w + c * top_c
+    top = np.minimum(top, y0 - 0.03 * H)
+    top = np.where(c < 0.5, np.maximum(top, y1 + 0.02 * H - H), top)      # 넓을 때는 발도 안
+    TOP = track(top, H)
+    TOP = np.minimum(TOP, hy - 0.005 * H)
+    TOP = np.clip(TOP, 0, SH - H)
+    X = CX - W / 2
+    kind = np.where(c > 0.15, "close", "base")
+    shots = {"wide": float((c <= 0.15).mean()), "mid": float(((c > 0.15) & (c <= 0.6)).mean()), "close": float((c > 0.6).mean())}
+    moving = float((np.abs(np.gradient(np.log(H))) * DFPS > 0.03).mean())
+    return X, TOP, H, np.zeros(n, bool), dict(flow=True, bpm=bpm, beats=len(bt), bars=nb, kind=kind, shots=shots, moving=moving,
+                                               h=(h_close, h_wide))
