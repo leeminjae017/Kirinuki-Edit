@@ -63,10 +63,12 @@ def out_time(x):
     return None
 
 
-rows = list(csv.DictReader(io.open(E.get("captions", "captions.csv"), encoding="utf-8-sig")))
+# 자막이 없는 편도 있다 (댄스 쇼츠 - 프리셋이 "요청할 때만 자막")
+CAPF = E.get("captions", "captions.csv")
+rows = list(csv.DictReader(io.open(CAPF, encoding="utf-8-sig"))) if os.path.exists(CAPF) else []
 clock = E.get("captionClock", "output")
 conv = (lambda x: x) if clock == "output" else (lambda x: x / SPEED) if clock == "timeline" else (lambda x: out_time(x) or 0)
-title = next((r["text"].strip() for r in rows if r["speaker"].strip().lower() in ("제목", "title")), S.get("title", {}).get("text", ""))
+title = next((r["text"].strip() for r in rows if r["speaker"].strip().lower() in ("제목", "title")), (S.get("title") or {}).get("text", ""))
 NOT_DRAWN = ("제목", "title", "채팅", "후원", "설명", "주석")   # 자막으로 안 그리는 화자 (그림은 fx.json 이 그린다)
 caps = [r for r in rows if r["speaker"].strip().lower() not in NOT_DRAWN]
 kinds = S.get("kinds") or {}
