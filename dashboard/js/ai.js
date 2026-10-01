@@ -213,14 +213,21 @@
         }));
       });
       if (!AI.selectedStyleId || !AI.styles.some(function (s) { return s.id === AI.selectedStyleId; })) {
-        AI.selectedStyleId = AI.styles[0].id;
+        /* 프로젝트를 열면 selectedStyleId 가 비어 있다 - 저장된 이름(styleSel)으로 찾는다.
+           첫 스타일로 떨어뜨리면 그 값이 자동 저장돼 프로젝트의 스타일이 바뀐다
+           (2026-10-01: 서버가 꺼진 채 열려 D(C:S)SS test 가 목록 맨 위 Dance(C:D) 로 바뀌었다) */
+        var named = styleByName(AI.styleSel);
+        AI.selectedStyleId = named ? named.id : (AI.styleSel ? null : AI.styles[0].id);
       }
-      sel.value = AI.selectedStyleId;
+      if (!AI.selectedStyleId) {
+        /* 저장된 이름이 목록에 없다 (서버가 아직 안 붙었거나 스타일이 지워졌다). 이름은 그대로 두고 고르게 한다 */
+        sel.insertBefore(D.el('option', { value: '', text: '— "' + AI.styleSel + '" 없음 · 골라 주세요 —' }), sel.firstChild);
+      }
+      sel.value = AI.selectedStyleId || '';
     }
-    /* 고른 것을 이름으로도 붙들어 둔다. 목록이 저절로 첫 번째로 떨어질
-       때 이걸 안 적으면 프로젝트가 무엇을 골랐는지 잊어버린다. */
+    /* 고른 것을 이름으로도 붙들어 둔다. 목록에 없는 이름은 지우지 않는다 */
     var pick = AI.styles.filter(function (s) { return s.id === AI.selectedStyleId; })[0];
-    AI.styleSel = pick ? pick.name : '';
+    if (pick) AI.styleSel = pick.name;
     D.state.project.style = AI.styleSel;   /* 프로젝트 카드에 뜨는 이름 */
     var cur = currentStyle();
     D.$('#styleMeta').textContent = cur
@@ -230,15 +237,24 @@
       : '등록된 스타일이 없습니다. 스타일 분석 탭에서 먼저 등록하세요.';
   }
 
+  /* 프리셋은 영어 이름으로 바뀌었다 (2026-09-17). 프로젝트에 저장된 옛 한국어 이름은 aliases 로 찾는다 */
+  function styleByName(name) {
+    if (!name) return null;
+    return AI.styles.filter(function (s) {
+      return s.name === name || ((s.data && s.data.aliases) || []).indexOf(name) >= 0;
+    })[0] || null;
+  }
+
   function currentStyle() {
     return AI.styles.filter(function (s) { return s.id === AI.selectedStyleId; })[0] || null;
   }
 
-  function refreshStyles() {
+  /* quiet: 목록만 다시 읽은 것이라 프로젝트가 바뀌지 않았다 - 저장 안 됨으로 만들지 않는다 */
+  function refreshStyles(quiet) {
     renderStyles();
     renderStyleSelect();
     renderOutputs();
-    D.touch();
+    if (!quiet) D.touch();
   }
 
   /* ---------- 스타일 창고 ----------
@@ -263,7 +279,7 @@
   /* 서버의 스타일을 읽어 목록으로 삼는다. 프로젝트 안에만 있던 것은
      한 번 서버로 올려 두고(옛 저장본에서 넘어온 것) 다시 읽는다. */
   function loadStyles() {
-    if (!D.Server.online) { refreshStyles(); return Promise.resolve(false); }
+    if (!D.Server.online) { refreshStyles(true); return Promise.resolve(false); }
     return D.Server.listStyles().then(function (r) {
       var rows = (r && r.styles) || [];
       var have = {};
@@ -293,17 +309,15 @@
           AI.styles = ((r2 && r2.styles) || []).map(styleFromFile).concat(pending);
         });
     }).then(function () {
-      /* 프리셋은 영어 이름으로 바뀌었다 (2026-09-17). 프로젝트에 저장된 옛 한국어 이름은 aliases 로 찾는다 -
-         못 찾아 첫 스타일로 넘어가면 그 값이 자동 저장돼 프로젝트의 스타일이 바뀐다 (봉누도2 귀신에서 한 번 그랬다) */
-      var byName = AI.styles.filter(function (s) {
-        return s.name === AI.styleSel || ((s.data && s.data.aliases) || []).indexOf(AI.styleSel) >= 0;
-      })[0];
-      AI.selectedStyleId = (byName && byName.id) || (AI.styles[0] && AI.styles[0].id) || null;
-      refreshStyles();
+      /* 이름으로 다시 찾는다 (renderStyleSelect). 못 찾아도 첫 스타일로 넘기지 않는다 -
+         그 값이 자동 저장돼 프로젝트의 스타일이 바뀐다 (봉누도2 귀신 · D(C:S)SS test 에서 그랬다) */
+      AI.selectedStyleId = null;
+      if (!AI.styleSel && AI.styles[0]) AI.selectedStyleId = AI.styles[0].id;
+      refreshStyles(true);
       return true;
     }).catch(function (e) {
       D.warn('스타일 목록을 읽지 못했습니다: ' + e.message, 'style');
-      refreshStyles();
+      refreshStyles(true);
       return false;
     });
   }
@@ -521,6 +535,7 @@
 
       /* 스타일 선택 */
       D.$('#styleSelect').addEventListener('change', function (e) {
+        if (!e.target.value) return;   /* "없음 · 골라 주세요" 자리 */
         AI.selectedStyleId = e.target.value;
         AI.styleSel = (currentStyle() || {}).name || '';
         renderStyleSelect();
