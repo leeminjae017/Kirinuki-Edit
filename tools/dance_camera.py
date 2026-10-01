@@ -171,6 +171,10 @@ def stats(pts):
     return [x0 * sc, y0 * sc, x1 * sc, y1 * sc, cx * sc, hy * sc, ux * sc]
 
 
+from concurrent.futures import ThreadPoolExecutor
+POOL = ThreadPoolExecutor(8)       # cv2 는 GIL 을 놓는다 - measured Farneback 480x270 19.8 -> 5.0ms/장 (i7-1260P)
+
+
 def dense():
     """DFPS 마다 몸 [x0, y0, x1, y1, cx]. 윤곽이 있는 시각은 윤곽 그대로, 그 사이는 앞 윤곽의 점을 흐름대로 앞으로 옮긴 것과
     뒤 윤곽의 점을 거꾸로 옮긴 것을 시간 비율로 섞는다 (한쪽만 쓰면 0.2초 사이에 흐름 오차가 쌓인다)"""
@@ -185,7 +189,7 @@ def dense():
                               "fps=%d,scale=%d:%d,format=gray" % (DFPS, MW, MH), "-f", "rawvideo", "-"], capture_output=True).stdout
         F = np.frombuffer(raw, np.uint8).reshape(-1, MH, MW)
         ft = a0 + np.arange(len(F)) / DFPS
-        flow = lambda i, j: cv2.calcOpticalFlowFarneback(F[i], F[j], None, 0.5, 3, 21, 3, 5, 1.1, 0)
+        flow = lambda ij: cv2.calcOpticalFlowFarneback(F[ij[0]], F[ij[1]], None, 0.5, 3, 21, 3, 5, 1.1, 0)
         anchors = [(int(round((t - a0) * DFPS)), t) for t in mt if a0 - 1e-6 <= t <= ft[-1] + 1e-6]
         vals = np.full((len(F), 7), np.nan)
         for ia, ta in anchors:
@@ -194,15 +198,18 @@ def dense():
             if ib - ia < 2:
                 continue
             fw = {}
+            # 이 구간에 쓸 흐름 (앞으로 · 뒤로) 을 스레드 8개로 먼저 - 한 줄로 돌리면 23초 (허니하트 1160번), 나눠 돌려도 값은 같다
+            need = [(i, i + 1) for i in range(ia, ib - 1)] + [(i, i - 1) for i in range(ib, ia + 1, -1)]
+            FL = dict(zip(need, POOL.map(flow, need)))
             p = np.argwhere(M[ta])[::3, ::-1].astype(np.float32)
             for i in range(ia, ib - 1):
-                fl = flow(i, i + 1)
+                fl = FL[(i, i + 1)]
                 q = np.clip(p.round().astype(int), 0, [MW - 1, MH - 1])
                 p = p + fl[q[:, 1], q[:, 0]]
                 fw[i + 1] = stats(p)
             p = np.argwhere(M[tb])[::3, ::-1].astype(np.float32)
             for i in range(ib, ia + 1, -1):
-                fl = flow(i, i - 1)
+                fl = FL[(i, i - 1)]
                 q = np.clip(p.round().astype(int), 0, [MW - 1, MH - 1])
                 p = p + fl[q[:, 1], q[:, 0]]
                 u = (i - 1 - ia) / (ib - ia)
