@@ -388,6 +388,9 @@ KNEE = 0.04        # 세로 무른 무릎 (높이 비율): 여백 선에 이만�
 V_FC, V_BETA = 1.0, 1.5   # 세로 떨림 거르개 (one-euro, Hz · h/초당 Hz) - 무릎이 남긴 꺾임을 펴고, 늦은 만큼은 아래 잘림 선이 받는다.
                           # 2.0 · 4.0 은 합본 꺾임 6 · 방향 바뀜 초당 0.13, 1.0 · 1.5 는 5 · 0.09 (머리 · 발 잘림 0)
 CUT_M = 0.005      # 거르개를 거친 뒤에도 이 여백 아래로는 안 간다 (머리 · 발 잘림 선)
+# 가로 가속 한도 (h/초²). 가시나0 한도 없음 (손끝을 딱 붙잡음) · 1.5 · 3 · 6: 꺾임 (0.1초에 0.15 h/초 넘게) 0.68 · 0.17 · 0.18 · 0.24,
+# 손끝이 화면 밖 (원본 px, 0.2초 윤곽 중) 4 · 17 · 15 · 12. 3 = 참고본 (n152-1 가속 99% 1.1) 의 3배 - 팔을 뻗는 0.2초만 손끝 15px 를 놓친다
+A_XS = 3.0
 DZ_C = 0.01        # 가로 흔들림 무시 띠 (높이 비율) - 정답처럼 멈춰 있는 시간 (39-46%) 이 생기게 (앞 판 32%)
 
 
@@ -402,7 +405,7 @@ def dead(target, band, reset=()):
     return out
 
 
-def follow(target, vmax, amax, scale, reset=()):
+def follow(target, vmax, amax, scale, reset=(), snap=True):
     vmax, amax = np.broadcast_to(vmax, target.shape), np.broadcast_to(amax, target.shape)
     """target 을 따라간다. 속도 vmax · 가속 amax (scale 곱) 안이면 같은 프레임에 딱 맞고, 넘치면 그만큼만 천천히.
     멈출 거리를 봐서 넘어가지 않게 줄인다. 앞 프레임 값만 쓴다 (미리 움직이지 않는다)"""
@@ -416,7 +419,9 @@ def follow(target, vmax, amax, scale, reset=()):
         vd = np.sign(e) * min(vm, np.sqrt(2 * am * abs(e)), abs(e) / dt)
         v += np.clip(vd - v, -am * dt, am * dt)
         c2 = c + v * dt
-        if (c2 - tg) * (c - tg) < 0:                # 목표를 지나치지 않는다 - 줌이 몸보다 2px 넓어진 적이 있다
+        # 목표를 지나치지 않는다 - 줌이 몸보다 2px 넓어진 적이 있다. 자리 (snap=False) 는 안 자른다: 움직이는 목표를 지나는 순간 속도가
+        # 0 으로 끊겨 꺾였다 (가시나0 C:D 세로 23.5초 0.1초에 0.6 h/초)
+        if snap and (c2 - tg) * (c - tg) < 0:
             c2, v = float(tg), 0.0
         c = c2
         out[i] = c
@@ -482,9 +487,11 @@ hold = np.array([need[max(int(SEGSTART[i]), i - int(WIDE_HOLD * DFPS)):i + 1].ma
 H = np.clip(zoom_follow(np.maximum(H0, hold), RESET), HMIN * SH, SH)
 Wd = H * ASP
 # 가로: 무게중심을 흔들림 무시 띠 + 떨림 거르개로 (지난 값만 - 먼저 안 간다), 몸 끝이 나가면 그 프레임에 밀어 넣는다
-CX = track(dead(mcx, DZ_C * H, RESET), H, RESET)
-lo, hi = x1 - Wd / 2 + EDGE_M * Wd, x0 + Wd / 2 - EDGE_M * Wd
-CX = np.clip(np.where(lo <= hi, np.clip(CX, lo, hi), (lo + hi) / 2), Wd / 2, SW - Wd / 2)
+# 몸 끝 (뻗은 손) 을 화면 안에 두는 밀기는 거르개 앞에서, 뒤에는 가속 한도 A_XS 만 - 뒤에서 딱 잘라 손끝을 붙잡으면 팔을 뻗고 거둘 때마다
+# 화면이 툭 끌려갔다 (가시나0 11.7-12.7 · 21.1초 0.1초에 속도 0.2-0.85 h/초 꺾임, "뚝뚝 끊기는 거 빼면 많이 괜찮아졌어").
+lo, hi = x1 - Wd / 2 + 2 * EDGE_M * Wd, x0 + Wd / 2 - 2 * EDGE_M * Wd
+CX = track(np.where(lo <= hi, np.clip(dead(mcx, DZ_C * H, RESET), lo, hi), (lo + hi) / 2), H, RESET)
+CX = np.clip(follow(CX, 1.0, A_XS, H, RESET, snap=False), Wd / 2, SW - Wd / 2)
 # 세로: 제자리 (몸 가운데 = 화면 가운데). 머리가 위 여백을 파고들 때만 머리를 따라 올라가고 내려오면 제자리, 발은 늘 안에
 def knee(p, w):
     """p > 0 만큼 비켜야 할 때 비킬 양. -w 부터 천천히 (속도가 이어지게 2차 곡선), w 넘으면 p 그대로. 늘 p 이상이라 여백은 지킨다"""
@@ -510,7 +517,7 @@ if PCAM.get("mode") == "dynamic":
         DZ_X=DZ_X, DZ_Y=DZ_Y, V_X=V_X, A_X=A_X, V_Y=V_Y, A_Y=A_Y))
 if PCAM.get("mode") == "flow":                     # C:D 둘째 (2026-10-02): 컷 없이 늘 이어 움직이는 밀기 · 빼기 (dance_beats.plan_flow)
     import dance_beats
-    X, TOP, H, CUT, DYN = dance_beats.plan_flow(T, B, (X, TOP, H), dict(SW=SW, SH=SH, ASP=ASP, DFPS=DFPS, track=track, dead=dead, src=SRC, REG=REG))
+    X, TOP, H, CUT, DYN = dance_beats.plan_flow(T, B, (X, TOP, H), dict(SW=SW, SH=SH, ASP=ASP, DFPS=DFPS, track=track, dead=dead, follow=follow, A_XS=A_XS, src=SRC, REG=REG))
 CUT[sorted(RESET)] = True                          # keep 구간 시작은 늘 컷
 
 # 거의 직선인 키는 뺀다 (Douglas-Peucker, x · y · h 가 TOL 안)
