@@ -443,8 +443,17 @@ segs = sorted(RESET | {0}) + [len(T)]
 H0, C0 = np.empty(len(T)), np.empty(len(T))
 for a, b in zip(segs, segs[1:]):
     f = full[a:b]
-    h0 = np.clip(max(np.median(f) / FILL0, np.percentile(f, 98) / FILL_HI, np.percentile(x1[a:b] - x0[a:b], 90) / (ASP * 0.96)), HMIN * SH, SH)
+    lim = max(np.percentile(f, 98) / FILL_HI, np.percentile(x1[a:b] - x0[a:b], 90) / (ASP * 0.96))
+    h0 = np.clip(max(np.median(f) / FILL0, lim), HMIN * SH, SH)
     c0 = np.median((B[a:b, 5] + y1[a:b]) / 2)        # 몸 세로 가운데를 화면 가운데에
+    # 몸이 원본 끝에 붙어 있으면 (발이 원본 아래 끝) 가운데에 둔 화면이 원본 밖으로 나가 끝에 밀린다 - 아래 여백 몫이 통째로 머리 위로 갔다
+    # (가시나0 2026-10-02: 위 0.155 · 아래 0.004, "여백이 너무 많잖아"). 그때는 원본 끝에 화면을 대고, 반대쪽 여백이 한쪽 몫 ((1-FILL0)/2)
+    # 이 되게 당긴다
+    mf, top_b, bot_b = (1 - FILL0) / 2, c0 - np.median(f) / 2, c0 + np.median(f) / 2
+    if c0 + h0 / 2 > SH:
+        h0 = np.clip(max((SH - top_b) / (1 - mf), lim), HMIN * SH, SH); c0 = SH - h0 / 2
+    elif c0 - h0 / 2 < 0:
+        h0 = np.clip(max(bot_b / (1 - mf), lim), HMIN * SH, SH); c0 = h0 / 2
     H0[a:b], C0[a:b] = h0, c0
 # 배율: 평소는 H0. 몸이 화면을 넘으면 (머리-발 또는 너비) 빨리 넓히고, WIDE_HOLD 동안 쥐고 있다가 천천히 돌아온다
 need = np.maximum(full / (1 - 2 * FOOT_KEEP), (x1 - x0) / (ASP * (1 - 2 * EDGE_M)))
