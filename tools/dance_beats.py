@@ -59,7 +59,7 @@ def poses(src, t0, t1, boxfn, cache):
     """POSE_FPS 마다 33점 (x, y, 보임) - 원본 px. 몸 상자 둘레를 잘라 넣는다 (작은 몸은 잘 못 잡는다). 편 폴더 pose.npz 캐시"""
     import os, json
     st = os.stat(src)
-    key = json.dumps([src.replace(os.sep, "/"), st.st_size, int(st.st_mtime), round(t0, 3), round(t1, 3), POSE_FPS, 1])
+    key = json.dumps([src.replace(os.sep, "/"), st.st_size, int(st.st_mtime), round(t0, 3), round(t1, 3), POSE_FPS, 2])
     if os.path.exists(cache):
         z = np.load(cache)
         if str(z["key"]) == key:
@@ -71,7 +71,7 @@ def poses(src, t0, t1, boxfn, cache):
     lm = vision.PoseLandmarker.create_from_options(vision.PoseLandmarkerOptions(
         base_options=BaseOptions(model_asset_path=os.path.expanduser("~/.cache/mediapipe/pose_landmarker_full.task")),
         running_mode=vision.RunningMode.IMAGE))
-    pr = subprocess.Popen(["ffmpeg", "-v", "error", "-ss", "%.3f" % t0, "-i", src, "-t", "%.3f" % (t1 - t0), "-vf", "fps=%d" % POSE_FPS,
+    pr = subprocess.Popen(["ffmpeg", "-v", "error", "-ss", "%.3f" % t0, "-i", src, "-t", "%.3f" % (t1 - t0), "-vf", "fps=%d:round=up" % POSE_FPS,   # 기본은 칸의 마지막 장 - t + 0.083초였다 (dance_camera.py 윤곽과 같다)
                            "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], stdout=subprocess.PIPE)
     ts, P = [], []
     while True:
