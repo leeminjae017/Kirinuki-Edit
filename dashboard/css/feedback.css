@@ -28,7 +28,7 @@
     "subs gc  main";
 }
 #paneSrc{grid-area:src}
-#paneSubs{grid-area:subs}
+#paneSubs, #paneNotes{grid-area:subs}
 .fb-main{grid-area:main}
 #gFbC1{grid-area:gc}
 #gFbR1{grid-area:gr1}
@@ -63,12 +63,13 @@
   min-height:0; min-width:0;
   display:grid;
   grid-template-rows: minmax(0, 1fr);
-  grid-template-columns: minmax(0, 1fr) var(--gut) var(--fb-rw, 280px);
-}
-.fb-grid.is-vert .fb-side{
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) var(--gut) var(--fb-rh, 200px);
 }
+/* 2026-10-02: 렌더 칸을 사용자 편집 탭으로 옮겨 프롬프트 칸 하나만 남았다. 메모 목록은 왼쪽 아래 칸 (#paneNotes) */
+.fb-side .prompt-body{display:flex;flex-direction:column}
+.fb-side .fb-prompt{flex:1 1 auto;min-height:80px;resize:none}
+.notes-body{overflow:auto}
+.notes-body .fb-notes{flex:none}
 
 /* 거터 손잡이도 방향을 따라간다 */
 #gFbR2{cursor:row-resize}

@@ -27,7 +27,7 @@
     },
     {
       sel: '#gFbR1', axis: 'y', grid: '.fb-grid', v: '--fb-r1', label: '추가 소스 높이',
-      sizeFrom: '#paneSrc', flexSel: '#paneSubs', dir: 1, min: 120, flexMin: 150
+      sizeFrom: '#paneSrc', flexSel: '#paneNotes', dir: 1, min: 120, flexMin: 150
     },
     /* 영상과 (프롬프트+렌더링) 사이. 가로 영상이면 위아래로 갈리고,
        세로 영상이면 좌우로 갈린다 (지시) - 방향도 기억하는 값도 바뀐다.
@@ -39,15 +39,8 @@
       v: function () { return vert() ? '--fb-sw' : '--fb-sh'; },
       dir: function () { return vert() ? 1 : -1; },
       sizeFrom: '.fb-side', flexSel: '#paneVideo', min: 150, flexMin: 200
-    },
-    /* 프롬프트와 렌더링 사이. 영상과 반대로 눕는다. */
-    {
-      sel: '#gFbR3', grid: '.fb-grid', label: '재 편집 칸',
-      axis: function () { return vert() ? 'y' : 'x'; },
-      v: function () { return vert() ? '--fb-rh' : '--fb-rw'; },
-      dir: -1,
-      sizeFrom: '#paneRender', flexSel: '#panePromptFb', min: 120, flexMin: 130
     }
+    /* 프롬프트와 렌더링 사이 거터는 뺐다 (2026-10-02: 렌더는 사용자 편집 탭의 렌더 탭으로, 편집 단추는 프롬프트 머리로) */
   ];
 
   /* 함수로 적어 둔 자리는 그때그때 물어본다 */

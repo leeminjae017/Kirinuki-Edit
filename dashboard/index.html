@@ -295,17 +295,11 @@
 
     <div class="gutter gutter-y" id="gFbR1" title="드래그: 크기 조절 · 더블클릭: 기본값"><i></i></div>
 
-    <section class="panel" id="paneSubs">
+    <section class="panel" id="paneNotes">
       <div class="panel-head">
-        <div class="itabs" role="tablist">
-          <button class="itab is-active" data-sub="src" role="tab">원본</button>
-          <button class="itab" data-sub="out" role="tab">편집</button>
-        </div>
-        <label class="fb-ripple is-on" id="fbRipple" title="리플 켬: 뺀 자리를 당겨 붙이고 되살린 만큼 뒤를 민다&#10;리플 끔: 뒤 시각을 그대로 둔다 - 뺀 자리는 빈 틈(검은 화면 · 무음), 되살린 말은 옆 내용을 덮어쓴다">
-          <input type="checkbox" checked><span class="sw" aria-hidden="true"></span><span class="lb">리플</span>
-        </label>
+        <h2 class="panel-title"><svg class="i"><use href="#i-note"/></svg><span>메모</span></h2>
       </div>
-      <div class="panel-body subs-body subs-line" id="subsAll"></div>
+      <div class="panel-body notes-body"><div class="fb-notes" id="fbNotes"></div></div>
     </section>
 
     <div class="gutter gutter-x" id="gFbC1" title="드래그: 크기 조절 · 더블클릭: 기본값"><i></i></div>
@@ -372,53 +366,34 @@
           <div class="panel-head">
             <h2 class="panel-title"><svg class="i"><use href="#i-prompt"/></svg><span>프롬프트</span></h2>
             <div class="head-actions">
+              <button class="btn btn-ai btn-sm" id="btnFbEdit" title="편집 (AI): 프롬프트 · 쪽지 · 고친 자막을 저장하고 Claude 작업으로 넘깁니다 - 컷 · 연출 · 판단이 필요한 고침"><svg class="i"><use href="#i-ai"/></svg><span>편집</span></button>
               <button class="btn btn-ghost btn-sm" id="btnFbCopy" title="피드백 전부 복사 — 클로드에게 넘길 것"><svg class="i"><use href="#i-copy"/></svg></button>
             </div>
           </div>
           <div class="panel-body prompt-body">
             <textarea class="input fb-prompt" id="fbPrompt" rows="3"
                       placeholder="영상 전반에 대한 지시 — 말소리가 잘린다, 여백이 길다 …"></textarea>
-            <div class="fb-notes" id="fbNotes"></div>
           </div>
         </section>
 
-        <div class="gutter" id="gFbR3" title="드래그: 크기 조절 · 더블클릭: 기본값"><i></i></div>
-
-        <section class="panel" id="paneRender">
-          <div class="panel-head">
-            <h2 class="panel-title"><svg class="i"><use href="#i-render"/></svg><span>재 편집</span></h2>
-            <div class="head-actions">
-              <button class="btn btn-ai btn-sm" id="btnFbEdit" title="편집 (AI): 프롬프트 · 쪽지 · 고친 자막을 저장하고 Claude 작업으로 넘깁니다 - 컷 · 연출 · 판단이 필요한 고침"><svg class="i"><use href="#i-ai"/></svg><span>편집</span></button>
-              <button class="btn btn-primary btn-sm" id="btnFbRender" title="렌더 (AI 없음): 고친 자막과 되살리기 · 빼기(미리보기에서 들은 그대로)를 반영해 바로 다시 굽습니다"><svg class="i"><use href="#i-render"/></svg><span>렌더</span></button>
-            </div>
-          </div>
-          <div class="panel-body render-body">
-            <div class="rnd-prog" id="rndProg" hidden>
-              <div class="rnd-prog-head"><span id="rndStep">준비</span><b id="rndPct">0%</b></div>
-              <div class="rnd-bar"><i id="rndBar"></i></div>
-              <div class="rnd-meta" id="rndMeta"></div>
-              <div class="rnd-log" id="rndLog"></div>
-            </div>
-            <div class="field">
-              <label class="field-label" for="rndDir">작업 폴더</label>
-              <input class="input input-sm" id="rndDir" placeholder="edit/네모비틱">
-            </div>
-            <div class="field">
-              <label class="field-label" for="rndOut">내보낼 곳</label>
-              <input class="input input-sm" id="rndOut" placeholder="비우면 파이프라인 기본값">
-            </div>
-            <div class="field">
-              <label class="field-label" for="rndBase">기준 언어</label>
-              <select class="input input-sm" id="rndBase">
-                <option value="ko">한국어</option>
-                <option value="en">English</option>
-              </select>
-            </div>
-          </div>
-        </section>
       </div>
     </div>
 
+  </div>
+  <!-- 옛 자막 칸 (2026-10-02 사용자 편집 탭으로 옮김) - feedback.js 가 아직 참조해서 숨겨 둔다 -->
+  <div class="fb-legacy" hidden>
+    <section class="panel" id="paneSubs">
+      <div class="panel-head">
+        <div class="itabs" role="tablist">
+          <button class="itab is-active" data-sub="src" role="tab">원본</button>
+          <button class="itab" data-sub="out" role="tab">편집</button>
+        </div>
+        <label class="fb-ripple is-on" id="fbRipple" title="리플 켬: 뺀 자리를 당겨 붙이고 되살린 만큼 뒤를 민다&#10;리플 끔: 뒤 시각을 그대로 둔다 - 뺀 자리는 빈 틈(검은 화면 · 무음), 되살린 말은 옆 내용을 덮어쓴다">
+          <input type="checkbox" checked><span class="sw" aria-hidden="true"></span><span class="lb">리플</span>
+        </label>
+      </div>
+      <div class="panel-body subs-body subs-line" id="subsAll"></div>
+    </section>
   </div>
 </main>
 
@@ -455,8 +430,38 @@
       </div>
     </section>
     <section class="ue-pane ue-inspector">
-      <div class="ue-head"><svg class="i"><use href="#i-layers"/></svg><span>인스펙터</span></div>
-      <div class="ue-ins" id="ueIns"></div>
+      <div class="ue-tabs" role="tablist">
+        <button class="ue-tab is-on" data-pane="ins" role="tab">인스펙터</button>
+        <button class="ue-tab" data-pane="words" role="tab">전사 자막</button>
+        <button class="ue-tab" data-pane="render" role="tab">렌더</button>
+      </div>
+      <div class="ue-ins" id="ueIns" data-pane="ins"></div>
+      <div class="ue-words" id="ueWords" data-pane="words" hidden></div>
+      <div class="ue-rnd" data-pane="render" hidden>
+        <button class="btn btn-primary ue-render-btn" id="btnFbRender" title="렌더 (AI 없음): 사용자 편집 타임라인 · 고친 자막 그대로 바로 다시 굽습니다"><svg class="i"><use href="#i-render"/></svg><span>렌더</span></button>
+
+            <div class="rnd-prog" id="rndProg" hidden>
+              <div class="rnd-prog-head"><span id="rndStep">준비</span><b id="rndPct">0%</b></div>
+              <div class="rnd-bar"><i id="rndBar"></i></div>
+              <div class="rnd-meta" id="rndMeta"></div>
+              <div class="rnd-log" id="rndLog"></div>
+            </div>
+            <div class="field">
+              <label class="field-label" for="rndDir">작업 폴더</label>
+              <input class="input input-sm" id="rndDir" placeholder="edit/네모비틱">
+            </div>
+            <div class="field">
+              <label class="field-label" for="rndOut">내보낼 곳</label>
+              <input class="input input-sm" id="rndOut" placeholder="비우면 파이프라인 기본값">
+            </div>
+            <div class="field">
+              <label class="field-label" for="rndBase">기준 언어</label>
+              <select class="input input-sm" id="rndBase">
+                <option value="ko">한국어</option>
+                <option value="en">English</option>
+              </select>
+            </div>
+      </div>
     </section>
     <div class="ue-toolbar">
       <button class="ue-btn" data-tool="select" title="선택 (A)"><svg class="i"><use href="#i-pointer"/></svg></button><button class="ue-btn" data-tool="blade" title="자르기 칼 (B)"><svg class="i"><use href="#i-cut"/></svg></button>
@@ -470,7 +475,6 @@
       <button class="ue-btn" id="ueReset" title="AI 컷으로 되돌리기"><svg class="i"><use href="#i-sync"/></svg></button>
       <input type="range" class="ue-zoom" id="ueZoom" min="1.4" max="7" step="0.01" value="4.38" title="확대 (Ctrl+바퀴)">
       <button class="ue-btn" id="ueFit" title="전체 보기 (Shift+Z)"><svg class="i"><use href="#i-fit"/></svg></button>
-      <button class="ue-btn ue-render" id="ueRender" title="렌더 (AI 없음): 이 타임라인 그대로 굽습니다"><svg class="i"><use href="#i-render"/></svg><span>렌더</span></button>
     </div>
     <section class="ue-timeline">
       <div class="ue-heads">

@@ -18,6 +18,8 @@
   var R = null;            // review (피드백 탭과 같은 객체)
   var CL = [];             // 클립 [{id, s, e, at}] - at 순서
   var SEL = {};            // 고른 클립 id
+  var CSEL = null;         // 고른 자막 줄 (장면 자막 id - 'r<번호>' 가 review.captions[번호])
+  var PANE = 'ins';        // 오른쪽 탭: ins | words | render
   var TOOL = 'select';     // select | blade
   var SNAP = true, RIP = true;
   var PPS = 80;            // 1초 = px
@@ -74,9 +76,9 @@
   }
 
   /* ---------- 되돌리기 ---------- */
-  function snapshot() { return JSON.stringify(CL); }
+  function snapshot() { return JSON.stringify({ c: CL, k: R ? R.captions : null }); }
   function remember() { UNDO.push(snapshot()); if (UNDO.length > 200) UNDO.shift(); REDO = []; }
-  function restoreState(js) { CL = JSON.parse(js); SEL = {}; changed(); }
+  function restoreState(js) { var o = JSON.parse(js); CL = o.c; if (R && o.k) R.captions = o.k; SEL = {}; changed(); }
   function undo() { if (!UNDO.length) return; REDO.push(snapshot()); restoreState(UNDO.pop()); D.toast('되돌림'); }
   function redo() { if (!REDO.length) return; UNDO.push(snapshot()); restoreState(REDO.pop()); D.toast('다시 함'); }
 
@@ -197,6 +199,7 @@
     drawCaps();
     drawPlayhead();
     side();
+    drawWords();
   }
   function drawRuler(w) {
     var ru = D.$('#ueRuler');
@@ -254,9 +257,20 @@
     var ls = D.$('#ueLaneS');
     if (!ls) return;
     ls.textContent = '';
-    ((SC && SC.captions) || []).forEach(function (c) {
-      if (!(c.e > c.s)) return;
-      var el = D.el('div', { class: 'ue-cap', title: c.text });
+    /* 겹치는 줄 (설명 딱지 · 자막) 은 줄을 나눠 쌓는다 - 한 줄에 두면 앞 것이 뒤 것을 가려 고를 수가 없었다 */
+    var rows = [], caps = ((SC && SC.captions) || []).filter(function (c) { return c.e > c.s; }).slice().sort(function (a, b) { return a.s - b.s; });
+    var rowOf = caps.map(function (c) {
+      for (var r = 0; r < rows.length; r++) if (rows[r] <= c.s + 1e-3) { rows[r] = c.e; return r; }
+      rows.push(c.e); return rows.length - 1;
+    });
+    var RH = 22, H = Math.max(34, rows.length * RH + 6);
+    ls.style.height = H + 'px';
+    var hd = D.$('#view-edit .ue-hd-s'); if (hd) { hd.style.height = H + 'px'; hd.style.flexBasis = H + 'px'; }
+    caps.forEach(function (c, ci) {
+      var el = D.el('div', { class: 'ue-cap' + (CSEL === c.id ? ' is-sel' : ''), title: c.text });
+      el.dataset.cid = c.id;
+      el.style.top = (3 + rowOf[ci] * RH) + 'px';
+      el.style.height = (RH - 3) + 'px';
       el.style.left = X(c.s) + 'px';
       el.style.width = Math.max(2, X(c.e - c.s)) + 'px';
       el.appendChild(D.el('span', { text: String(c.text || '').split('«').join('').split('»').join('') }));
@@ -292,6 +306,7 @@
     var ins = D.$('#ueIns');
     if (!ins) return;
     ins.textContent = '';
+    if (CSEL && capInspector(ins)) return;
     var S = selected();
     if (S.length !== 1) {
       ins.appendChild(D.el('div', { class: 'ue-ins-empty', text: S.length ? S.length + '개 고름' : '클립을 고르면 여기에' }));
@@ -328,6 +343,7 @@
 
   /* ---------- 고르기 ---------- */
   function pick(id, add) {
+    CSEL = null;
     if (!add) SEL = {};
     if (id != null) { if (add && SEL[id]) delete SEL[id]; else SEL[id] = true; }
     draw();
@@ -404,6 +420,8 @@
       seek(t);
       return ev.preventDefault();
     }
+    var cap = ev.target.closest('.ue-cap');
+    if (cap) { CSEL = cap.dataset.cid; SEL = {}; showPane('ins'); draw(); return ev.preventDefault(); }   // 고르기만 (시점 안 옮김)
     var el = ev.target.closest('.ue-clip');
     if (!el) { if (!ev.shiftKey) pick(null); return; }
     var c = byId(+el.dataset.id);
@@ -415,6 +433,7 @@
     }
     var r = el.getBoundingClientRect(), off = ev.clientX - r.left;
     var kind = off < EDGEPX ? 'l' : off > r.width - EDGEPX ? 'r' : 'move';
+    CSEL = null;
     if (!SEL[c.id] || kind !== 'move') { if (!ev.shiftKey) SEL = {}; SEL[c.id] = true; }
     drag = { kind: kind, id: c.id, x0: cx(ev), base: snapshot(), o: { s: c.s, e: c.e, at: c.at }, moved: false };
     draw();
@@ -427,7 +446,7 @@
     if (!drag.moved && Math.abs(dx) < 3) return;
     drag.moved = true;
     var dt = T(dx), o = drag.o;
-    CL = JSON.parse(drag.base);
+    CL = JSON.parse(drag.base).c;
     var c = byId(drag.id);
     D.$('#ueSnap').hidden = true;
     if (drag.kind === 'r') {
@@ -453,7 +472,7 @@
     if (d.kind === 'ph' || !d.moved) { draw(); return; }
     var after = null;
     if (d.kind === 'move') {
-      CL = JSON.parse(d.base);
+      CL = JSON.parse(d.base).c;
       var c = byId(d.id);
       if (RIP) {                           // 끼워 넣기: 옮긴 자리 가운데로 순서를 다시 매기고 틈 없이
         /* 옮기는 클립은 놓은 시작점, 다른 클립은 가운데로 줄 세운다 - 둘 다 가운데로 재니 맨 앞에 놓아도 첫 클립 뒤로 갔다 */
@@ -466,8 +485,8 @@
         c.at = d.at;
       }
     }
-    after = snapshot();
-    CL = JSON.parse(d.base); remember(); CL = JSON.parse(after);
+    after = JSON.stringify(CL);
+    CL = JSON.parse(d.base).c; remember(); CL = JSON.parse(after);
     changed();
   }
   function ghost(id, at) {                // 옮기는 클립 그림자
@@ -499,6 +518,233 @@
     PPS = Math.max(4, (sc.clientWidth - 40) / Math.max(1, total()));
     MINW = 0; draw(); sc.scrollLeft = 0;
     var z = D.$('#ueZoom'); if (z) z.value = Math.log(PPS);
+  }
+
+  /* ---------- 오른쪽 탭 (인스펙터 · 전사 자막 · 렌더) ---------- */
+  function showPane(p) {
+    PANE = p;
+    D.$$('#view-edit .ue-tab').forEach(function (b) { b.classList.toggle('is-on', b.dataset.pane === p); });
+    D.$$('#view-edit .ue-inspector [data-pane]').forEach(function (el) { if (!el.classList.contains('ue-tab')) el.hidden = el.dataset.pane !== p; });
+    if (p === 'words') drawWords();
+  }
+
+  /* ---------- 자막 줄 인스펙터 (2026-10-02 "자막도 인스펙터에 표시") ----------
+     장면 자막 'r<번호>' 가 review.captions[번호] 다 (feedback.js sceneFromReview). 글 · 화자 · 디자인 · 시작 · 끝을 고친다.
+     시작 · 끝은 이 타임라인 시각으로 보이고, 저장은 지금 구운 편집 시각 (s2 · e2) 으로 되돌려 적는다 - 렌더 단추가 컷을 따라 다시 옮긴다 */
+  function plain(t) { return String(t || '').split('«').join('').split('»').join('').split('|')[0].trim(); }
+  function capIndex(id) {
+    if (!id) return -1;
+    if (id.charAt(0) === 'l') {             // 설명 딱지: 장면이 그리지만 글은 review.captions 의 설명 줄 (피드백 탭과 같이 고친다)
+      var sc = ((SC && SC.captions) || []).filter(function (c) { return c.id === id; })[0], L = (R && R.captions) || [];
+      for (var i = 0; i < L.length; i++) {
+        if ((L[i].speaker || '').trim() === '설명' && sc && (plain(L[i].text) === plain(sc.text) || plain(L[i].orig) === plain(sc.text))) return i;
+      }
+      return -1;
+    }
+    if (id.charAt(0) !== 'r' || id.charAt(1) === 'c') return -1;
+    var n = +id.slice(1);
+    return isNaN(n) ? -1 : n;
+  }
+  function toOld(t) {                      // 이 타임라인 시각 -> 지금 구운 편집 시각
+    return D.Feedback.srcToEdit(D.Feedback.unplanned(plan(), t));
+  }
+  function capInspector(ins) {
+    var sc = ((SC && SC.captions) || []).filter(function (c) { return c.id === CSEL; })[0];
+    if (!sc) { CSEL = null; return false; }
+    var i = capIndex(sc.id), c = R && i >= 0 ? (R.captions || [])[i] : null;
+    ins.appendChild(D.el('div', { class: 'ue-ins-h', text: '자막' + (c ? ' ' + (i + 1) : ' (고칠 수 없는 줄)') }));
+    var row = function (label, el) {
+      var r = D.el('label', { class: 'ue-field' });
+      r.appendChild(D.el('span', { text: label }));
+      r.appendChild(el);
+      ins.appendChild(r);
+      return el;
+    };
+    var edit = function (fn) { remember(); fn(); c.by = 'user'; D.touch(); refreshScene(); draw(); };
+    if (!c) { var ro = D.el('input', { type: 'text', value: sc.text }); ro.readOnly = true; row('글', ro); return true; }
+    var ta = D.el('textarea', { class: 'ue-cap-text', rows: 3 });
+    ta.value = c.text || '';
+    ta.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); ta.blur(); } });
+    ta.addEventListener('change', function () {
+      var v = ta.value.trim();
+      if (v === (c.text || '')) return;
+      edit(function () { if (c.orig == null) c.orig = c.text; c.text = v; });
+    });
+    row('글', ta);
+    var spk = D.el('select'), spks = {};
+    (R.captions || []).forEach(function (x) { if (x.speaker) spks[x.speaker] = 1; });
+    Object.keys(spks).forEach(function (k) { spk.appendChild(D.el('option', { value: k, text: k })); });
+    spk.value = c.speaker || '';
+    spk.addEventListener('change', function () { edit(function () { c.speaker = spk.value; }); });
+    row('화자', spk);
+    var kd = D.el('select'), names = ((SC.style && SC.style.captions && SC.style.captions.kindNames) || {});
+    var ks = Object.keys(names);
+    if (c.kind && ks.indexOf(c.kind) < 0) ks.unshift(c.kind);
+    if (!c.kind) ks.unshift('');
+    ks.forEach(function (k) { kd.appendChild(D.el('option', { value: k, text: k || '(기본)' })); });
+    kd.value = c.kind || '';
+    kd.addEventListener('change', function () { edit(function () { c.kind = kd.value; }); });
+    row('디자인', kd);
+    var tf = function (label, val, key) {
+      var inp = D.el('input', { type: 'text', value: tc(val) });
+      inp.addEventListener('keydown', function (ev) {
+        if (ev.key !== 'Enter') return;
+        var v = parseTC(inp.value);
+        if (v == null) { D.toast('시각을 못 읽었습니다 (예: 00:00:12:30 또는 12.5)'); return; }
+        edit(function () { c[key] = +toOld(v).toFixed(3); });
+      });
+      row(label, inp);
+    };
+    tf('시작', sc.s, 's2');
+    tf('끝', sc.e, 'e2');
+    var ln = D.el('input', { type: 'text', value: (sc.e - sc.s).toFixed(2) + 's' }); ln.readOnly = true;
+    row('길이', ln);
+    return true;
+  }
+  function parseTC(s) {                    // 00:00:12:30 (프레임) 또는 초
+    s = String(s || '').trim();
+    var p = s.split(':');
+    if (p.length === 4) return ((+p[0] * 60 + +p[1]) * 60 + +p[2]) + +p[3] / FPS;
+    return parseT(s);
+  }
+
+  /* ---------- 전사 자막: 낱말 빼기 · 되살리기 (2026-10-02 "단어별 추가 제거") ----------
+     낱말은 클립 목록을 바로 고친다 (클립 목록이 하나뿐인 정본). 뺄 때는 앞뒤 쉼의 가운데까지 잘라 낸다 - 낱말 끝에서 딱 자르면
+     위스퍼 시각이 어긋난 만큼 말이 잘린다 (drop-snap-to-word-gaps). 되살릴 때는 앞 0.10 · 뒤 0.15초 여유 (피드백 탭과 같은 값) 를 붙여
+     원본에서 바로 앞에 남아 있는 클립 뒤에 끼워 넣는다 (뒤는 민다) */
+  var WALL = null, LASTW = null;
+  /* 낱말 시각 바로잡기: 위스퍼 시각이 쉼 앞뒤에서 1초쯤 어긋난 편이 있다 (퍼리취향: "어 잠깐만" 이 7.78초인데 실제는 첫 조각 8.72초 안 -
+     파이프라인의 keep 은 남았다고 하는데 시각으로 재면 잘린 쪽). keep 이 정본이다: keep 인데 AI 조각 (review.clips) 밖인 낱말 덩이는
+     가장 가까운 조각 끝 안으로 통째로 옮겨 잰다 (사이 간격은 그대로) */
+  function allWords() {
+    if (WALL) return WALL;
+    WALL = [];
+    ((R && R.transcript) || []).forEach(function (sg, si) {
+      (sg.words || []).forEach(function (w, wi) { WALL.push({ w: w, k: si + ':' + wi, s: w.s, e: w.e }); });
+    });
+    WALL.sort(function (a, b) { return a.s - b.s; });
+    var K = (R && R.clips) || [];
+    var inK = function (x) { return K.some(function (k) { return Math.min(x.e, k.e) - Math.max(x.s, k.s) >= 0.5 * Math.max(0.001, x.e - x.s); }); };
+    var run = [];
+    var fix = function () {
+      if (!run.length) return;
+      var a = run[0], b = run[run.length - 1], best = null, off = 0;
+      K.forEach(function (k) {
+        /* 조각 앞 · 뒤에 있거나 걸쳐 있으면 (잠깐만 7.97-9.07 이 조각 8.72 에 0.35초만 걸침) 조각 안으로 */
+        var o = a.s < k.s && b.e > k.s - 3 && a.s < k.s ? k.s + 0.02 - a.s : b.e > k.e && a.s < k.e + 3 ? k.e - 0.02 - b.e : 0;
+        if (o && (best == null || Math.abs(o) < Math.abs(off))) { best = k; off = o; }
+      });
+      if (best && Math.abs(off) < 3) run.forEach(function (x) { x.s += off; x.e += off; });
+      run = [];
+    };
+    WALL.forEach(function (x) { if (x.w.keep && !inK(x)) run.push(x); else fix(); });
+    fix();
+    return WALL;
+  }
+  function covered(x) {
+    var d = Math.max(0.001, x.e - x.s), got = 0;
+    CL.forEach(function (c) { got += Math.max(0, Math.min(x.e, c.e) - Math.max(x.s, c.s)); });
+    return got >= 0.5 * d;
+  }
+  function srcToT(t) {
+    var r = null;
+    CL.forEach(function (c) { if (t >= c.s - 1e-3 && t < c.e) r = c; });
+    return r ? r.at + (t - r.s) : 0;
+  }
+  function wordOf(el) {
+    var sp = el && el.closest && el.closest('.ue-w');
+    if (!sp) return null;
+    var k = sp.dataset.k, A = allWords();
+    for (var i = 0; i < A.length; i++) if (A[i].k === k) return A[i];
+    return null;
+  }
+  function removeSrc(a, b) {
+    var out = [];
+    sorted().forEach(function (c) {
+      if (b <= c.s || a >= c.e) { out.push(c); return; }
+      if (a > c.s + 1e-3) out.push({ id: c.id, s: c.s, e: a, at: c.at });
+      if (b < c.e - 1e-3) out.push({ id: UID++, s: b, e: c.e, at: c.at + (b - c.s) });
+    });
+    CL = out;
+    if (RIP) pack();
+  }
+  function restoreSrc(a, b) {
+    var parts = [[Math.max(0, a), Math.min(b, srcDur())]];
+    CL.forEach(function (c) {                // 이미 남은 원본은 빼고 새로 들어올 토막만
+      var Q = [];
+      parts.forEach(function (p) {
+        if (c.e <= p[0] || c.s >= p[1]) { Q.push(p); return; }
+        if (c.s > p[0] + 1e-3) Q.push([p[0], c.s]);
+        if (c.e < p[1] - 1e-3) Q.push([c.e, p[1]]);
+      });
+      parts = Q;
+    });
+    parts.forEach(function (p) {
+      var L = p[1] - p[0];
+      if (L < 0.02) return;
+      var prev = null;
+      CL.forEach(function (c) { if (c.e <= p[0] + 0.002 && (!prev || c.e > prev.e)) prev = c; });
+      var at = prev ? end(prev) : 0;
+      CL.forEach(function (c) { if (c !== prev && c.at >= at - 1e-4) c.at += L; });
+      if (prev && Math.abs(prev.e - p[0]) < 0.002) prev.e = p[1];        // 바로 이어지면 그 클립을 늘인다
+      else CL.push({ id: UID++, s: p[0], e: p[1], at: at });
+    });
+  }
+  function toggleWords(ws, on) {
+    remember();
+    ws.forEach(function (w) {
+      if (on) { restoreSrc(w.s - 0.10, w.e + 0.15); return; }
+      var A = allWords(), i = A.indexOf(w);
+      var pv = i > 0 ? A[i - 1] : null, nx = i >= 0 && i + 1 < A.length ? A[i + 1] : null;
+      var a = pv && pv.e <= w.s ? (pv.e + w.s) / 2 : w.s - 0.05, b = nx && nx.s >= w.e ? (w.e + nx.s) / 2 : w.e + 0.05;
+      removeSrc(a, b);
+    });
+    merge();
+    changed();
+  }
+  function merge() {                      // 원본도 타임라인도 바로 이어지는 클립은 하나로 (낱말을 빼고 되살리면 둘로 남았다)
+    var S = sorted(), out = [];
+    S.forEach(function (c) {
+      var l = out[out.length - 1];
+      if (l && Math.abs(l.e - c.s) < 0.002 && Math.abs(end(l) - c.at) < 0.002) l.e = c.e;
+      else out.push(c);
+    });
+    CL = out;
+  }
+  function onWord(ev) {
+    var w = wordOf(ev.target);
+    if (!w) return;
+    var on = !covered(w), ws = [w];
+    if (ev.shiftKey && LASTW) {              // Shift: 앞에 누른 낱말부터 여기까지 같이
+      var A = allWords(), i0 = A.indexOf(LASTW), i1 = A.indexOf(w);
+      if (i0 >= 0 && i1 >= 0) ws = A.slice(Math.min(i0, i1), Math.max(i0, i1) + 1).filter(function (x) { return covered(x) !== on; });
+    }
+    LASTW = w;
+    toggleWords(ws, on);
+  }
+  function drawWords() {
+    var box = D.$('#ueWords');
+    if (!box || PANE !== 'words') return;
+    var keep = box.scrollTop;
+    box.textContent = '';
+    var segs = (R && R.transcript) || [];
+    if (!segs.length) { box.appendChild(D.el('div', { class: 'ue-ins-empty', text: '전사가 없습니다' })); return; }
+    box.appendChild(D.el('div', { class: 'ue-words-hint', text: '낱말을 누르면 빼고 / 되살립니다 · Shift 로 여럿 · 두 번 누르면 그 자리로' }));
+    var byK = {};
+    allWords().forEach(function (x) { byK[x.k] = x; });
+    segs.forEach(function (sg, si) {
+      var ws = sg.words || [];
+      if (!ws.length) return;
+      var p = D.el('div', { class: 'ue-seg' });
+      p.appendChild(D.el('span', { class: 'ue-seg-t', text: stc(byK[si + ':0'] ? byK[si + ':0'].s : ws[0].s) }));
+      ws.forEach(function (w, wi) {
+        var sp = D.el('span', { class: 'ue-w' + (covered(byK[si + ':' + wi]) ? '' : ' is-cut'), text: w.w });
+        sp.dataset.k = si + ':' + wi;
+        p.appendChild(sp);
+      });
+      box.appendChild(p);
+    });
+    box.scrollTop = keep;
   }
 
   /* ---------- 도구 · 단축키 (리졸브와 같은 글쇠) ---------- */
@@ -549,7 +795,7 @@
   /* ---------- 불러오기 · 보이기 ---------- */
   function load(review) {
     R = review || null;
-    UNDO = []; REDO = []; SEL = {}; MINW = 0; CL = [];
+    UNDO = []; REDO = []; SEL = {}; CSEL = null; MINW = 0; CL = []; WALL = null; LASTW = null;
     unmountPlayer(); SC = null;
     if (R && (R.clips || []).length) {
       var src = R.userClips && R.userClips.length ? R.userClips.map(function (c) { return [c.s, c.e, c.at]; }) : D.Feedback.basePlan();
@@ -608,12 +854,9 @@
       PPS = Math.exp(+ev.target.value); MINW = 0; draw();
       sc2.scrollLeft = Math.max(0, X(t) - sc2.clientWidth / 2);
     });
-    D.$('#ueRender').addEventListener('click', function () {
-      var b = D.$('#btnFbRender');
-      if (!b) return;
-      D.toast('렌더 시작 - 진행은 피드백 탭 렌더 칸에');
-      b.click();
-    });
+    D.$$('#view-edit .ue-tab').forEach(function (b) { b.addEventListener('click', function () { showPane(b.dataset.pane); }); });
+    D.$('#ueWords').addEventListener('click', onWord);
+    D.$('#ueWords').addEventListener('dblclick', function (ev) { var w = wordOf(ev.target); if (w && covered(w)) seek(srcToT(w.s)); });
     if (window.ResizeObserver) {
       new ResizeObserver(function () { fitViewer(); }).observe(D.$('#ueViewer'));
       new ResizeObserver(function () { if (SHOWN) draw(); }).observe(sc);
