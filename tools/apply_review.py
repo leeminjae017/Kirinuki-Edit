@@ -167,7 +167,8 @@ TOTAL = max(r[2] + r[1] - r[0] for r in P) if CUT else None
 if CUT:
     keep, cur = [], 0.0
     # 클립 소리 크기 (사용자 편집 인스펙터 '소리', dB, 2026-10-02) - 그 클립에서 나온 조각의 gainDb 에 더한다
-    UVOL = [(c["at"], c["at"] + c["e"] - c["s"], float(c.get("vol") or 0)) for c in UC] if UC else []
+    # 색 (color) 은 그 클립의 모든 조각에, 전환 (tin: 앞 클립에서 넘어오는 것) 은 그 클립의 첫 조각에 (2026-10-02)
+    UVOL = [(c["at"], c["at"] + c["e"] - c["s"], float(c.get("vol") or 0), c.get("color"), c.get("tin")) for c in UC] if UC else []
     for a, b, at in sorted(P, key=lambda r: r[2]):
         a0, at0 = a, at
         if at > cur + 0.01:
@@ -184,9 +185,16 @@ if CUT:
             if inside and inside.get("gainDb"):
                 ent["gainDb"] = inside["gainDb"]
             tm = at0 + ((x + y) / 2 - a0)
-            v = next((u[2] for u in UVOL if u[0] - 1e-3 <= tm < u[1] + 1e-3), 0.0)
+            u = next((u for u in UVOL if u[0] - 1e-3 <= tm < u[1] + 1e-3), None)
+            v = u[2] if u else 0.0
             if v:
                 ent["gainDb"] = round((ent.get("gainDb") or 0) + v, 2)
+            col = u[3] if u else (inside or {}).get("color")
+            if col and any(abs(float(col.get(k, 1)) - 1) > 1e-3 for k in ("brightness", "contrast", "saturation")):
+                ent["color"] = col
+            tin = (u[4] if u else (inside or {}).get("tin")) if abs(x - a) < 1e-3 else None
+            if tin and tin.get("d"):
+                ent["tin"] = tin
             if near.get("crop"):
                 ent["crop"] = near["crop"]
             keep.append(ent)

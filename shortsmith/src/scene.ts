@@ -63,7 +63,9 @@ export type Scene = {
      window video, so restored/dropped words can be heard before anything is rendered. Ranges are source seconds,
      placed back to back at output second `at`; crop is in source pixels, vol 0-1 (per-piece gain below the loudest). */
   plan?: { src: string; srcW: number; srcH: number; xf?: number;   // xf: crossfade at real cuts, like the render
-           ranges: { at: number; s: number; e: number; crop: { x: number; y: number; w: number; h: number }; vol?: number }[] };
+           ranges: { at: number; s: number; e: number; crop: { x: number; y: number; w: number; h: number }; vol?: number;
+                     color?: Layer['color'];                                 // piece colour (1 = unchanged)
+                     tin?: { type: 'dissolve' | 'black' | 'white' | 'wipe' | 'slide'; d: number } }[] };   // transition into this range
 };
 
 export type Env = {
