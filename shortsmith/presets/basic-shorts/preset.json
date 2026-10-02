@@ -294,7 +294,7 @@
           "upMs": 80,
           "peak": 1.07
         },
-        "basis": "copied 2026-09-21 from damui-solo-shorts outburst (user: 화내는 자막은 삼성 프로젝트의 담유이 발끈 자막으로). measured 2026-09-07 on 아야와 현실 합방.mov 12.5s. Gradient covers the ink box y 1414-1516 at center 1460, only its top 42%; the rest stays #FB5D4B. The dark mass is pushed 11px right-down and lime 4px further - not a thicker outline."
+        "basis": "copied 2026-09-21 from damui-solo-shorts outburst (user: angry captions use the solo preset's 담유이 outburst look). measured 2026-09-07 on a published solo short. Gradient covers the ink box y 1414-1516 at center 1460, only its top 42%; the rest stays #FB5D4B. The dark mass is pushed 11px right-down and lime 4px further - not a thicker outline."
       },
       "label": {
         "use": "editor explanation in a white box",
@@ -391,7 +391,7 @@
         "darken": 0.75
       },
       "sizeScale": 0.93,
-      "basis": "copied 2026-09-28 from damui-solo-shorts accent (user-defined design, 삼성 2026-09-13). 부분 강조는 «낱말|sky» 처럼 적는다 gapEm 0.12 는 사용자가 '강조와 비 강조 부분이 너무 붙음' 이라 해서 준 틈 (짐작)",
+      "basis": "copied 2026-09-28 from damui-solo-shorts accent (user-defined design, 2026-09-13). 부분 강조는 «낱말|sky» 처럼 적는다 gapEm 0.12 는 사용자가 '강조와 비 강조 부분이 너무 붙음' 이라 해서 준 틈 (짐작)",
       "gapEm": 0.12
     },
     "kindNames": {
@@ -427,7 +427,7 @@
       "color": "rgba(0,0,0,0.6)"
     },
     "maxWidth": 960,
-    "basis": "guess from 다음생 · 삼성 사본 (2026-09-14): 124 / key 142, line centers 195 / 335 in the band above the window. Text: two lines with '\n' or ' / ', key word «word|yellow» / «word|sky»"
+    "basis": "guess from two earlier titled shorts (2026-09-14): 124 / key 142, line centers 195 / 335 in the band above the window. Text: two lines with '\n' or ' / ', key word «word|yellow» / «word|sky»"
   },
   "chat": {
     "height": 208,
@@ -463,5 +463,5 @@
     "No chapter titles. Focus brackets only when looking at the face.",
     "Captions csv 는 화자 칸(담유이 · 채팅 · 후원 · 설명)과 kind 칸(기본 · 강조 · 부분 강조 · 슬픔 · 발끈 ...)을 따로 둔다. 화자가 채팅 · 후원 · 설명인 줄은 자막으로 안 그린다 - 그림은 fx.json 이 그린다."
   ],
-  "basis": "2026-09-29 user: 'Solo Shorts II 를 Basic Shorts 로, 배경 프리셋 영상 포함 안 함, 제목은 다음 생 사본 · 삼성 사본처럼, 제목 폰트는 그대로'. Copied from damui-test-shorts v3; old basic v1 (OFL fonts only) is preset.json.bak / fonts back to OFL (user 2026-09-29 '폰트는 고치자'): body Pretendard ExtraBold, react Black Han Sans, hand Nanum Brush Script (OFL) / chat as captures, not cards (user 2026-09-29: '채팅은 자막을 쓰는 거 대신에 캡쳐로 - 방송마다 채팅 디자인이 다르다'); chat icon (local path) removed"
+  "basis": "2026-09-29 user: 'Solo Shorts II 를 Basic Shorts 로, 배경 프리셋 영상 포함 안 함, 제목은 앞서 만든 제목 있는 쇼츠처럼, 제목 폰트는 그대로'. Copied from damui-test-shorts v3; old basic v1 (OFL fonts only) is preset.json.bak / fonts back to OFL (user 2026-09-29 '폰트는 고치자'): body Pretendard ExtraBold, react Black Han Sans, hand Nanum Brush Script (OFL) / chat as captures, not cards (user 2026-09-29: '채팅은 자막을 쓰는 거 대신에 캡쳐로 - 방송마다 채팅 디자인이 다르다'); chat icon (local path) removed"
 }

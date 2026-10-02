@@ -82,6 +82,8 @@ ebur128 로 재서 `min(-16 - I, -1.5 - TP)` 만큼 올린다.
 - **프리셋은 영어 JSON** (고유명사만 한국어). 담유이 프리셋은 비공개라 `presets/` (작업 폴더), 공개 프리셋은
   `shortsmith/presets/`. 옛 한국어 스타일 파일은 `dashboard/styles/_legacy_ko/` 에 남겨 두었다.
   잰 값은 `basis: "measured ..."`, 짐작은 `"guess ..."` 로 적는다.
+  **프리셋에는 어디서 · 어떤 영상으로 쟀는지 적지 않는다** (measuredFrom · portedFrom · 영상 / 프로젝트 이름 · 유튜브 주소 - 사용자 2026-10-02).
+  basis 는 "measured on one reference" 처럼 무엇을 쟀는지만. 출처는 PROGRESS.md 와 도구 주석에 남긴다.
 - 담유이 프리셋 다섯 개 모두 React 로 그린다 (2026-09-17). 옛 편을 옮겨 옛 완성본과 픽셀로 견줬다 -
   냉면 · 삼성 사본 (solo), 담아맷돌 (multi), 고구마 (donation), 악성메일단 (longform). 자막 자리 1-2px 안.
   옮기는 스크립트는 남기지 않았다 (한 번만 쓰는 것). `renderer: "legacy-ass"` 가 붙은 프리셋은 CLI 가 거부한다.
