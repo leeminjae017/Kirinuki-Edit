@@ -7,7 +7,7 @@
   --ue-v:#3d5f8f; --ue-v-top:#4f78b0; --ue-a:#356547; --ue-s:#5b4a8c; --ue-ph:#ff4b3e; --ue-sel:#ffae3d; --ue-on:#f39c38;
   --ue-tl-h:300px}
 #view-edit.is-active{display:block}
-.ue-grid{height:100%;display:grid;grid-template-columns:240px minmax(0,1fr) 260px;grid-template-rows:minmax(0,1fr) 38px var(--ue-tl-h);
+.ue-grid{height:100%;display:grid;grid-template-columns:var(--ue-c1, 240px) minmax(0,1fr) var(--ue-c3, 260px);grid-template-rows:minmax(0,1fr) 38px var(--ue-tl-h);
   gap:1px;background:var(--ue-line)}
 .ue-pane{background:var(--ue-panel);display:flex;flex-direction:column;min-height:0;min-width:0;color:var(--ue-txt)}
 .ue-head{height:28px;flex:0 0 28px;display:flex;align-items:center;gap:7px;padding:0 10px;background:var(--ue-head);
@@ -15,19 +15,6 @@
 .ue-head .i{width:14px;height:14px;opacity:.8}
 .ue-vhead{justify-content:space-between}
 .ue-tc{font-family:var(--mono);font-size:14px;color:#f4f4f6;letter-spacing:.5px}
-
-/* 미디어 · 클립 목록 */
-.ue-src{display:flex;align-items:center;gap:7px;padding:8px 10px;font-size:12px;color:var(--ue-dim);border-bottom:1px solid var(--ue-line);
-  overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-.ue-src .i{width:14px;height:14px;flex:0 0 auto}
-.ue-list{flex:1 1 auto;overflow:auto;padding:4px 0}
-.ue-row{display:grid;grid-template-columns:20px 1fr auto;grid-template-areas:'n t d' 'n s s';column-gap:6px;align-items:center;padding:4px 10px;font-size:11.5px;
-  font-family:var(--mono);color:var(--ue-txt);cursor:pointer;border-left:2px solid transparent}
-.ue-row:hover{background:#2c2c33}
-.ue-row.is-sel{background:#33333b;border-left-color:var(--ue-sel)}
-.ue-row-n{color:var(--ue-dim);text-align:right}
-.ue-row-t{color:#9fb8de}
-.ue-row-d{color:var(--ue-dim)}
 
 /* 뷰어 */
 .ue-vpane{background:#151518}
@@ -125,10 +112,69 @@
 .ue-render-btn{width:100%;justify-content:center;height:34px}
 .ue-rnd .field-label{color:var(--ue-dim)}
 
-/* 목록 한 줄: 번호 | 타임라인 시각 · 길이 / 아래 원본 구간 (좁은 칸에서 줄이 꺾이지 않게) */
-.ue-row-n{grid-area:n}
-.ue-row-t{grid-area:t}
-.ue-row-d{grid-area:d}
-.ue-row-s{grid-area:s;color:var(--ue-dim);font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* 숨긴 탭 칸 - .ue-rnd 의 display:flex 가 hidden 을 덮어썼다 */
 .ue-inspector [hidden]{display:none !important}
+
+/* ---------- 2026-10-02 둘째: 칸 크기 조절 · 소스 폴더 · 공유 영상 · 썸네일 ---------- */
+/* 칸 사이 손잡이 - 격자 칸을 차지하지 않게 떠 있는 띠 (자리는 split.js 가 정한 --ue-c1 · --ue-c3 · --ue-tl-h 로) */
+.ue-grid{position:relative}
+.ue-gut{position:absolute;z-index:30;touch-action:none;user-select:none;transition:background .12s}
+.ue-gut-x{top:0;width:7px;height:calc(100% - var(--ue-tl-h) - 40px);cursor:col-resize}
+#gUeC1{left:calc(var(--ue-c1, 240px) - 3px)}
+#gUeC3{right:calc(var(--ue-c3, 260px) - 3px)}
+.ue-gut-y{left:0;right:0;height:7px;bottom:calc(var(--ue-tl-h) + 40px - 4px);cursor:row-resize}
+.ue-gut:hover, .ue-gut.is-drag{background:rgba(243,156,56,.45)}
+
+/* 소스 (리졸브 미디어 풀처럼 폴더째) */
+.ue-btn-sm{height:22px;font-size:11.5px;padding:0 7px;border-color:#3a3a42}
+.ue-btn-sm .i{width:13px;height:13px}
+.ue-bins{flex:1 1 auto;overflow:auto;padding:4px 0 8px}
+.ue-bin{display:flex;align-items:center;gap:7px;padding:5px 10px;font-size:12px;color:var(--ue-txt);cursor:pointer;user-select:none}
+.ue-bin:hover{background:#2c2c33}
+.ue-bin .i{width:14px;height:14px;color:#c9a35a}
+.ue-bin-n{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.ue-bin-c{font-family:var(--mono);font-size:10.5px;color:var(--ue-dim)}
+.ue-bin-x{background:none;border:0;color:var(--ue-dim);cursor:pointer;padding:2px;display:none}
+.ue-bin:hover .ue-bin-x{display:block}
+.ue-bin-x:hover{color:#ff8a80}
+.ue-bin-x .i{color:inherit;width:12px;height:12px}
+.ue-bin-empty{padding:2px 12px 6px 31px;font-size:11px}
+.ue-media{display:flex;align-items:center;gap:8px;padding:4px 10px 4px 24px;cursor:pointer;border-left:2px solid transparent}
+.ue-media:hover{background:#2c2c33}
+.ue-media.is-sel{background:#33333b;border-left-color:var(--ue-sel)}
+.ue-media-th{flex:0 0 64px;height:36px;border-radius:3px;background:#111114;overflow:hidden;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 0 1px #000}
+.ue-media-th img{width:100%;height:100%;object-fit:cover;display:block}
+.ue-media-th .i{width:16px;height:16px;color:var(--ue-dim)}
+.ue-media-th.is-audio{background:#20352a}
+.ue-media-th.is-audio .i{color:#8fd6a8}
+.ue-media-t{min-width:0;display:flex;flex-direction:column}
+.ue-media-t b{font-size:11.5px;font-weight:500;color:var(--ue-txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ue-media-t small{font-size:10.5px;color:var(--ue-dim)}
+
+/* 폴더 고르기 창 */
+.ue-browse{display:flex;flex-direction:column;gap:8px;width:min(560px, 80vw)}
+.ue-browse-path{font-family:var(--mono);font-size:12px;color:var(--txt-dim);padding:6px 8px;background:var(--bg);border:1px solid var(--line);
+  border-radius:4px;word-break:break-all}
+.ue-browse-list{height:min(52vh, 420px);overflow:auto;border:1px solid var(--line);border-radius:4px;background:var(--bg)}
+.ue-browse-row{display:flex;align-items:center;gap:8px;padding:5px 10px;font-size:12.5px;cursor:pointer;color:var(--txt)}
+.ue-browse-row:hover{background:var(--panel-2)}
+.ue-browse-row .i{width:15px;height:15px;color:#c9a35a}
+.ue-browse-row span{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ue-browse-row small{color:var(--txt-mute);font-family:var(--mono);font-size:11px}
+.ue-browse-row.is-file{cursor:default;color:var(--txt-dim)}
+.ue-browse-row.is-file .i{color:var(--txt-mute)}
+
+/* 피드백 탭에서 옮겨 온 화면 (영상 · 쪽지가 든 상자) */
+.ue-viewer > .fb-stage-wrap{position:absolute;inset:0;background:transparent;padding:8px}
+.ue-viewer .fb-plan-badge{display:none}
+.ue-viewer .fb-stage{box-shadow:0 0 0 1px #000;border-radius:0}
+
+/* 썸네일 줄 (V1) - 머리 16px 아래 */
+.ue-v{background:var(--ue-v)}
+.ue-film{position:absolute;left:0;right:0;top:16px;overflow:hidden;pointer-events:none;background:#101318}
+.ue-film i{position:absolute;top:0;bottom:0;background-repeat:no-repeat;box-shadow:inset -1px 0 0 rgba(0,0,0,.45)}
+.ue-clip-name{z-index:1;height:14px;line-height:14px}
+.ue-v::before{content:'';position:absolute;left:0;right:0;top:0;height:16px;background:var(--ue-v-top)}
+.ue-a{background:#284d36}
+.ue-wave{top:0;transform:none}

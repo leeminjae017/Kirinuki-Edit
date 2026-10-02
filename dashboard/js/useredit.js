@@ -24,7 +24,7 @@
   var SNAP = true, RIP = true;
   var PPS = 80;            // 1초 = px
   var FPS = 60;
-  var SP = null, SHOWN = false, SC = null, MOUNTING = false;
+  var SHOWN = false, SC = null, MOUNTING = false;
   var UNDO = [], REDO = [];
   var UID = 1, drag = null, rafId = 0, upd = 0, MINW = 0;
   var MIN = 2;             // 클립 최소 길이 (프레임)
@@ -54,7 +54,7 @@
     return P;
   }
   function srcDur() {
-    var w = R && R.wave;
+    var w = waveData();
     if (w && w.b64) return Math.floor(w.b64.length * 3 / 4) / (w.hz || 50);
     return Infinity;
   }
@@ -93,10 +93,14 @@
     upd = setTimeout(refreshScene, 120);
   }
 
-  /* ---------- 미리보기 ---------- */
-  function video() { return SP ? SP.video : null; }
+  /* ---------- 미리보기 ----------
+     피드백 탭과 **같은 영상**을 쓴다 (사용자 2026-10-02 둘째: "피드백 탭과 사용자 편집 탭의 영상은 공유",
+     "피드백에서 미리보기 변경 사항도 사용자 편집에서 적용"). 피드백 탭의 화면 (.fb-stage-wrap - 영상 · 쪽지 · 화살표가 든 상자)
+     을 이 탭이 보일 때 뷰어로 옮겨 오고, 떠날 때 돌려놓는다. 그래서 재생 위치 · 장면 (자막 고침 · 클립) · 쪽지가 두 탭에서 같다.
+     영상 시각 = 이 타임라인 시각 (클립을 고치면 review.userClips 가 피드백 탭의 계획이 된다). */
+  var BOUND = null;
+  function video() { var v = D.Feedback && D.Feedback.video(); return v && (v.src || v.duration || SC) ? v : null; }
   function now() { var v = video(); return v ? v.currentTime || 0 : (drag && drag.t != null ? drag.t : 0); }
-  function urlOf(path) { return '/api/file?path=' + encodeURIComponent(path); }
   function viewerMsg(msg) {
     var host = D.$('#ueViewer');
     var m = host.querySelector('.ue-msg');
@@ -104,52 +108,49 @@
     if (!m) { m = D.el('div', { class: 'ue-msg' }); host.appendChild(m); }
     m.textContent = msg;
   }
-  function mountPlayer() {
-    if (SP || MOUNTING || !R) return;
-    if (!R.srcPreview) { viewerMsg('원본 사본이 없어 미리보기를 못 합니다 - 내보내기를 다시 해 주세요 (tools/src_preview.py)'); return; }
-    if (!window.ShortsmithPreview || !D.Feedback.ready()) {
-      viewerMsg('미리보기 준비 중...');
+  function bindShared() {                  // 피드백 탭이 프로젝트를 새로 열면 영상 객체가 바뀐다 - 바뀔 때마다 다시 단다
+    var v = D.Feedback && D.Feedback.video();
+    if (!v || v === BOUND) return;
+    BOUND = v;
+    v.addEventListener('play', function () { if (BOUND !== v) return; icon('pause'); loop(); });
+    v.addEventListener('pause', function () { if (BOUND !== v) return; icon('play'); drawPlayhead(); });
+    v.addEventListener('seeked', function () { if (BOUND === v && SHOWN) drawPlayhead(); });
+    v.addEventListener('timeupdate', function () { if (BOUND === v && SHOWN && v.paused) drawPlayhead(); });
+    v.addEventListener('loadedmetadata', function () { if (BOUND === v && SHOWN) { fitViewer(); drawPlayhead(); } });
+    icon(v.paused ? 'play' : 'pause');
+  }
+  function mountPlayer() {                 // 피드백 화면을 뷰어로 옮겨 온다
+    if (MOUNTING || !R || !SHOWN) return;
+    var wrap = D.$('.fb-stage-wrap');
+    if (wrap && wrap.parentNode !== D.$('#ueViewer')) D.$('#ueViewer').appendChild(wrap);
+    if (!D.Feedback.ready()) {
+      if (!R.srcPreview && R.scene) viewerMsg('원본 사본이 없어 컷을 고친 미리보기를 못 합니다 - 내보내기를 다시 해 주세요 (tools/src_preview.py)');
       MOUNTING = true;
       setTimeout(function () { MOUNTING = false; if (SHOWN) mountPlayer(); }, 400);
       return;
     }
-    SC = D.Feedback.sceneFor(plan());
-    if (!SC) return;
-    FPS = SC.fps || 60;
     viewerMsg('');
-    var host = D.el('div', { class: 'ue-player' });
-    D.$('#ueViewer').appendChild(host);
-    SP = window.ShortsmithPreview.mount(host, { scene: SC, url: urlOf });
-    var v = SP.video;
-    v.addEventListener('play', function () { icon('pause'); loop(); });
-    v.addEventListener('pause', function () { icon('play'); drawPlayhead(); });
-    v.addEventListener('seeked', drawPlayhead);
-    v.addEventListener('loadedmetadata', function () { fitViewer(); drawPlayhead(); });
+    SC = D.Feedback.sceneFor(plan());
+    if (SC) FPS = SC.fps || 60;
+    bindShared();
     fitViewer();
     draw();
   }
-  function unmountPlayer() {
-    if (SP) { try { SP.video.pause(); SP.unmount(); } catch (e) { /* 없어도 된다 */ } SP = null; }
-    var h = D.$('#ueViewer .ue-player');
-    if (h) h.remove();
+  function unmountPlayer() {               // 피드백 탭 제자리 (전송 막대 앞) 로 돌려놓는다
+    var wrap = D.$('.fb-stage-wrap'), body = D.$('#paneVideo .video-body');
+    if (wrap && body && wrap.parentNode !== body) body.insertBefore(wrap, body.querySelector('.fb-transport'));
+    if (D.Feedback && D.Feedback.refresh) D.Feedback.refresh();
   }
   function refreshScene() {
-    if (!SP) return;
+    if (!R || !D.Feedback.ready()) return;
     var t = now();
     SC = D.Feedback.sceneFor(plan());
     if (!SC) return;
-    SP.update(SC);
-    var v = video();
-    if (v) v.currentTime = Math.min(t, Math.max(0, total() - 1 / FPS));   // 고쳐도 보던 시각을 지킨다
-    drawCaps();
+    D.Feedback.livePreview(Math.min(t, Math.max(0, total() - 1 / FPS)));   // 같은 영상에 새 장면 - 고쳐도 보던 시각을 지킨다
+    bindShared();
+    draw();
   }
-  function fitViewer() {                   // 그림 상자를 화면 비율 그대로 칸 안에 꽉
-    var box = D.$('#ueViewer'), host = box && box.querySelector('.ue-player');
-    if (!host || !SC) return;
-    var W = box.clientWidth - 16, H = box.clientHeight - 16, ar = SC.width / SC.height;
-    var w = Math.min(W, H * ar), h = w / ar;
-    host.style.width = Math.floor(w) + 'px'; host.style.height = Math.floor(h) + 'px';
-  }
+  function fitViewer() { if (SHOWN && D.Feedback && D.Feedback.refresh) D.Feedback.refresh(); }
   function icon(name) { var u = D.$('#uePlay use'); if (u) u.setAttribute('href', '#i-' + name); }
   function toggle() { var v = video(); if (!v) return; if (v.paused) { if (v.currentTime >= total() - 0.02) v.currentTime = 0; v.play(); } else v.pause(); }
   function seek(t) {
@@ -178,6 +179,8 @@
     MINW = w;                               // 편집 중에는 줄이지 않는다 - 줄면 스크롤이 당겨져 선이 화면에서 움직인다
     cont.style.width = w + 'px';
     drawRuler(w);
+    drawCaps();
+    var LH = laneHeights();
     var lv = D.$('#ueLaneV'), la = D.$('#ueLaneA');
     lv.textContent = ''; la.textContent = '';
     sorted().forEach(function (c, i) {
@@ -187,19 +190,29 @@
         el.style.width = Math.max(2, X(len(c))) + 'px';
         el.dataset.id = c.id;
         if (kv[0] === 'v') {
+          film(el, c, LH - 6 - 16);
           el.appendChild(D.el('span', { class: 'ue-clip-name', text: (i + 1) + '  ' + stc(c.s) + ' - ' + stc(c.e) }));
         } else {
-          wave(el, c);
+          wave(el, c, LH - 8);
         }
         el.appendChild(D.el('i', { class: 'ue-trim ue-trim-l' }));
         el.appendChild(D.el('i', { class: 'ue-trim ue-trim-r' }));
         kv[1].appendChild(el);
       });
     });
-    drawCaps();
     drawPlayhead();
     side();
     drawWords();
+  }
+  /* 타임라인 칸 높이를 V1 · A1 이 나눠 갖는다 (칸 크기를 끌어 바꾸면 썸네일 · 파형도 같이 커진다) */
+  function laneHeights() {
+    var tl = D.$('#view-edit .ue-timeline'), ls = D.$('#ueLaneS');
+    var free = (tl ? tl.clientHeight : 300) - 27 - (ls ? ls.offsetHeight : 34) - 3;
+    var h = Math.max(44, Math.floor(free / 2));
+    ['#ueLaneV', '#ueLaneA', '#view-edit .ue-hd-v', '#view-edit .ue-hd-a'].forEach(function (q) {
+      var e = D.$(q); if (e) { e.style.height = h + 'px'; e.style.flexBasis = h + 'px'; }
+    });
+    return h;
   }
   function drawRuler(w) {
     var ru = D.$('#ueRuler');
@@ -219,9 +232,158 @@
       }
     }
   }
+  /* ---------- 썸네일 · 파형 (2026-10-02 둘째: "오디오 부분에 파형 적용 비디오의 경우 일정부분마다 썸네일 캡쳐해서 클립에 적용") ----------
+     서버가 원본 사본 (review.srcPreview) 에서 0.5초마다 한 장씩 뜬 격자 그림 하나 (/api/media/thumbs) 와
+     파형 (review.wave 가 없는 옛 편은 /api/media/wave) 을 만들어 준다. 한 번 만들면 서버 임시 폴더에 남는다. */
+  var TH = null, TIMG = null, WAVE = null, MEDIA_FOR = null;
+  function loadMedia() {
+    var p = R && R.srcPreview && R.srcPreview.path;
+    if (!p || MEDIA_FOR === p) return;
+    MEDIA_FOR = p; TH = null; WAVE = null;
+    var q = '?path=' + encodeURIComponent(p);
+    fetch('/api/media/thumbs' + q).then(function (r) { return r.json(); }).then(function (j) {
+      if (MEDIA_FOR !== p || !j.ok || j.none) return;
+      var im = new Image();
+      im.onload = function () { if (MEDIA_FOR !== p) return; TH = j; TIMG = im; draw(); };
+      im.src = j.url;
+    }).catch(function (e) { D.warn('썸네일을 못 만들었습니다: ' + e.message, 'useredit'); });
+    if (!(R.wave && R.wave.b64)) {
+      fetch('/api/media/wave' + q).then(function (r) { return r.json(); }).then(function (j) {
+        if (MEDIA_FOR !== p || !j.ok) return;
+        WAVE = j; draw();
+      }).catch(function (e) { D.warn('파형을 못 만들었습니다: ' + e.message, 'useredit'); });
+    }
+  }
+  function film(el, c, h) {                // 클립 머리 아래로 썸네일을 줄지어 (칸마다 그 자리 원본 시각의 그림)
+    if (!TH || h < 12) return;
+    var tw = h * TH.tw / TH.th, W = X(len(c)), rows = Math.ceil(TH.n / TH.cols);
+    var box = D.el('div', { class: 'ue-film' });
+    box.style.height = h + 'px';
+    var size = (TH.cols * tw) + 'px ' + (rows * h) + 'px';
+    for (var x = 0; x < W && x < 60000; x += tw) {
+      var k = Math.max(0, Math.min(TH.n - 1, Math.round((c.s + T(x)) / TH.step)));
+      var f = D.el('i');
+      f.style.left = x + 'px'; f.style.width = Math.ceil(tw) + 'px';
+      f.style.backgroundImage = 'url("' + TH.url + '")';
+      f.style.backgroundSize = size;
+      f.style.backgroundPosition = (-(k % TH.cols) * tw) + 'px ' + (-Math.floor(k / TH.cols) * h) + 'px';
+      box.appendChild(f);
+    }
+    el.appendChild(box);
+  }
+  /* ---------- 소스 (2026-10-02 둘째: "미디어 · 클립 부분 -> 소스 폴더 추가로 변경") ----------
+     왼쪽 칸 = 리졸브의 미디어 풀처럼 폴더째 넣는 소스 목록. 첫 묶음은 이 편 원본 (사본), 그 아래 사용자가 넣은 폴더들.
+     폴더 경로는 review.srcFolders 로 저장되고 (server.py 저장 칸), 편집 (AI) 단추가 넘기는 글에도 들어간다.
+     브라우저는 고른 폴더의 진짜 경로를 안 주므로 서버가 폴더를 읽어 고르는 창을 띄운다 (/api/media/browse · list). */
+  var BINS = {}, OPEN = {}, FSEL = null;
+  function folders() { return (R && R.srcFolders) || []; }
+  function drawBins() {
+    var host = D.$('#ueBins');
+    if (!host) return;
+    host.textContent = '';
+    if (!R) { host.appendChild(D.el('div', { class: 'ue-ins-empty', text: '프로젝트를 열면 여기에' })); return; }
+    var own = R.srcPreview && R.srcPreview.path;
+    var groups = [];
+    if (own) groups.push({ key: '', name: '이 편 원본', files: [{ name: String(own).split(/[\\/]/).pop(), path: own, kind: 'video' }], fixed: true });
+    folders().forEach(function (f) {
+      groups.push({ key: f, name: f.split(/[\\/]/).filter(Boolean).pop() || f, files: BINS[f], title: f });
+    });
+    groups.forEach(function (g) {
+      var open = OPEN[g.key] !== false;
+      var hd = D.el('div', { class: 'ue-bin' + (open ? ' is-open' : ''), title: g.title || '' });
+      hd.appendChild(D.icon('folder'));
+      hd.appendChild(D.el('span', { class: 'ue-bin-n', text: g.name }));
+      hd.appendChild(D.el('span', { class: 'ue-bin-c', text: g.files ? g.files.length + '' : '...' }));
+      if (!g.fixed) {
+        var rm = D.el('button', { class: 'ue-bin-x', title: '소스 폴더 빼기 (파일은 안 지운다)' });
+        rm.appendChild(D.icon('x'));
+        rm.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          R.srcFolders = folders().filter(function (x) { return x !== g.key; });
+          D.touch(); drawBins();
+        });
+        hd.appendChild(rm);
+      }
+      hd.addEventListener('click', function () { OPEN[g.key] = !open; drawBins(); });
+      host.appendChild(hd);
+      if (!open) return;
+      if (!g.files) { loadBin(g.key); return; }
+      if (!g.files.length) host.appendChild(D.el('div', { class: 'ue-ins-empty ue-bin-empty', text: '영상 · 소리 · 그림이 없습니다' }));
+      g.files.forEach(function (f) {
+        var row = D.el('div', { class: 'ue-media' + (FSEL === f.path ? ' is-sel' : ''), title: f.path });
+        var th = D.el('div', { class: 'ue-media-th is-' + f.kind });
+        if (f.kind !== 'audio') {
+          var im = D.el('img', { loading: 'lazy', alt: '', src: '/api/media/poster?path=' + encodeURIComponent(f.path) });
+          im.addEventListener('error', function () { im.remove(); th.appendChild(D.icon('video')); });
+          th.appendChild(im);
+        } else th.appendChild(D.icon('vol'));
+        row.appendChild(th);
+        var tx = D.el('div', { class: 'ue-media-t' });
+        tx.appendChild(D.el('b', { text: f.name }));
+        tx.appendChild(D.el('small', { text: (f.kind === 'video' ? '영상' : f.kind === 'audio' ? '소리' : '그림') + (f.size ? ' · ' + D.fmtBytes(f.size) : '') }));
+        row.appendChild(tx);
+        row.addEventListener('click', function () { FSEL = f.path; drawBins(); });
+        host.appendChild(row);
+      });
+    });
+  }
+  function loadBin(dir) {
+    if (BINS[dir] === null) return;
+    BINS[dir] = null;
+    fetch('/api/media/list?path=' + encodeURIComponent(dir)).then(function (r) { return r.json(); }).then(function (j) {
+      BINS[dir] = j.ok ? j.files : [];
+      if (!j.ok) D.warn('소스 폴더를 못 읽었습니다: ' + (j.error || dir), 'useredit');
+      drawBins();
+    }).catch(function () { BINS[dir] = []; drawBins(); });
+  }
+  function addFolder() {                   // 서버가 읽은 폴더를 오가며 고른다
+    if (!R) { D.toast('프로젝트를 먼저 여세요'); return; }
+    var body = D.el('div', { class: 'ue-browse' });
+    var where = D.el('div', { class: 'ue-browse-path' });
+    var list = D.el('div', { class: 'ue-browse-list' });
+    body.appendChild(where); body.appendChild(list);
+    var cur = '';
+    var go = function (p) {
+      fetch('/api/media/browse?path=' + encodeURIComponent(p || '')).then(function (r) { return r.json(); }).then(function (j) {
+        if (!j.ok) { D.toast(j.error || '폴더를 못 읽었습니다'); return; }
+        cur = j.path; where.textContent = j.path || '내 PC';
+        list.textContent = '';
+        if (j.parent != null) list.appendChild(row('..', 'folder', function () { go(j.parent); }));
+        j.dirs.forEach(function (d) { list.appendChild(row(d.name, 'folder', function () { go(d.path); })); });
+        j.files.forEach(function (f) {
+          var r = row(f.name, f.kind === 'audio' ? 'vol' : 'video', null);
+          r.classList.add('is-file');
+          r.appendChild(D.el('small', { text: D.fmtBytes(f.size) }));
+          list.appendChild(r);
+        });
+      });
+    };
+    var row = function (name, ic, fn) {
+      var r = D.el('div', { class: 'ue-browse-row' });
+      r.appendChild(D.icon(ic));
+      r.appendChild(D.el('span', { text: name }));
+      if (fn) r.addEventListener('click', fn);
+      return r;
+    };
+    var start = folders()[folders().length - 1];
+    if (!start && R.srcPreview && R.srcPreview.path) start = String(R.srcPreview.path).replace(/[\\/][^\\/]*$/, '');
+    go(start || '');
+    D.modal.open({
+      title: '소스 폴더 추가', body: body,
+      buttons: [{ label: '취소' }, {
+        label: '이 폴더 추가', class: 'btn-primary', onClick: function () {
+          if (!cur) { D.toast('폴더를 고르세요'); return false; }
+          if (folders().indexOf(cur) === -1) { R.srcFolders = folders().concat([cur]); D.touch(); }
+          OPEN[cur] = true; delete BINS[cur]; drawBins();
+          D.info('소스 폴더 추가: ' + cur, 'useredit');
+        }
+      }]
+    });
+  }
   var WB = null, WSRC = '', WLO = 0, WHI = 255;
+  function waveData() { return R && R.wave && R.wave.b64 ? R.wave : WAVE; }
   function waveBytes() {
-    var w = R && R.wave;
+    var w = waveData();
     if (!w || !w.b64) return null;
     if (WSRC !== w.b64) {
       var bin = atob(w.b64), a = new Uint8Array(bin.length);
@@ -232,15 +394,16 @@
     }
     return WB;
   }
-  function wave(el, c) {                   // 원본 소리 파형 (피드백 탭과 같은 눈금 - 바닥 잡음 10% 가 0)
+  function wave(el, c, H) {                // 원본 소리 파형 (피드백 탭과 같은 눈금 - 바닥 잡음 10% 가 0). 칸 높이를 다 쓴다
     var B = waveBytes();
     if (!B) return;
-    var hz = R.wave.hz || 50, dpr = window.devicePixelRatio || 1;
-    var W = Math.min(4000, Math.max(2, Math.round(X(len(c))))), H = 40;
+    var hz = waveData().hz || 50, dpr = window.devicePixelRatio || 1;
+    var CW = Math.max(2, Math.round(X(len(c)))), W = Math.min(4000, CW);
+    H = Math.max(20, H || 40);
     var cv = document.createElement('canvas');
     cv.className = 'ue-wave';
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-    cv.style.width = W + 'px'; cv.style.height = H + 'px';
+    cv.style.width = CW + 'px'; cv.style.height = H + 'px';   // 4000px 넘는 클립은 늘여 그린다 (예전엔 잘렸다)
     var g = cv.getContext('2d');
     g.scale(dpr, dpr);
     g.fillStyle = 'rgba(190,240,205,.75)';
@@ -287,22 +450,8 @@
     if (follow && (x > sc.scrollLeft + sc.clientWidth - 40 || x < sc.scrollLeft)) sc.scrollLeft = Math.max(0, x - 40);
   }
 
-  /* ---------- 옆 칸: 클립 목록 · 클립 정보 ---------- */
+  /* ---------- 옆 칸: 클립 정보 (클립 목록은 소스 칸으로 바꿨다 - 2026-10-02 둘째) ---------- */
   function side() {
-    var list = D.$('#ueList');
-    if (list) {
-      list.textContent = '';
-      sorted().forEach(function (c, i) {
-        var row = D.el('div', { class: 'ue-row' + (SEL[c.id] ? ' is-sel' : '') });
-        row.appendChild(D.el('span', { class: 'ue-row-n', text: String(i + 1) }));
-        row.appendChild(D.el('span', { class: 'ue-row-t', text: tc(c.at) }));
-        row.appendChild(D.el('span', { class: 'ue-row-s', text: stc(c.s) + ' - ' + stc(c.e) }));
-        row.appendChild(D.el('span', { class: 'ue-row-d', text: len(c).toFixed(2) + 's' }));
-        row.addEventListener('click', function (ev) { pick(c.id, ev.shiftKey); });
-        row.addEventListener('dblclick', function () { seek(c.at); });          // 시점 옮기기는 두 번 눌러야
-        list.appendChild(row);
-      });
-    }
     var ins = D.$('#ueIns');
     if (!ins) return;
     ins.textContent = '';
@@ -796,14 +945,14 @@
   function load(review) {
     R = review || null;
     UNDO = []; REDO = []; SEL = {}; CSEL = null; MINW = 0; CL = []; WALL = null; LASTW = null;
-    unmountPlayer(); SC = null;
+    SC = null; BINS = {}; FSEL = null;
     if (R && (R.clips || []).length) {
       var src = R.userClips && R.userClips.length ? R.userClips.map(function (c) { return [c.s, c.e, c.at]; }) : D.Feedback.basePlan();
       CL = src.map(function (r) { return { id: UID++, s: r[0], e: r[1], at: r[2] }; });
     }
     D.$('#ueEmpty').hidden = !!CL.length;
-    var nm = D.$('#ueSrcName');
-    if (nm) nm.textContent = R && R.srcPreview ? String(R.srcPreview.path || '').split('/').pop() : '-';
+    loadMedia();
+    drawBins();
     draw();
     if (SHOWN) { mountPlayer(); setTimeout(fit, 0); }
   }
@@ -818,7 +967,7 @@
   }
   function shown(on) {
     SHOWN = on;
-    if (!on) { var v = video(); if (v) v.pause(); return; }
+    if (!on) { var v = video(); if (v && !v.paused) v.pause(); unmountPlayer(); return; }
     mountPlayer();
     setTimeout(function () { fitViewer(); draw(); if (PPS === 80 && total()) fit(); }, 0);
   }
@@ -844,6 +993,7 @@
     D.$('#ueRedo').addEventListener('click', redo);
     D.$('#ueFit').addEventListener('click', fit);
     D.$('#ueReset').addEventListener('click', resetToAI);
+    D.$('#ueAddFolder').addEventListener('click', addFolder);
     D.$('#uePlay').addEventListener('click', toggle);
     D.$('#ueStart').addEventListener('click', function () { seek(0); });
     D.$('#ueEnd').addEventListener('click', function () { seek(total()); });
@@ -860,6 +1010,7 @@
     if (window.ResizeObserver) {
       new ResizeObserver(function () { fitViewer(); }).observe(D.$('#ueViewer'));
       new ResizeObserver(function () { if (SHOWN) draw(); }).observe(sc);
+      new ResizeObserver(function () { if (SHOWN) draw(); }).observe(D.$('#view-edit .ue-timeline'));
     }
     setTool('select'); setSnap(true); setRipple(true);
   }

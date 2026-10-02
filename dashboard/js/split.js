@@ -39,8 +39,22 @@
       v: function () { return vert() ? '--fb-sw' : '--fb-sh'; },
       dir: function () { return vert() ? 1 : -1; },
       sizeFrom: '.fb-side', flexSel: '#paneVideo', min: 150, flexMin: 200
-    }
+    },
     /* 프롬프트와 렌더링 사이 거터는 뺐다 (2026-10-02: 렌더는 사용자 편집 탭의 렌더 탭으로, 편집 단추는 프롬프트 머리로) */
+    /* 사용자 편집 탭 (2026-10-02 둘째: "사용자 편집도 피드백 처럼 레이아웃 사이즈 변경 가능하게").
+       손잡이는 칸 사이에 떠 있는 띠 (useredit.css .ue-gut) - 남는 자리는 늘 뷰어가 받는다 */
+    {
+      sel: '#gUeC1', axis: 'x', grid: '.ue-grid', v: '--ue-c1', label: '소스 칸 너비',
+      sizeFrom: '#view-edit .ue-pool', flexSel: '#view-edit .ue-vpane', dir: 1, min: 160, flexMin: 280
+    },
+    {
+      sel: '#gUeC3', axis: 'x', grid: '.ue-grid', v: '--ue-c3', label: '인스펙터 너비',
+      sizeFrom: '#view-edit .ue-inspector', flexSel: '#view-edit .ue-vpane', dir: -1, min: 200, flexMin: 280
+    },
+    {
+      sel: '#gUeR', axis: 'y', grid: '.ue-grid', v: '--ue-tl-h', label: '타임라인 높이',
+      sizeFrom: '#view-edit .ue-timeline', flexSel: '#view-edit .ue-vpane', dir: -1, min: 130, flexMin: 160
+    }
   ];
 
   /* 함수로 적어 둔 자리는 그때그때 물어본다 */
@@ -93,7 +107,10 @@
       /* 세로 영상: 영상 왼쪽에 서는 프롬프트+렌더링 칸의 너비 */
       '--fb-sw': px(D.clamp(W * 0.24, 240, 460)),
       /* 세로 영상: 그 칸에서 렌더링이 차지하는 높이 */
-      '--fb-rh': px(D.clamp(H * 0.24, 150, 300))
+      '--fb-rh': px(D.clamp(H * 0.24, 150, 300)),
+      '--ue-c1': px(D.clamp(W * 0.16, 200, 360)),
+      '--ue-c3': px(D.clamp(W * 0.19, 240, 420)),
+      '--ue-tl-h': px(D.clamp(H * 0.34, 200, 460))
     };
   }
 
@@ -101,7 +118,7 @@
     var def = defaults();
     Object.keys(def).forEach(function (k) {
       var v = saved[k] || def[k];
-      D.$$('.ai-grid, .fb-grid').forEach(function (g) { g.style.setProperty(k, v); });
+      D.$$('.ai-grid, .fb-grid, .ue-grid').forEach(function (g) { g.style.setProperty(k, v); });
     });
     D.$$('.fb-grid').forEach(function (g) { g.classList.toggle('is-vert', vert()); });
   }
@@ -110,7 +127,7 @@
      저장값 자체는 건드리지 않으므로 창이 다시 커지면 원래 크기로 돌아온다. */
   function reflow(quiet) {
     apply();
-    ['ai', 'fb'].forEach(function (which) {
+    ['ai', 'fb', 'ue'].forEach(function (which) {
       var list = GUTTERS.filter(function (g) { return g.grid.indexOf(which) !== -1; });
       ['x', 'y'].forEach(function (axis) {
         var group = list.filter(function (g) { return val(g.axis) === axis; });
