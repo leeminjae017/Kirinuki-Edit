@@ -60,10 +60,13 @@ export function readCaptions(file, { clock = 'output', pieces = [], speed = 1, s
     ? readJson(file).map((c) => ({ start: c.s ?? c.start, end: c.e ?? c.end, speaker: c.speaker || '', text: c.text }))
     : parseCsv(fs.readFileSync(file, 'utf8'));
   let title = null;
-  const rows = [];
+  const rows = [], tfByText = {};
   for (const r of raw) {
     const spk = (r.speaker || '').trim();
     if (TITLE.has(spk)) { title = r.text; continue; }
+    // tf 칸: "x y z r" - 사용자 편집 탭에서 옮기고 키우고 돌린 자막 (2026-10-03). 자막으로 안 그리는 줄 (설명 딱지) 은 글로 찾아 붙인다
+    const tf = (r.tf || '').trim() ? (([x, y, z, rr]) => ({ x: +x || 0, y: +y || 0, z: z === undefined ? 1 : +z, r: +rr || 0 }))(r.tf.trim().split(/\s+/)) : null;
+    if (tf) tfByText[plain(r.text)] = tf;
     if (skip.has(spk)) continue;
     let s = parseTime(r.start), e = parseTime(r.end);
     if (clock === 'timeline') { s /= speed; e /= speed; }   // cut timeline before the speed-up
@@ -72,9 +75,9 @@ export function readCaptions(file, { clock = 'output', pieces = [], speed = 1, s
       if (s == null || e == null) continue;           // cut away
     }
     // kind 칸: 자막 디자인 이름 (기본 · 강조 · 슬픔 · 부분 강조 ...). 화자 칸은 화자 그대로 둔다
-    rows.push({ s: +s.toFixed(3), e: +e.toFixed(3), text: r.text, speaker: spk, kind: (r.kind || '').trim() });
+    rows.push({ s: +s.toFixed(3), e: +e.toFixed(3), text: r.text, speaker: spk, kind: (r.kind || '').trim(), ...(tf ? { tf } : {}) });
   }
-  return { rows, title };
+  return { rows, title, tfByText };
 }
 
 export function buildScene(projectDir, edit, loaded, body, cutsList) {
@@ -86,7 +89,7 @@ export function buildScene(projectDir, edit, loaded, body, cutsList) {
   const speakers = C.speakers || {};          // speaker name -> kind ("HostAngry": "outburst"); null = skip the row
   // kindNames: captions.csv 의 kind 칸에 적는 우리말 이름 -> 종류 ("강조": "accent"). 없으면 종류 이름 그대로
   const skip = new Set(Object.entries(speakers).filter(([, k]) => k === null).map(([n]) => n));
-  const { rows, title } = capFile && fs.existsSync(capFile)
+  const { rows, title, tfByText = {} } = capFile && fs.existsSync(capFile)
     ? readCaptions(capFile, { clock: edit.captionClock || 'output', pieces: cutsList, speed: edit.speed || 1, skip })
     : { rows: [], title: null };
   // close short gaps so captions do not blink off between lines (the legacy rebuild_from_csv did this)
@@ -124,9 +127,10 @@ export function buildScene(projectDir, edit, loaded, body, cutsList) {
   const captions = rows.map((r, i) => {
     const bySpk = kindOfSpeaker(r.speaker);
     const byKindCol = r.kind ? (C.kindNames?.[r.kind] ?? (C.kinds[r.kind] ? r.kind : null)) : null;
-    return { id: `c${i}`, s: r.s, e: r.e, text: r.text, kind: kinds[plain(r.text)] || byKindCol || bySpk.kind, ...(bySpk.color ? { color: bySpk.color } : {}) };
+    return { id: `c${i}`, s: r.s, e: r.e, text: r.text, kind: kinds[plain(r.text)] || byKindCol || bySpk.kind, ...(bySpk.color ? { color: bySpk.color } : {}), ...(r.tf ? { tf: r.tf } : {}) };
   });
-  (fx.labels || []).forEach((l, i) => captions.push({ id: `l${i}`, s: at(l.from ?? 0), e: at(l.to), text: l.text, kind: l.kind || 'label', ...(l.y != null ? { y: l.y } : {}), ...(l.x != null ? { x: l.x } : {}) }));
+  (fx.labels || []).forEach((l, i) => captions.push({ id: `l${i}`, s: at(l.from ?? 0), e: at(l.to), text: l.text, kind: l.kind || 'label', ...(l.y != null ? { y: l.y } : {}), ...(l.x != null ? { x: l.x } : {}),
+    ...(tfByText[plain(l.text)] ? { tf: tfByText[plain(l.text)] } : {}) }));
 
   const overlays = [
     ...(fx.images || []).map((m) => ({ type: 'image', s: Math.max(0, at(m.from) - (m.lead || 0)),

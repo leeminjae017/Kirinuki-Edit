@@ -142,10 +142,12 @@ review = {"video": {"ko": FINAL.replace(os.sep, "/")} if os.path.exists(FINAL) e
           "kept": [[round(a, 3), round(b, 3)] for a, b in main], "restore": [], "drop": [], "transcript": segs,
           # 조각(클립)마다 원본 시각과 완성본 시각 - 피드백 탭의 타임스탬프 칸이 쓴다 (2026-09-28)
           "clips": [dict({"i": i + 1, "s": round(pc["s"], 3), "e": round(pc["e"], 3), "os": round(o, 3), "oe": round(o + d, 3)},
-                         **{k: pc[k] for k in ("color", "tin") if pc.get(k)})          # 색 · 전환 (사용자 편집 탭, 2026-10-02)
+                         **{k: pc[k] for k in ("color", "tin", "tf") if pc.get(k)})    # 색 · 전환 · 변형 (사용자 편집 탭, 2026-10-02 · 03)
                     for i, (pc, o, d) in enumerate([f for f in flat if not f[0].get("gap")])],
           "captions": [{"s": round(conv(ts(r["start"])), 3), "e": round(conv(ts(r["end"])), 3), "speaker": r["speaker"].strip(),
-                        "kind": (r.get("kind") or "").strip(), "text": r["text"].strip(), "by": "claude"} for r in rows],
+                        "kind": (r.get("kind") or "").strip(), "text": r["text"].strip(), "by": "claude",
+                        **({"tf": dict(zip(("x", "y", "z", "r"), [float(v) for v in r["tf"].split()]))} if (r.get("tf") or "").strip() else {})}
+                       for r in rows],
           "scene": os.path.abspath("scene.json").replace(os.sep, "/"), "notes": [], "prompt": ""}
 # 굽지 않은 판 (2026-10-02, 사용자: "마지막에 한 번만 렌더링하고 그 전까지는 미리보기에서만"): scene.json 이 완성본보다 새것이면
 # (shortsmith preview / tools/preview_update.py 로 고친 판) 피드백 · 사용자 편집 미리보기가 완성본 대신 원본 사본에서 컷대로 이어 튼다

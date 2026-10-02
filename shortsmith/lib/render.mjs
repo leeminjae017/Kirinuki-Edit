@@ -15,6 +15,7 @@ import { bundle } from '@remotion/bundler';
 import { ensureBrowser, openBrowser, renderFrames, selectComposition } from '@remotion/renderer';
 import { spawn, spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
+import { curvesVf } from './color.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
@@ -156,6 +157,8 @@ function layerGraph(a, b, firstInput, base) {
     if ((c.contrast ?? 1) !== 1 || (c.saturation ?? 1) !== 1) f.push(`eq=contrast=${(c.contrast ?? 1).toFixed(3)}:saturation=${(c.saturation ?? 1).toFixed(3)}`);
     f.push('format=rgba');
     if (br !== 1 || op !== 1) f.push(`colorchannelmixer=rr=${br.toFixed(3)}:gg=${br.toFixed(3)}:bb=${br.toFixed(3)}:aa=${op.toFixed(3)}`);
+    const cv = curvesVf(L.color);                  // RGBW + curves (lib/color.mjs, 2026-10-03)
+    if (cv) f.push(cv);
     let pre = '';                                  // [k:v] -> xfade chain (wipe / slide) -> the rest of f
     if (xi || xo) {
       const z = (d, n) => `color=c=black@0:s=${MW}x${MH}:r=${fps}:d=${d.toFixed(4)},format=yuva444p,settb=1/${fps}[z${n}${j}]`;
@@ -184,10 +187,14 @@ function layerGraph(a, b, firstInput, base) {
     if (L.fin) f.push(`fade=t=in:st=${(L.at + x0).toFixed(4)}:d=${L.fin.toFixed(3)}:alpha=1`);
     const x1 = L.xout && !DIP[L.xout.type] ? L.xout.d / 2 : 0;
     if (L.fout) f.push(`fade=t=out:st=${(Lend - x1 - L.fout).toFixed(4)}:d=${L.fout.toFixed(3)}:alpha=1`);
-    let ox = Math.round(B.x), oy = Math.round(B.y);
+    // rotation about the box centre (2026-10-03): the frame grows to the rotated size, transparent corners
+    const ra = (L.rot || 0) * Math.PI / 180;
+    const RW = ra ? ev(Math.abs(MW * Math.cos(ra)) + Math.abs(MH * Math.sin(ra))) : MW, RH = ra ? ev(Math.abs(MW * Math.sin(ra)) + Math.abs(MH * Math.cos(ra))) : MH;
+    if (ra) f.push('format=yuva444p', `rotate=${ra.toFixed(6)}:ow=${RW}:oh=${RH}:fillcolor=none`);
+    let ox = ra ? Math.round(B.x + B.w / 2 - RW / 2) : Math.round(B.x), oy = ra ? Math.round(B.y + B.h / 2 - RH / 2) : Math.round(B.y);
     if (moving) {
       // perspective counts its own input frames (in) from this chunk's first frame of the clip
-      const T = `(${(start - L.at).toFixed(4)}+in/${fps})`, PW = Math.max(scene.width, MW + 4), PH = Math.max(scene.height, MH + 4);
+      const T = `(${(start - L.at).toFixed(4)}+in/${fps})`, PW = Math.max(scene.width, RW + 4), PH = Math.max(scene.height, RH + 4);
       const seg = (key) => {                       // piecewise linear (or smoothstep) in T, held outside the keys
         const lin = (i) => {
           const a = K[i], b = K[i + 1], d = Math.max(1e-6, b.t - a.t);
@@ -198,9 +205,10 @@ function layerGraph(a, b, firstInput, base) {
         for (let i = K.length - 3; i >= 0; i--) e = `if(lt(${T},${K[i + 1].t.toFixed(4)}),${lin(i)},${e})`;
         return e;
       };
-      const X = seg('x'), Y = seg('y'), SX = `(${seg('w')}/${MW})`, SY = `(${seg('h')}/${MH})`;
-      // the clip sits at (2,2) inside a transparent pad; map the pad's corners so the clip lands on the box
-      const x0 = `${X}-2*${SX}`, x1 = `${X}+${PW - 2}*${SX}`, y0 = `${Y}-2*${SY}`, y1 = `${Y}+${PH - 2}*${SY}`;
+      const SX = `(${seg('w')}/${MW})`, SY = `(${seg('h')}/${MH})`, CX = `(${seg('x')}+${seg('w')}/2)`, CY = `(${seg('y')}+${seg('h')}/2)`;
+      // the clip (RW x RH once rotated) sits at (2,2) inside a transparent pad; map the pad's corners so its centre lands on the box centre
+      const x0 = `${CX}-${(2 + RW / 2).toFixed(2)}*${SX}`, x1 = `${CX}+${(PW - 2 - RW / 2).toFixed(2)}*${SX}`;
+      const y0 = `${CY}-${(2 + RH / 2).toFixed(2)}*${SY}`, y1 = `${CY}+${(PH - 2 - RH / 2).toFixed(2)}*${SY}`;
       f.push('format=yuva444p', `pad=${PW}:${PH}:2:2:color=black@0`,
         `perspective=x0='${x0}':y0='${y0}':x1='${x1}':y1='${y0}':x2='${x0}':y2='${y1}':x3='${x1}':y3='${y1}':sense=destination:eval=frame`);
       ox = 0; oy = 0;
@@ -284,7 +292,7 @@ function overlaySig(frame) {
     const ms = (t - c.s) * 1000, left = (c.e - t) * 1000;
     const len = animLen(a);
     const ph = ms < len ? r4(ms) : (a.type === 'fade' && a.outMs && left < a.outMs ? 'o' + r4(left) : '');
-    items.push(['c', c.text, c.kind, c.x, c.y, c.size, c.color, ph]);
+    items.push(['c', c.text, c.kind, c.x, c.y, c.size, c.color, ph, c.tf]);
   });
   (scene.overlays || []).forEach((o) => {
     if (!on(o.s, o.e)) return;

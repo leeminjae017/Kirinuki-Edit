@@ -232,3 +232,33 @@
 .ue-bh{position:absolute;width:10px;height:10px;background:#fff;box-shadow:0 0 0 1px #000}
 .ue-bh-tl{left:-5px;top:-5px;cursor:nwse-resize}.ue-bh-br{right:-5px;bottom:-5px;cursor:nwse-resize}
 .ue-bh-tr{right:-5px;top:-5px;cursor:nesw-resize}.ue-bh-bl{left:-5px;bottom:-5px;cursor:nesw-resize}
+
+/* I · O 구간 밖 어둡게 · 고르기 상자 · 그룹 표 · 우클릭 메뉴 (2026-10-03) */
+.ue-range{position:absolute;top:0;bottom:0;z-index:6;background:rgba(0,0,0,.55);pointer-events:none}
+#ueRangeL{box-shadow:inset -2px 0 0 var(--on)}#ueRangeR{box-shadow:inset 2px 0 0 var(--on)}
+.ue-range[hidden],.ue-marq[hidden]{display:none}
+.ue-marq{position:absolute;z-index:9;border:1px solid var(--on);background:rgba(243,156,56,.12);pointer-events:none}
+.ue-grp{position:absolute;right:3px;top:2px;z-index:3;font-size:10px;line-height:13px;padding:0 4px;border-radius:3px;color:#111;font-weight:600;
+  pointer-events:none;max-width:60%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.ue-ctx{position:fixed;z-index:1000;min-width:170px;padding:4px;background:var(--panel);border:1px solid var(--line-2);border-radius:6px;
+  box-shadow:0 8px 24px rgba(0,0,0,.5);display:flex;flex-direction:column}
+.ue-ctx button{all:unset;padding:6px 10px;border-radius:4px;font-size:12px;color:var(--txt);cursor:pointer}
+.ue-ctx button:hover{background:var(--on);color:#111}
+
+/* 인스펙터 (2026-10-03): 비디오 / 오디오 탭 · 슬라이더 줄 · 색 탭 · 커브 */
+.ue-itabs{display:flex;gap:4px;margin:8px 0 4px;border-bottom:1px solid var(--line)}
+.ue-itab{all:unset;display:flex;align-items:center;gap:5px;padding:6px 10px;font-size:12px;color:var(--txt-dim);cursor:pointer;border-bottom:2px solid transparent}
+.ue-itab .i{width:14px;height:14px}
+.ue-itab.is-on{color:var(--txt);border-bottom-color:var(--on)}
+.ue-sl{display:grid !important;grid-template-columns:62px 1fr 78px;align-items:center;gap:6px}
+.ue-sl input[type=range]{width:100%;accent-color:var(--on);min-width:0}
+.ue-num.is-ro input{background:transparent;border-color:transparent;color:var(--txt-dim)}
+.ue-sl.ch-r input[type=range]{accent-color:#ff6b6b}.ue-sl.ch-g input[type=range]{accent-color:#5cd65c}
+.ue-sl.ch-b input[type=range]{accent-color:#5aa0ff}.ue-sl.ch-w input[type=range]{accent-color:#e8e8ec}
+.ue-ctabs{display:flex;gap:2px;margin:2px 0 6px;background:var(--bg-2);border-radius:5px;padding:2px}
+.ue-ctab{all:unset;flex:1;text-align:center;padding:4px 2px;font-size:11px;color:var(--txt-dim);cursor:pointer;border-radius:4px}
+.ue-ctab.is-on{background:var(--panel-2,#2c2c33);color:var(--txt)}
+.ue-cch .ch-r.is-on{color:#ff6b6b}.ue-cch .ch-g.is-on{color:#5cd65c}.ue-cch .ch-b.is-on{color:#5aa0ff}
+.ue-ins-sub2{font-size:11px;color:var(--txt-dim);margin:6px 0 2px}
+.ue-curve{width:220px;height:220px;display:block;margin:2px auto 4px;border-radius:4px;cursor:crosshair;touch-action:none}
+.ue-grp-note{color:var(--on)}

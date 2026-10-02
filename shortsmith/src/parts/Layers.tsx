@@ -1,6 +1,7 @@
 import React from 'react';
 import { Audio, Img, Sequence, Video, useCurrentFrame } from 'remotion';
 import { Env, Layer, Scene, abs } from '../scene';
+import { hasTone, toneTables } from '../../lib/color.mjs';
 
 /* Extra tracks laid on the timeline by hand (dashboard user edit tab, 2026-10-02): video / image clips on V2.., audio on A2..
    Preview only - the render composites them with ffmpeg (lib/render.mjs) under the React overlay, so captions stay on top.
@@ -101,7 +102,9 @@ const LayerPic: React.FC<{ L: Layer; url: string; b: Box; fps: number }> = ({ L,
   const st: React.CSSProperties = { position: 'absolute', left: dx, top: 0, width: b.w, height: b.h, objectFit: 'fill', maxWidth: 'none' };
   return (
     <div style={{ position: 'absolute', inset: 0, opacity: (L.opacity ?? 1) * fadeAt(L, t) }}>
-      <div style={{ position: 'absolute', left: b.x, top: b.y, width: b.w, height: b.h, overflow: 'hidden', clipPath: clip }}>
+      <div style={{ position: 'absolute', left: b.x, top: b.y, width: b.w, height: b.h, overflow: 'hidden', clipPath: clip,
+                    transform: L.rot ? `rotate(${L.rot}deg)` : undefined }}>
+        <ToneDefs c={L.color} />
         <div style={{ position: 'absolute', inset: 0, filter: colorCss(L) }}>
           {L.kind === 'image' ? <Img src={url} style={st} /> : <Video src={url} startFrom={Math.round(L.s * fps)} muted style={st} />}
         </div>
@@ -111,11 +114,37 @@ const LayerPic: React.FC<{ L: Layer; url: string; b: Box; fps: number }> = ({ L,
   );
 };
 
-/* colour: brightness / contrast / saturation as 1 = unchanged (ffmpeg eq in the render uses the same numbers) */
-export const colorCss = (L: Layer) => {
+/* colour: brightness / contrast / saturation as 1 = unchanged (ffmpeg eq in the render uses the same numbers), then the tone
+   (RGBW lift / gamma / gain and curves, lib/color.mjs) as an SVG table - the render's curves filter uses the same 33 samples.
+   Order like the render: contrast · saturation, brightness, tone. */
+const toneId = (c: Layer['color']) => {
+  if (!c || !hasTone(c)) return null;
+  let h = 0;
+  for (const ch of JSON.stringify([c.lift, c.gamma, c.gain, c.curves])) h = (h * 31 + ch.charCodeAt(0)) | 0;
+  return 'tone' + (h >>> 0).toString(36);
+};
+export const ToneDefs: React.FC<{ c: Layer['color'] }> = ({ c }) => {
+  const id = toneId(c);
+  if (!id || !c) return null;
+  const T = toneTables(c);
+  return (
+    <svg width={0} height={0} style={{ position: 'absolute' }} aria-hidden>
+      <filter id={id} colorInterpolationFilters="sRGB">
+        <feComponentTransfer>
+          <feFuncR type="table" tableValues={T.r.join(' ')} />
+          <feFuncG type="table" tableValues={T.g.join(' ')} />
+          <feFuncB type="table" tableValues={T.b.join(' ')} />
+        </feComponentTransfer>
+      </filter>
+    </svg>
+  );
+};
+export const colorCss = (L: { color?: Layer['color'] }) => {
   const c = L.color;
   if (!c) return undefined;
-  return [c.brightness != null && c.brightness !== 1 ? `brightness(${c.brightness})` : '',
-          c.contrast != null && c.contrast !== 1 ? `contrast(${c.contrast})` : '',
-          c.saturation != null && c.saturation !== 1 ? `saturate(${c.saturation})` : ''].filter(Boolean).join(' ') || undefined;
+  const id = toneId(c);
+  return [c.contrast != null && c.contrast !== 1 ? `contrast(${c.contrast})` : '',
+          c.saturation != null && c.saturation !== 1 ? `saturate(${c.saturation})` : '',
+          c.brightness != null && c.brightness !== 1 ? `brightness(${c.brightness})` : '',
+          id ? `url(#${id})` : ''].filter(Boolean).join(' ') || undefined;
 };

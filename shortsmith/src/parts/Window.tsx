@@ -1,6 +1,6 @@
 import React from 'react';
 import { AbsoluteFill, Img, OffthreadVideo, Sequence, Video, useCurrentFrame, useVideoConfig } from 'remotion';
-import { colorCss } from './Layers';
+import { colorCss, ToneDefs } from './Layers';
 import { Env, Fx, Scene, abs, on } from '../scene';
 
 /* Window = the cut source video. Zoom, push, shake and mono are CSS versions of the ffmpeg graph in lib/render.mjs
@@ -113,6 +113,17 @@ const PlanWindow: React.FC<{ scene: Scene; env: Env; fps: number }> = ({ scene, 
 };
 
 type PlanR = NonNullable<Scene['plan']>['ranges'][number];
+/* user move / zoom on the window picture (dashboard, 2026-10-03) as a new source crop - same math as tfCropVf in lib/body.mjs:
+   the visible part of the crop at window aspect, zoomed about the centre and panned by (x, y) window px. Outside the source the
+   window stays black (the render pads with black). Rotation is a CSS rotate about the window centre (ffmpeg rotate there). */
+const tfCrop = (c: { x: number; y: number; w: number; h: number }, tf: { x: number; y: number; z: number }, WW: number, WH: number) => {
+  if (!tf.x && !tf.y && Math.abs(tf.z - 1) < 1e-4) return c;
+  const A = WW / WH;
+  const V = c.w / c.h > A ? { w: c.h * A, h: c.h } : { w: c.w, h: c.w / A };
+  const vx = c.x + (c.w - V.w) / 2, vy = c.y + (c.h - V.h) / 2, s = V.w / WW, z = Math.max(0.05, tf.z);
+  const w = V.w / z, h = V.h / z;
+  return { x: vx + V.w / 2 - tf.x * s / z - w / 2, y: vy + V.h / 2 - tf.y * s / z - h / 2, w, h };
+};
 /* camera box at source second t - the same as cameraSpans in lib/body.mjs: a key holds until the next, a next key with
    in: "linear" is reached at constant speed; box width = h * window aspect, kept inside the source */
 type CamK = NonNullable<NonNullable<Scene['plan']>['camera']>[number];
@@ -134,7 +145,9 @@ const PlanRange: React.FC<{ scene: Scene; env: Env; fps: number; r: PlanR; len: 
                             a0: number; a1: number; t0: number; t1: number; tin: Tr; tout: Tr; z: number }> =
   ({ scene, env, fps, r, len, h0, h1, a0, a1, t0, t1, tin, tout }) => {
     const W = scene.window, P = scene.plan!, f = useCurrentFrame();
-    const crop = P.camera && P.camera.length ? camBox(P.camera, r.s + (f - h0) / fps, W.w / W.h, P.srcW, P.srcH) : r.crop;
+    const crop0 = P.camera && P.camera.length ? camBox(P.camera, r.s + (f - h0) / fps, W.w / W.h, P.srcW, P.srcH) : r.crop;
+    const tf = { x: 0, y: 0, z: 1, r: 0, ...(r.tf || {}) };
+    const crop = tfCrop(crop0, tf, W.w, W.h);
     const k = W.w / crop.w, v = r.vol ?? 1;
     const vol = (x: number) => {                 // the sound crossfade at a cut stays the render's 0.15s, not the picture transition
       if (x < h0 - a0) return 0;
@@ -159,10 +172,13 @@ const PlanRange: React.FC<{ scene: Scene; env: Env; fps: number; r: PlanR; len: 
     }
     return (
       <div style={{ position: 'absolute', left: dx, top: 0, width: W.w, height: W.h, overflow: 'hidden', opacity: op, clipPath: clip }}>   {/* no zIndex - it lifted the video over the caption layer */}
-        <Video src={env.url(abs(scene.dir, P.src))} startFrom={Math.round(r.s * fps) - h0} volume={vol}
-          acceptableTimeShiftInSeconds={0.3}
-          style={{ position: 'absolute', left: -crop.x * k, top: -crop.y * k, width: P.srcW * k, height: P.srcH * k, maxWidth: 'none',
-                   filter: colorCss({ color: r.color } as any) }} />
+        <ToneDefs c={r.color} />
+        <div style={{ position: 'absolute', inset: 0, transform: tf.r ? `rotate(${tf.r}deg)` : undefined }}>
+          <Video src={env.url(abs(scene.dir, P.src))} startFrom={Math.round(r.s * fps) - h0} volume={vol}
+            acceptableTimeShiftInSeconds={0.3}
+            style={{ position: 'absolute', left: -crop.x * k, top: -crop.y * k, width: P.srcW * k, height: P.srcH * k, maxWidth: 'none',
+                     filter: colorCss({ color: r.color }) }} />
+        </div>
       </div>
     );
   };

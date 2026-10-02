@@ -114,6 +114,14 @@ ebur128 로 재서 `min(-16 - I, -1.5 - TP)` 만큼 올린다.
   **덧 클립 사이 전환:** 같은 트랙에서 끝이 맞닿은 앞 클립이 있으면 인스펙터 "전환 (앞 클립에서)" 원본 클립과 같은 다섯 가지 · 길이 (userLayers[].tin {type, d}). 디졸브 · 닦아내기 · 밀어내기는 컷 가운데에 걸리고 두 파일의 클립 밖 부분을 쓴다
   (닦아내기 · 밀어내기는 렌더에서 투명 클립과 ffmpeg xfade wipeleft · slideleft - 상자 안에서만, 밀어내기는 앞 클립도 밀려 나감). 검은 · 흰 화면 거쳐는 컷 너머를 안 쓰고 앞 클립 끝 h · 뒤 클립 처음 h 를 그 색으로 (fade color=, **rgba 에서는 투명해진다 - yuva444p 로 바꾼 뒤**).
   (건너가는 셋은 h = d/2, 파일이 모자라면 짧아짐 - 인스펙터가 알려 줌, 그림은 늘 됨). 렌더 render.mjs withTrans · 미리보기 Layers.tsx withTrans 가 같은 계산 (앞 클립 h 늘림, 뒤 클립 h 일찍 시작 + 2h 페이드 인 위에).
+- **타임라인 · 인스펙터 넷째 판 (2026-10-03):** 칼 = C (B 아님) · I / O = 구간 (밖은 어둡게, Alt+X 지움, 고른 것 없이 Delete = 그 구간을 V1 에서 빼기) ·
+  바퀴 그냥 = 그 칸 (비디오 / 오디오) 세로 넘김, Ctrl = 가로, Alt = 확대 · 빈 곳 끌기 = 상자로 여럿 고르기 · 고리 아이콘 = 연결 (영상 + 그 소리 같이 고르고 옮김) ·
+  우클릭 = 그룹 만들기 (이름) · 풀기 · 이름 바꾸기 - 클립 g + review.userGroups (server.py 저장 칸), 인스펙터 값은 같은 그룹의 같은 갈래 (원본 / 그림 / 소리) 에 같이 (mates).
+  인스펙터: 비디오 / 오디오 탭, 슬라이더 + 숫자 (X · Y 숫자는 보기만), 색 탭 셋 (밝기 · 대비 · 채도 / RGBW = 리프트 · 감마 · 게인 마다 R G B W / 커브 그래프), 초기화.
+  색 계산은 **shortsmith/lib/color.mjs 하나** (렌더 body.mjs · render.mjs 는 curves=interp=pchip 33점, 미리보기는 같은 표를 SVG feComponentTransfer, 타입은 color.d.mts).
+  변형: 원본 클립 tf {x, y, z, r} = AI 크롭 위에 얹는 이동 · 확대 · 회전 (body.mjs tfCropVf 가 원본에서 다시 크롭 - 화질 그대로, 밖은 검정, 카메라 편은 tfPostVf),
+  뷰어에서 원본 클립도 상자로 끈다. 덧 클립 rot, 자막 · 설명 딱지 tf (captions.csv tf 칸 "x y z r", Caption.tsx 가 렌더 · 미리보기 같이).
+  **server.py 자막 합치기는 글 (orig) · 화자로 같은 줄을 찾는다** - 시작 시각만 보던 때 같은 시각에 시작하는 딱지 고침이 옆 자막 글을 덮었다.
 - **렌더는 마지막에 한 번 (2026-10-02, 사용자: "매번 렌더링 할게 아니라 마지막에 한 번만 렌더링하고 그 전까지는 미리보기에서만", "렌더링 시간이 오래 걸리잖아 토큰도 더 많이 먹고").**
   1차 편집 · AI 피드백 판은 **`shortsmith build` 를 돌리지 않는다.** 순서: 1) `python tools/apply_review.py <편> projects/<id>/project.json` (사용자가 대시보드에서 고친 컷 · 자막을
   편 폴더에 넣는다 - 안 하면 2 의 내보내기가 사용자 편집 탭 컷을 지운다) 2) edit.json · captions.csv · fx.json 고침 3) `python tools/preview_update.py <편> <id>`

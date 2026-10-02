@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { encoder } from './encoder.mjs';
+import { curvesVf } from './color.mjs';
 import { duration, log, loudness, md5, run, sig, slash, spawnPromise, writeJson } from './util.mjs';
 
 /* ffmpeg part 1: cut, crop and audio. Outputs in the project folder:
@@ -97,6 +98,8 @@ export function colorVf(c) {
   const ct = c.contrast ?? 1, sa = c.saturation ?? 1, br = c.brightness ?? 1, f = [];
   if (ct !== 1 || sa !== 1) f.push(`eq=contrast=${ct.toFixed(3)}:saturation=${sa.toFixed(3)}`);
   if (br !== 1) f.push(`format=gbrp,colorchannelmixer=rr=${br.toFixed(3)}:gg=${br.toFixed(3)}:bb=${br.toFixed(3)}`);
+  const cv = curvesVf(c);                     // RGBW lift / gamma / gain + curves (2026-10-03), lib/color.mjs
+  if (cv) f.push(cv);
   return f.length ? ',' + f.join(',') : '';
 }
 /* transition names (dashboard) -> ffmpeg xfade */
@@ -144,6 +147,38 @@ export async function buildBody(projectDir, edit, preset, cutsList) {
   }
   const sigs = {};
   const sigOf = (f) => (sigs[f] ??= sig(f));
+  /* user move / zoom / rotate of a piece (dashboard user edit tab, 2026-10-03: "1차 편집 ... 화면을 1.5배 확대 하고 싶은데 1.6배
+     확대 시킨 경우 변경 불가") - on top of the crop the edit chose. tfCropVf takes a new crop of the source (full source quality,
+     the visible part of the crop at window aspect, zoomed about its centre, panned by x / y window px); where it leaves the
+     source the source is padded black. tfPostVf does the same on a picture already at window size (camera path pieces).
+     Same math as tfCrop in src/parts/Window.tsx. */
+  const ev2 = (v) => Math.max(2, Math.round(v / 2) * 2);
+  let SWH = null;
+  const srcWH = () => {
+    if (!SWH) { const [w, h] = run('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height', '-of', 'csv=p=0', src], 'probe size').stdout.trim().split(','); SWH = { w: +w, h: +h }; }
+    return SWH;
+  };
+  const tfOf = (pc) => {
+    const t = pc && pc.tf;
+    return t && (t.x || t.y || (t.z != null && Math.abs(t.z - 1) > 1e-4) || t.r) ? { x: 0, y: 0, z: 1, r: 0, ...t } : null;
+  };
+  const tfRot = (tf) => (tf.r ? `,rotate=${(tf.r * Math.PI / 180).toFixed(6)}:fillcolor=black` : '');
+  const tfCropVf = (c, tf) => {
+    const { w: SW, h: SH } = srcWH(), A = W.w / wh;
+    const V = c.w / c.h > A ? { w: c.h * A, h: c.h } : { w: c.w, h: c.w / A };
+    const vx = c.x + (c.w - V.w) / 2, vy = c.y + (c.h - V.h) / 2, s = V.w / W.w, z = Math.max(0.05, tf.z);
+    const nw = V.w / z, nh = V.h / z, nx = vx + V.w / 2 - tf.x * s / z - nw / 2, ny = vy + V.h / 2 - tf.y * s / z - nh / 2;
+    const need = Math.max(0, -nx, -ny, nx + nw - SW, ny + nh - SH), M = need > 0 ? ev2(need + 2) : 0;
+    return (M ? `pad=${SW + 2 * M}:${SH + 2 * M}:${M}:${M}:black,` : '')
+      + `crop=${ev2(nw)}:${ev2(nh)}:${Math.round(nx + M)}:${Math.round(ny + M)},scale=${W.w}:${wh}:flags=lanczos,setsar=1`;
+  };
+  const tfPostVf = (tf) => {
+    const z = Math.max(0.05, tf.z), sw = ev2(W.w * z), sh = ev2(wh * z);
+    const x0 = (sw - W.w) / 2 - tf.x, y0 = (sh - wh) / 2 - tf.y;
+    const need = Math.max(0, -x0, -y0, x0 + W.w - sw, y0 + wh - sh), P = need > 0 ? ev2(need + 2) : 0;
+    return `,scale=${sw}:${sh}:flags=lanczos` + (P ? `,pad=${sw + 2 * P}:${sh + 2 * P}:${P}:${P}:black` : '')
+      + `,crop=${W.w}:${wh}:${Math.round(x0 + P)}:${Math.round(y0 + P)},setsar=1`;
+  };
 
   const clips = [], keys = [], jobs = [], parts = [];
   let cur = 0, fresh = 0, mainDur = 0;
@@ -180,7 +215,10 @@ export async function buildBody(projectDir, edit, preset, cutsList) {
     // 1/60s, and fps= began there - the piece came out a frame short and the picture ran 17ms ahead of the sound after it
     const tail = (sp !== 1 ? `,setpts=(PTS-STARTPTS)/${sp}` : '') + `,fps=${fps}:start_time=0,format=nv12`;
     // a piece's own crop may have another aspect: fill the window, trimming the excess (no stretching)
-    const cropVf = (c) => `${c ? `crop=${c.w}:${c.h}:${c.x}:${c.y},` : ''}scale=${W.w}:${wh}:force_original_aspect_ratio=increase:flags=lanczos,crop=${W.w}:${wh},setsar=1` + colorVf(pc.color) + tail;
+    const tf = tfOf(pc);
+    const cropVf = (c) => (tf ? tfCropVf(c || { x: 0, y: 0, w: srcWH().w, h: srcWH().h }, tf) + tfRot(tf)
+      : `${c ? `crop=${c.w}:${c.h}:${c.x}:${c.y},` : ''}scale=${W.w}:${wh}:force_original_aspect_ratio=increase:flags=lanczos,crop=${W.w}:${wh},setsar=1`)
+      + colorVf(pc.color) + tail;
     // camera: split the piece where the box holds / moves; only the piece's own ends get the audio fade (music runs on)
     // camera spans: about a third of the piece each (+1s so no sliver is left over), so the three encoders below all have work
     const spans = cam && !pc.source && !pc.crop ? cameraSpans(cam, pc.s, pc.e, W.w / wh, srcInfo.w, srcInfo.h, srcInfo.fps,
@@ -196,7 +234,8 @@ export async function buildBody(projectDir, edit, preset, cutsList) {
       let vf;
       // fps first: the path counts input frames (in), and an OBS recording drops one now and then - 허니하트 18.807s lost a
       // frame and the rest of an 8.8s span was drawn a frame late (up to 8px on a moving close-up). Regular frames, regular count.
-      if (q.path) vf = `fps=${srcInfo.fps}:start_time=0,` + pathVf(q.path, q.s, srcInfo.fps, srcInfo.w, srcInfo.h) + `,scale=${W.w}:${wh}:flags=lanczos,setsar=1` + colorVf(pc.color) + tail;
+      if (q.path) vf = `fps=${srcInfo.fps}:start_time=0,` + pathVf(q.path, q.s, srcInfo.fps, srcInfo.w, srcInfo.h) + `,scale=${W.w}:${wh}:flags=lanczos,setsar=1`
+        + (tf ? tfPostVf(tf) + tfRot(tf) : '') + colorVf(pc.color) + tail;
       else vf = cropVf(q.from || pcC);
       const fi = qi === 0 ? `afade=t=in:st=0:d=${fade},` : '', fo = qi === spans.length - 1 ? `,afade=t=out:st=${Math.max(0, qo - fade).toFixed(3)}:d=${fade}` : '';
       const af = `${gain}${sp !== 1 ? `atempo=${sp},` : ''}aresample=48000${fi ? ',' + fi.slice(0, -1) : ''}${fo}`;
@@ -249,7 +288,7 @@ export async function buildBody(projectDir, edit, preset, cutsList) {
     const camVf = (P, s0) => {                    // the camera's path over [s0, s0 + d] of the source, as the pieces draw it
       const q = cameraSpans(cam, s0, s0 + d + 1 / srcInfo.fps, W.w / wh, srcInfo.w, srcInfo.h, srcInfo.fps, 1e9)[0];
       return `fps=${srcInfo.fps}:start_time=0,` + pathVf(q.path, q.s, srcInfo.fps, srcInfo.w, srcInfo.h)
-        + `,scale=${W.w}:${wh}:flags=lanczos,setsar=1` + colorVf(P.pc.color) + P.tail;
+        + `,scale=${W.w}:${wh}:flags=lanczos,setsar=1` + (tfOf(P.pc) ? tfPostVf(tfOf(P.pc)) + tfRot(tfOf(P.pc)) : '') + colorVf(P.pc.color) + P.tail;
     };
     const vfA = A.cam ? camVf(A, +(A.e - d / 2).toFixed(4)) : A.vf0, vfB = B.cam ? camVf(B, +(B.s - d / 2).toFixed(4)) : B.vf0;
     const fc = `[0:v]${vfA}[a];[1:v]${vfB}[b];[a][b]xfade=transition=${XFADE[t.type] || 'fade'}:duration=${d.toFixed(4)}:offset=0,format=nv12[v]`;
