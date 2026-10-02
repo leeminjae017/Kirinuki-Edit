@@ -635,6 +635,8 @@ class Handler(SimpleHTTPRequestHandler):
             return self._json(403, {"ok": False, "error": "영상 · 오디오 · 그림 파일만"})
         try:
             if what == "wave":
+                if not self._probe(path).get("audio"):     # 소리 없는 영상 (덧 클립 bg.mp4 등) - 오류가 아니라 없음
+                    return self._json(200, {"ok": False, "none": True})
                 return self._json(200, dict(self.media_wave(path), ok=True))
             if what == "thumbs":
                 return self._json(200, dict(self.media_thumbs(path), ok=True))

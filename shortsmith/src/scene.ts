@@ -36,6 +36,11 @@ export type Layer = {
   id?: string; kind: 'video' | 'image' | 'audio'; track: number; src: string; at: number; s: number; e: number;
   box?: { x: number; y: number; w: number; h: number }; opacity?: number; vol?: number; mute?: boolean; fin?: number; fout?: number;
   color?: { brightness?: number; contrast?: number; saturation?: number };
+  keys?: { t: number; x: number; y: number; w: number; h: number }[];   // motion: box keyframes, t = seconds into the clip
+  ease?: boolean;                                                       // smoothstep between keys (else linear)
+  tin?: { type: 'dissolve'; d: number };                                // dissolve from the clip that ends here on this track
+  dur?: number;                                                         // file length (how far a transition may run past e)
+  xin?: number;                                                         // (derived) dissolve fade-in length
 };
 
 export type Fx =

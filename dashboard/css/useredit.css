@@ -219,3 +219,16 @@
   background:linear-gradient(135deg, rgba(255,255,255,.85) 0 50%, rgba(160,160,170,.85) 50% 100%);box-shadow:0 0 0 1px #000}
 .ue-trans:hover{outline:2px solid var(--ue-sel)}
 .ue-field select{width:100%}
+
+/* 움직임 (2026-10-03) - 덧 클립 위 키 표 · 뷰어 상자 */
+.ue-kf{position:absolute;bottom:3px;width:7px;height:7px;margin-left:-4px;transform:rotate(45deg);
+  background:var(--on);box-shadow:0 0 0 1px #000;z-index:3;pointer-events:none}
+.ue-ins-note{font-size:11px;color:var(--txt-dim);line-height:1.45;margin:2px 0 6px}
+.ue-btn:disabled{opacity:.4;cursor:default}
+.ue-boxed{position:absolute;z-index:30;box-sizing:border-box;border:1px solid #fff;outline:1px solid rgba(0,0,0,.7);
+  cursor:move;touch-action:none}
+.ue-boxed.has-keys{border-color:var(--on)}
+.ue-boxed[hidden]{display:none}
+.ue-bh{position:absolute;width:10px;height:10px;background:#fff;box-shadow:0 0 0 1px #000}
+.ue-bh-tl{left:-5px;top:-5px;cursor:nwse-resize}.ue-bh-br{right:-5px;bottom:-5px;cursor:nwse-resize}
+.ue-bh-tr{right:-5px;top:-5px;cursor:nesw-resize}.ue-bh-bl{left:-5px;bottom:-5px;cursor:nesw-resize}

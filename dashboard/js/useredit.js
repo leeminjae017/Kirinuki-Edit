@@ -82,6 +82,13 @@
   function undo() { if (!UNDO.length) return; REDO.push(snapshot()); restoreState(UNDO.pop()); D.toast('되돌림'); }
   function redo() { if (!REDO.length) return; UNDO.push(snapshot()); restoreState(REDO.pop()); D.toast('다시 함'); }
 
+  function layersOut() {
+    R.userLayers = EX.map(function (x) {       // 덧 클립 (V2.. · A2..) - 시각은 넷째 자리까지
+      var o = JSON.parse(JSON.stringify(x));
+      ['at', 's', 'e'].forEach(function (k) { o[k] = +(+o[k]).toFixed(4); });
+      return o;
+    });
+  }
   /* 고친 뒤: 저장 · 미리보기 · 다시 그리기 */
   function changed() {
     if (R) {
@@ -92,11 +99,7 @@
         if (c.tin && c.tin.d) o.tin = c.tin;     // 앞 클립에서 넘어오는 전환 {type, d}
         return o;
       });
-      R.userLayers = EX.map(function (x) {     // 덧 클립 (V2.. · A2..) - 시각은 넷째 자리까지
-        var o = JSON.parse(JSON.stringify(x));
-        ['at', 's', 'e'].forEach(function (k) { o[k] = +(+o[k]).toFixed(4); });
-        return o;
-      });
+      layersOut();
       D.touch();
     }
     draw();
@@ -150,6 +153,7 @@
   function unmountPlayer() {               // 피드백 탭 제자리 (전송 막대 앞) 로 돌려놓는다
     var wrap = D.$('.fb-stage-wrap'), body = D.$('#paneVideo .video-body');
     if (wrap && body && wrap.parentNode !== body) body.insertBefore(wrap, body.querySelector('.fb-transport'));
+    var ed = D.$('#ueBoxEd'); if (ed) ed.hidden = true;
     if (D.Feedback && D.Feedback.refresh) D.Feedback.refresh();
   }
   function refreshScene() {
@@ -197,6 +201,7 @@
     drawRuler(w);
     buildLanes();
     drawCaps();
+    syncBoxEd();
     var lv = laneEl('v', 1), la = laneEl('a', 1), mp = R && R.srcPreview && R.srcPreview.path, mm = mp ? med(mp, 'video') : {};
     sorted().forEach(function (c, i) {
       [['v', lv], ['a', la]].forEach(function (kv) {
@@ -224,6 +229,15 @@
       lv.appendChild(tr);
     });
     EX.forEach(function (x) { var ln = laneEl(areaOf(x), x.track); if (ln) ln.appendChild(exEl(x)); });
+    EX.forEach(function (x) {                // 덧 클립 사이 전환 표 (맞닿은 앞 클립이 있을 때만 먹는다)
+      if (!x.tin || !x.tin.d || !prevOnTrack(x)) return;
+      var ln = laneEl(areaOf(x), x.track);
+      if (!ln) return;
+      var tr = D.el('div', { class: 'ue-trans', title: '디졸브 ' + x.tin.d + '초' });
+      tr.style.left = X(x.at - x.tin.d / 2) + 'px'; tr.style.width = Math.max(6, X(x.tin.d)) + 'px';
+      tr.dataset.xid = x.id;
+      ln.appendChild(tr);
+    });
     vscroll();
     drawPlayhead();
     side();
@@ -365,6 +379,32 @@
     var k = mode === 'cover' ? Math.max(W.w / w0, W.h / h0) : Math.min(W.w / w0, W.h / h0), w = w0 * k, h = h0 * k;
     return { x: Math.round(W.x + (W.w - w) / 2), y: Math.round(W.y + (W.h - h) / 2), w: Math.round(w), h: Math.round(h) };
   }
+  /* 움직임 (2026-10-03: 위치 · 크기 키프레임) - keys [{t, x, y, w, h}], t = 클립 안 시각 (at 부터 초). 키가 둘 이상이면 키 사이를
+     곧게 잇는다 (ease = 부드럽게, smoothstep). 키 하나는 고정 자리. 미리보기 src/parts/Layers.tsx boxAt · 렌더 lib/render.mjs (perspective) 가 같은 계산 */
+  function kbox(k) { return { x: k.x, y: k.y, w: k.w, h: k.h }; }
+  function rbox(b) { return { x: Math.round(b.x), y: Math.round(b.y), w: Math.max(8, Math.round(b.w)), h: Math.max(8, Math.round(b.h)) }; }
+  function boxAt(x, tl) {
+    var K = x.keys;
+    if (!K || !K.length) return x.box || fitBox(x.w0, x.h0);
+    if (tl <= K[0].t) return kbox(K[0]);
+    if (tl >= K[K.length - 1].t) return kbox(K[K.length - 1]);
+    var i = 0;
+    while (i + 2 < K.length && tl >= K[i + 1].t) i++;
+    var a = K[i], b = K[i + 1], p = (tl - a.t) / Math.max(1e-6, b.t - a.t);
+    if (x.ease) p = p * p * (3 - 2 * p);
+    return { x: a.x + (b.x - a.x) * p, y: a.y + (b.y - a.y) * p, w: a.w + (b.w - a.w) * p, h: a.h + (b.h - a.h) * p };
+  }
+  function localT(x) { return Math.max(0, Math.min(xlen(x), fr(now() - x.at))); }
+  function curBox(x) { return boxAt(x, localT(x)); }
+  function keyAt(x, tl) { return (x.keys || []).filter(function (k) { return Math.abs(k.t - tl) < 0.5 / FPS; })[0] || null; }
+  function setBox(x, b) {                  // 키가 있으면 재생 위치에 키를 만들거나 고친다 (리졸브처럼), 없으면 상자 하나
+    b = rbox(b);
+    if (!x.keys || !x.keys.length) { x.box = b; return; }
+    var tl = localT(x), k = keyAt(x, tl);
+    if (k) Object.assign(k, b);
+    else { x.keys.push(Object.assign({ t: +tl.toFixed(4) }, b)); x.keys.sort(function (p, q) { return p.t - q.t; }); }
+    x.box = kbox(x.keys[0]);                 // 키를 모르는 쪽이 읽을 자리
+  }
   function exEl(x) {
     var a = areaOf(x), el = D.el('div', { class: 'ue-clip ue-x ue-' + a + (x.kind === 'image' ? ' is-img' : '') + (SEL[x.id] ? ' is-sel' : '') + (x.mute ? ' is-mute' : ''),
                                           title: x.name + (x.link ? ' (영상 · 소리 묶음)' : '') });
@@ -382,6 +422,10 @@
     el.appendChild(D.el('span', { class: 'ue-clip-name', text: (x.link ? '🔗 ' : '') + x.name + (x.kind === 'audio' && x.vol ? '  ' + (x.vol > 0 ? '+' : '') + x.vol + 'dB' : '') }));
     if (x.fin) { var fi = D.el('i', { class: 'ue-fade ue-fade-in' }); fi.style.width = X(x.fin) + 'px'; el.appendChild(fi); }
     if (x.fout) { var fo = D.el('i', { class: 'ue-fade ue-fade-out' }); fo.style.width = X(x.fout) + 'px'; el.appendChild(fo); }
+    (x.keys || []).forEach(function (k) {
+      if (k.t < -1e-4 || k.t > xlen(x) + 1e-4) return;
+      var kf = D.el('i', { class: 'ue-kf' }); kf.style.left = X(k.t) + 'px'; el.appendChild(kf);
+    });
     el.appendChild(D.el('i', { class: 'ue-trim ue-trim-l' }));
     el.appendChild(D.el('i', { class: 'ue-trim ue-trim-r' }));
     return el;
@@ -394,6 +438,13 @@
     pairs.forEach(function (y) {
       var cut = y.s + (t - y.at), y2 = JSON.parse(JSON.stringify(y));
       y2.id = 'x' + (UID++); y2.at = t; y2.s = cut; y2.fin = 0;
+      if (y.keys && y.keys.length) {
+        var lt = t - y.at, mid = rbox(boxAt(y, lt));
+        y2.keys = [Object.assign({ t: 0 }, mid)].concat(y.keys.filter(function (k) { return k.t > lt + 1e-4; })
+          .map(function (k) { return Object.assign({}, k, { t: +(k.t - lt).toFixed(4) }); }));
+        y.keys = y.keys.filter(function (k) { return k.t < lt - 1e-4; }).concat([Object.assign({ t: +lt.toFixed(4) }, mid)]);
+        y2.box = kbox(y2.keys[0]);
+      }
       y.e = cut; y.fout = 0;
       EX.push(y2); made.push(y2);
     });
@@ -499,6 +550,7 @@
       var d2 = fr(ns - o.s);
       both.forEach(function (g) {
         g.s += d2; g.at = fr(g.at + d2);
+        if (g.keys) g.keys.forEach(function (k) { k.t = +(k.t - d2).toFixed(4); });
         if (g.kind === 'image' && g.s < 0) { g.e -= g.s; g.s = 0; }     // 그림은 길이만 있다
       });
     } else {
@@ -577,6 +629,170 @@
     row.appendChild(sel); ins.appendChild(row);
     if (c.tin) numRow(ins, '길이', c.tin.d, '초', function (v) { c.tin = { type: c.tin.type, d: Math.max(0.1, Math.min(3, v)) }; }, 0.1);
   }
+  /* 덧 클립 사이 전환 (2026-10-03) - 같은 트랙에서 끝이 이 클립 시작에 맞닿은 앞 클립에서 디졸브. 컷 가운데에 걸리고 두 파일의 클립 밖 부분을 쓴다
+     (렌더 lib/render.mjs withTrans · 미리보기 Layers.tsx 같은 계산). 떨어뜨리면 표는 남아도 안 먹는다 */
+  function prevOnTrack(x) {
+    return EX.filter(function (y) { return y !== x && areaOf(y) === areaOf(x) && y.track === x.track && Math.abs(y.at + xlen(y) - x.at) < 0.02; })[0] || null;
+  }
+  function layerTransRows(ins, x) {
+    var A = prevOnTrack(x);
+    ins.appendChild(D.el('div', { class: 'ue-ins-sub', text: '전환 (앞 클립에서)' }));
+    if (!A) { ins.appendChild(D.el('div', { class: 'ue-ins-note', text: '같은 트랙에서 끝이 이 클립 시작에 붙은 클립이 있으면 디졸브를 걸 수 있습니다' })); return; }
+    var row = D.el('label', { class: 'ue-field' });
+    row.appendChild(D.el('span', { text: '종류' }));
+    var sel = D.el('select');
+    [['', '없음 (컷)'], ['dissolve', '디졸브']].forEach(function (kv) { sel.appendChild(D.el('option', { value: kv[0], text: kv[1] })); });
+    sel.value = (x.tin && x.tin.type) || '';
+    sel.addEventListener('change', function () {
+      remember();
+      if (!sel.value) delete x.tin; else x.tin = { type: sel.value, d: (x.tin && x.tin.d) || 0.5 };
+      changed();
+    });
+    row.appendChild(sel); ins.appendChild(row);
+    if (!x.tin) return;
+    numRow(ins, '길이', x.tin.d, '초', function (v) { x.tin = { type: x.tin.type, d: Math.max(0.1, Math.min(3, v)) }; }, 0.1);
+    var hA = A.kind === 'image' ? Infinity : A.dur ? A.dur - A.e : 0, hB = x.kind === 'image' ? Infinity : x.s;
+    var h = Math.min(x.tin.d / 2, hA, hB, xlen(A) / 2, xlen(x) / 2);
+    if (h < x.tin.d / 2 - 1e-3) ins.appendChild(D.el('div', { class: 'ue-ins-note',
+      text: h >= 0.01 ? '파일에 남은 부분이 모자라 ' + (2 * h).toFixed(2) + '초로 걸립니다' : '앞 클립 뒤나 이 클립 앞에 파일이 남아 있지 않아 전환이 안 걸립니다 (앞 끝을 조금 잘라 주세요)' }));
+  }
+  /* 움직임 칸: 재생 위치에 키 추가 · 지우기, 앞 · 뒤 키로 가기, 부드럽게, 움직임 지우기 */
+  function motionRows(ins, x) {
+    var K = x.keys || [], tl = localT(x), here = keyAt(x, tl), t = now();
+    var inside = t >= x.at - 1e-3 && t <= x.at + xlen(x) + 1e-3;
+    ins.appendChild(D.el('div', { class: 'ue-ins-sub', text: '움직임 (키프레임)' }));
+    var bt = D.el('div', { class: 'ue-ins-btns' });
+    var mk = function (label, title, fn, on, off) {
+      var b = D.el('button', { class: 'ue-btn' + (on ? ' is-on' : ''), text: label, title: title });
+      if (off) b.disabled = true;
+      b.addEventListener('click', fn);
+      bt.appendChild(b);
+    };
+    var prev = K.filter(function (k) { return k.t < tl - 0.5 / FPS; }).pop(), next = K.filter(function (k) { return k.t > tl + 0.5 / FPS; })[0];
+    mk('◀', '앞 키로', function () { if (prev) seek(x.at + prev.t); }, false, !prev);
+    mk(here ? '◆ 키 지우기' : '◇ 키 추가', here ? '이 시점 키를 지웁니다' : '이 시점의 위치 · 크기를 키로 - 그 뒤로는 바꿀 때마다 그 시점에 키가 생깁니다', function () {
+      remember();
+      if (here) {
+        var last = kbox(here);
+        x.keys = K.filter(function (k) { return k !== here; });
+        if (!x.keys.length) { delete x.keys; delete x.ease; x.box = last; } else x.box = kbox(x.keys[0]);
+      } else {
+        var b = rbox(curBox(x));
+        x.keys = K.concat([Object.assign({ t: +tl.toFixed(4) }, b)]).sort(function (p, q) { return p.t - q.t; });
+        x.box = kbox(x.keys[0]);
+      }
+      changed();
+    }, !!here, !inside);
+    mk('▶', '뒤 키로', function () { if (next) seek(x.at + next.t); }, false, !next);
+    ins.appendChild(bt);
+    if (K.length) {
+      var bt2 = D.el('div', { class: 'ue-ins-btns' });
+      var ez = D.el('button', { class: 'ue-btn' + (x.ease ? ' is-on' : ''), text: '부드럽게', title: '키 사이를 천천히 출발해 천천히 멈춥니다 (끄면 곧게)' });
+      ez.addEventListener('click', function () { remember(); if (x.ease) delete x.ease; else x.ease = true; changed(); });
+      var cl = D.el('button', { class: 'ue-btn', text: '움직임 지우기', title: '키를 다 지우고 지금 시점 자리에 고정' });
+      cl.addEventListener('click', function () { remember(); x.box = rbox(curBox(x)); delete x.keys; delete x.ease; changed(); });
+      bt2.appendChild(ez); bt2.appendChild(cl); ins.appendChild(bt2);
+    }
+    ins.appendChild(D.el('div', { class: 'ue-ins-note', text: K.length
+      ? '키 ' + K.length + '개 - 재생 위치에서 위치 · 크기를 바꾸면 (뷰어에서 끌어도) 그 시점에 키가 생깁니다'
+      : '뷰어에서 상자를 끌어 옮기고 모서리로 크기를 바꿉니다. 움직이게 하려면 키를 추가하고 재생 위치를 옮겨 다시 바꿉니다' }));
+  }
+
+  /* ---------- 뷰어에서 덧 클립 끌기 (2026-10-03) ----------
+     고른 영상 · 그림 하나가 재생 위치에 있으면 뷰어 위에 상자를 그린다: 가운데 = 옮기기, 모서리 = 비율 그대로 크기 (맞은편 모서리 고정, Alt = 가운데 고정).
+     붙기 (N) 가 켜져 있으면 화면 가운데 · 창 가장자리 · 창 가운데에 붙는다. 키가 있으면 재생 위치에 키를 만들거나 고친다 (setBox).
+     상자는 피드백 화면 (#fbStage) 안에 두지만 이 탭이 보일 때만 그린다 */
+  var BED = null;
+  function boxTarget() {
+    if (!SHOWN || !SC || selected().length) return null;
+    var SX = selX().filter(function (x) { return x.kind !== 'audio'; });
+    if (SX.length !== 1) return null;
+    var x = SX[0], t = now();
+    return t >= x.at - 1e-3 && t < x.at + xlen(x) ? x : null;
+  }
+  function stageG() {                      // 플레이어는 칸 안에 비율 그대로 가운데 (남는 반 픽셀 띠까지 맞춘다)
+    var st = D.$('#fbStage');
+    if (!st || !SC) return null;
+    var W = SC.width || 1080, H = SC.height || 1920, k = Math.min(st.clientWidth / W, st.clientHeight / H);
+    return k > 0 ? { k: k, ox: (st.clientWidth - W * k) / 2, oy: (st.clientHeight - H * k) / 2 } : null;
+  }
+  function syncBoxEd() {
+    var st = D.$('#fbStage');
+    if (!st) return;
+    var ed = D.$('#ueBoxEd');
+    if (!ed) {
+      ed = D.el('div', { class: 'ue-boxed', id: 'ueBoxEd' });
+      ['tl', 'tr', 'bl', 'br'].forEach(function (h) { var i = D.el('i', { class: 'ue-bh ue-bh-' + h }); i.dataset.h = h; ed.appendChild(i); });
+      ed.addEventListener('pointerdown', bedDown);
+      ed.addEventListener('pointermove', bedMove);
+      ed.addEventListener('pointerup', bedUp);
+      ed.addEventListener('pointercancel', bedUp);
+      ed.addEventListener('mousedown', function (ev) { ev.stopPropagation(); });
+      ed.addEventListener('click', function (ev) { ev.stopPropagation(); });
+    }
+    if (ed.parentNode !== st) st.appendChild(ed);
+    var x = BED ? exById(BED.id) : boxTarget(), g = stageG();
+    if (!x || !g) { ed.hidden = true; return; }
+    var k = g.k;
+    var b = curBox(x);
+    ed.hidden = false;
+    ed.classList.toggle('has-keys', !!(x.keys && x.keys.length));
+    ed.style.left = (g.ox + b.x * k) + 'px'; ed.style.top = (g.oy + b.y * k) + 'px';
+    ed.style.width = (b.w * k) + 'px'; ed.style.height = (b.h * k) + 'px';
+  }
+  function snapBox(b, k) {
+    if (!SNAP) return b;
+    var W = SC.width || 1080, H = SC.height || 1920, w = SC.window || { x: 0, y: 0, w: W, h: H }, d = SNAPPX / k;
+    var xs = [0, W / 2, W, w.x, w.x + w.w / 2, w.x + w.w], ys = [0, H / 2, H, w.y, w.y + w.h / 2, w.y + w.h];
+    var pick = function (lo, len, cand) {        // 앞 끝 · 가운데 · 뒤 끝 중 가장 가까운 선에
+      var best = null;
+      cand.forEach(function (c) { [0, len / 2, len].forEach(function (o) { var dd = Math.abs(lo + o - c); if (dd < d && (!best || dd < best.d)) best = { d: dd, v: c - o }; }); });
+      return best ? best.v : lo;
+    };
+    return { x: pick(b.x, b.w, xs), y: pick(b.y, b.h, ys), w: b.w, h: b.h };
+  }
+  function bedDown(ev) {
+    var x = boxTarget();
+    if (!x || ev.button !== 0) return;
+    ev.stopPropagation(); ev.preventDefault();
+    var v = video(); if (v && !v.paused) v.pause();
+    BED = { id: x.id, h: ev.target.dataset.h || 'move', x0: ev.clientX, y0: ev.clientY, b0: curBox(x), base: snapshot(), k: stageG().k, last: 0 };
+    ev.currentTarget.setPointerCapture(ev.pointerId);
+  }
+  function bedMove(ev) {
+    if (!BED) return;
+    var k = BED.k, dx = (ev.clientX - BED.x0) / k, dy = (ev.clientY - BED.y0) / k, b0 = BED.b0, b;
+    if (!BED.moved && Math.abs(dx) * k < 2 && Math.abs(dy) * k < 2) return;
+    if (BED.h === 'move') b = snapBox({ x: b0.x + dx, y: b0.y + dy, w: b0.w, h: b0.h }, k);
+    else {
+      var sx = BED.h.charAt(1) === 'l' ? -1 : 1, sy = BED.h.charAt(0) === 't' ? -1 : 1, c = ev.altKey ? 2 : 1;
+      var s = Math.max(8 / Math.min(b0.w, b0.h), ((b0.w + c * sx * dx) / b0.w + (b0.h + c * sy * dy) / b0.h) / 2);
+      var w = b0.w * s, h = b0.h * s;
+      if (ev.altKey) b = { x: b0.x + (b0.w - w) / 2, y: b0.y + (b0.h - h) / 2, w: w, h: h };
+      else b = { x: sx > 0 ? b0.x : b0.x + b0.w - w, y: sy > 0 ? b0.y : b0.y + b0.h - h, w: w, h: h };
+    }
+    EX = JSON.parse(BED.base).x || [];
+    var x = exById(BED.id);
+    if (!x) return;
+    setBox(x, b);
+    BED.moved = true;
+    syncBoxEd();
+    if (Date.now() - BED.last > 90) {        // 그림도 끌면서 보이게 (너무 자주는 말고)
+      BED.last = Date.now();
+      layersOut();
+      SC = D.Feedback.sceneFor(plan());
+      if (SC) D.Feedback.livePreview(now());
+    }
+  }
+  function bedUp() {
+    if (!BED) return;
+    var d = BED; BED = null;
+    if (!d.moved) { syncBoxEd(); return; }
+    var after = JSON.stringify(EX);
+    EX = JSON.parse(d.base).x || []; remember(); EX = JSON.parse(after);
+    INS_T = null;
+    changed();
+  }
   function exAudioMini(ins, a) {            // 영상에 묶인 소리 - 크기 · 음소거만
     if (!a) return;
     numRow(ins, '크기', a.vol || 0, 'dB', function (v) { a.vol = Math.max(-60, Math.min(20, v)); }, 0.5);
@@ -598,13 +814,13 @@
     if (x.kind !== 'image') ro('파일 시작', stc(x.s));
     if (x.kind !== 'audio') {
       ins.appendChild(D.el('div', { class: 'ue-ins-sub', text: '화면' }));
-      var b = x.box || fitBox(x.w0, x.h0), cxp = b.x + b.w / 2, cyp = b.y + b.h / 2, fb = fitBox(x.w0, x.h0);
+      var b = curBox(x), cxp = b.x + b.w / 2, cyp = b.y + b.h / 2, fb = fitBox(x.w0, x.h0);
       var pct = Math.round(b.w / Math.max(1, fb.w) * 100);
-      numRow(ins, '가로 위치', Math.round(cxp), 'px', function (v) { x.box = { x: Math.round(v - b.w / 2), y: b.y, w: b.w, h: b.h }; });
-      numRow(ins, '세로 위치', Math.round(cyp), 'px', function (v) { x.box = { x: b.x, y: Math.round(v - b.h / 2), w: b.w, h: b.h }; });
+      numRow(ins, '가로 위치', Math.round(cxp), 'px', function (v) { setBox(x, { x: v - b.w / 2, y: b.y, w: b.w, h: b.h }); });
+      numRow(ins, '세로 위치', Math.round(cyp), 'px', function (v) { setBox(x, { x: b.x, y: v - b.h / 2, w: b.w, h: b.h }); });
       numRow(ins, '크기', pct, '%', function (v) {
         var w = Math.max(8, fb.w * v / 100), h = Math.max(8, fb.h * v / 100);
-        x.box = { x: Math.round(cxp - w / 2), y: Math.round(cyp - h / 2), w: Math.round(w), h: Math.round(h) };
+        setBox(x, { x: cxp - w / 2, y: cyp - h / 2, w: w, h: h });
       });
       numRow(ins, '불투명도', Math.round((x.opacity == null ? 1 : x.opacity) * 100), '%', function (v) { x.opacity = Math.max(0, Math.min(1, v / 100)); });
       var c = x.color || {};
@@ -617,10 +833,12 @@
       var bt = D.el('div', { class: 'ue-ins-btns' });
       [['창에 맞춤', 'window'], ['화면 꽉 채움', 'cover']].forEach(function (kv) {
         var btn = D.el('button', { class: 'ue-btn', text: kv[0] });
-        btn.addEventListener('click', function () { remember(); x.box = fitBox(x.w0, x.h0, kv[1]); changed(); });
+        btn.addEventListener('click', function () { remember(); setBox(x, fitBox(x.w0, x.h0, kv[1])); changed(); });
         bt.appendChild(btn);
       });
       ins.appendChild(bt);
+      motionRows(ins, x);
+      layerTransRows(ins, x);
     }
     if (x.kind === 'audio') {
       ins.appendChild(D.el('div', { class: 'ue-ins-sub', text: '소리' }));
@@ -823,6 +1041,18 @@
     D.$('#ueTc').textContent = tc(t);
     D.$('#ueDur').textContent = tc(total());
     if (follow && (x > sc.scrollLeft + sc.clientWidth - 40 || x < sc.scrollLeft)) sc.scrollLeft = Math.max(0, x - 40);
+    syncBoxEd();
+    if (!follow) insFollow();
+  }
+  var INS_T = null;
+  function insFollow() {                   // 멈춰 있을 때 재생 위치가 바뀌면 고른 덧 클립 인스펙터를 다시 (위치 · 크기 · 키 단추가 그 시점 값)
+    var SX = selX(), ins = D.$('#ueIns');
+    if (SX.length < 1 || SX.length > 2 || selected().length || !ins || BED) return;
+    var v = video(), t = Math.round(now() * FPS);
+    if ((v && !v.paused) || t === INS_T) return;
+    if (ins.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;
+    INS_T = t;
+    side();
   }
 
   /* ---------- 옆 칸: 클립 정보 (클립 목록은 소스 칸으로 바꿨다 - 2026-10-02 둘째) ---------- */
@@ -922,6 +1152,15 @@
   }
   function splitAtPlayhead() {
     var t = now(), c = clipAt(t);
+    var SX = selX().filter(function (x) { return x.kind !== 'audio' || !partner(x) || !SEL[partner(x).id]; });   // 묶음은 한쪽만 (짝은 splitX 가 같이)
+    SX = SX.filter(function (x) { return t > x.at && t < x.at + xlen(x); });
+    if (SX.length && !selected().length) {   // 덧 클립을 골라 두었으면 그것만 (리졸브처럼 고른 것을 자른다)
+      remember();
+      var ok = false;
+      SX.forEach(function (x) { if (splitX(x, t)) ok = true; });
+      if (ok) changed(); else UNDO.pop();
+      return;
+    }
     remember();
     if (split(c, t)) changed(); else { UNDO.pop(); D.toast('재생 위치에 자를 클립이 없습니다'); }
   }
@@ -960,7 +1199,7 @@
     var cap = ev.target.closest('.ue-cap');
     if (cap) { CSEL = cap.dataset.cid; SEL = {}; showPane('ins'); draw(); return ev.preventDefault(); }   // 고르기만 (시점 안 옮김)
     var trm = ev.target.closest('.ue-trans');
-    if (trm) { SEL = {}; SEL[+trm.dataset.id] = true; CSEL = null; showPane('ins'); draw(); return ev.preventDefault(); }
+    if (trm) { SEL = {}; SEL[trm.dataset.xid || +trm.dataset.id] = true; CSEL = null; showPane('ins'); draw(); return ev.preventDefault(); }
     var xe = ev.target.closest('.ue-x');
     if (xe) { xDown(ev, xe, t); drag && (drag.y0 = ev.clientY); return ev.preventDefault(); }
     var el = ev.target.closest('.ue-clip');
