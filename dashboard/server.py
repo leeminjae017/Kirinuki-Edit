@@ -23,6 +23,8 @@ import os
 import shlex
 import subprocess
 import sys
+import tempfile
+from urllib.parse import quote
 import threading
 import time
 import webbrowser
@@ -469,6 +471,8 @@ class Handler(SimpleHTTPRequestHandler):
             return {}
 
     def do_GET(self):
+        if self.path.startswith("/api/media/"):
+            return self.media_api()
         if self.path.startswith("/api/file"):
             return self.serve_local_file()
         if self.path.startswith("/api/fonts"):
@@ -576,6 +580,209 @@ class Handler(SimpleHTTPRequestHandler):
                 except (BrokenPipeError, ConnectionAbortedError):
                     return          # 브라우저가 탐색하며 연결을 끊는 건 정상이다
                 left -= len(chunk)
+
+    # ------------------------------------------------------------------
+    # 사용자 편집 탭 (2026-10-02 둘째): 소스 폴더 · 파형 · 썸네일
+    #
+    # 사용자: "미디어 · 클립 부분 -> 소스 폴더 추가로 변경", "오디오 부분에 파형 적용 비디오의 경우 일정부분마다 썸네일 캡쳐해서 클립에 적용".
+    # 브라우저는 고른 폴더의 진짜 경로를 안 주므로 폴더는 서버가 읽어 보여 준다 (로컬 전용 서버).
+    # 파형 · 썸네일은 한 번 만들어 임시 폴더에 둔다 (파일 경로 · 크기 · 수정 시각이 열쇠 - 파일이 바뀌면 새로 만든다).
+    # 소리 필터 없음 - 파형은 재는 데만 쓴다 (tools/src_wave.py 와 같은 식: 20ms 최고값 dB -60..0 을 한 바이트).
+    # ------------------------------------------------------------------
+    MEDIA_V = 1
+    THUMB_H = 72          # 썸네일 한 장 높이 (px) - 타임라인 V1 칸에 맞춰 줄여 그린다
+    THUMB_COLS = 20       # 한 장에 가로로 20장씩 이어 붙인다 (그림 한 장 = 요청 한 번)
+
+    def _media_key(self, path, tag):
+        import hashlib
+        st = os.stat(path)
+        k = "%s|%d|%d|%s|%d" % (os.path.abspath(path).lower(), st.st_size, int(st.st_mtime), tag, self.MEDIA_V)
+        d = os.path.join(tempfile.gettempdir(), "kirinuki_media")
+        os.makedirs(d, exist_ok=True)
+        return os.path.join(d, hashlib.sha1(k.encode("utf-8")).hexdigest()[:24])
+
+    @staticmethod
+    def _probe(path):
+        r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration:stream=codec_type,width,height",
+                            "-of", "json", path], capture_output=True, text=True, encoding="utf-8", errors="replace")
+        try:
+            j = json.loads(r.stdout or "{}")
+        except ValueError:
+            j = {}
+        v = [s for s in j.get("streams", []) if s.get("codec_type") == "video"]
+        a = [s for s in j.get("streams", []) if s.get("codec_type") == "audio"]
+        try:
+            dur = float((j.get("format") or {}).get("duration") or 0)
+        except ValueError:
+            dur = 0.0
+        return {"dur": dur, "w": v[0].get("width") if v else None, "h": v[0].get("height") if v else None,
+                "video": bool(v), "audio": bool(a)}
+
+    def media_api(self):
+        from urllib.parse import urlparse, parse_qs
+        u = urlparse(self.path)
+        q = parse_qs(u.query)
+        what = u.path.rstrip("/").rsplit("/", 1)[-1]
+        path = (q.get("path") or [""])[0]
+        if what == "browse":
+            return self.media_browse(path)
+        if what == "list":
+            return self.media_list(path)
+        if not path or not os.path.isfile(path):
+            return self._json(404, {"ok": False, "error": "파일이 없다: " + path})
+        ext = os.path.splitext(path)[1].lower()
+        if ext not in self.MEDIA_EXT and ext not in self.IMAGE_EXT:
+            return self._json(403, {"ok": False, "error": "영상 · 오디오 · 그림 파일만"})
+        try:
+            if what == "wave":
+                return self._json(200, dict(self.media_wave(path), ok=True))
+            if what == "thumbs":
+                return self._json(200, dict(self.media_thumbs(path), ok=True))
+            if what == "poster":
+                return self.media_poster(path)
+        except subprocess.CalledProcessError as e:
+            return self._json(500, {"ok": False, "error": (e.stderr or b"")[-400:].decode("utf-8", "replace")})
+        return self._json(404, {"ok": False, "error": "모르는 요청: " + what})
+
+    def media_wave(self, path):
+        base = self._media_key(path, "wave")
+        if os.path.isfile(base + ".json"):
+            with open(base + ".json", encoding="utf-8") as f:
+                return json.load(f)
+        import base64
+        import numpy as np
+        hz, floor, sr = 50, -60.0, 8000
+        raw = subprocess.run(["ffmpeg", "-v", "error", "-i", path, "-vn", "-ac", "1", "-ar", str(sr), "-f", "s16le", "-"],
+                             capture_output=True, check=True).stdout
+        x = np.abs(np.frombuffer(raw, np.int16).astype(np.float32) / 32768.0)
+        n = sr // hz
+        m = len(x) // n
+        peak = x[:m * n].reshape(m, n).max(1) if m else np.zeros(0, np.float32)
+        b = np.clip((20 * np.log10(peak + 1e-9) - floor) / -floor * 255, 0, 255).astype(np.uint8)
+        out = {"hz": hz, "floor": floor, "b64": base64.b64encode(b.tobytes()).decode("ascii")}
+        with open(base + ".json", "w", encoding="utf-8") as f:
+            json.dump(out, f)
+        return out
+
+    def media_thumbs(self, path):
+        """일정 간격 (STEP 초) 마다 한 장씩 뜬 썸네일을 격자 그림 한 장에 담는다.
+        k 번째 칸 = 원본 k*STEP 초. 211초 원본(1280폭 30fps 사본) 약 10초 걸린다 (한 번만)."""
+        import math
+        base = self._media_key(path, "thumbs")
+        if os.path.isfile(base + ".json") and os.path.isfile(base + ".jpg"):
+            with open(base + ".json", encoding="utf-8") as f:
+                return json.load(f)
+        p = self._probe(path)
+        if not p["video"] or not p["w"]:
+            return {"none": True}
+        dur = p["dur"] or 1.0
+        step = 0.5 if dur <= 300 else math.ceil(dur / 600 * 2) / 2      # 600장을 넘지 않게
+        n = max(1, int(math.ceil(dur / step)))
+        cols = min(self.THUMB_COLS, n)
+        rows = int(math.ceil(n / float(cols)))
+        th = self.THUMB_H
+        tw = int(round(th * p["w"] / float(p["h"]) / 2) * 2)
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", path, "-an", "-sn",
+                        "-vf", "fps=1/%g,scale=%d:%d,tile=%dx%d" % (step, tw, th, cols, rows),
+                        "-frames:v", "1", "-q:v", "6", base + ".jpg"], capture_output=True, check=True)
+        out = {"url": "/api/file?path=" + quote(base + ".jpg"), "step": step, "n": n, "cols": cols,
+               "tw": tw, "th": th, "dur": dur}
+        with open(base + ".json", "w", encoding="utf-8") as f:
+            json.dump(out, f)
+        return out
+
+    def media_poster(self, path):
+        """소스 목록의 작은 그림 - 영상은 1초 (짧으면 가운데) 한 장, 그림은 줄여서."""
+        base = self._media_key(path, "poster")
+        jpg = base + ".jpg"
+        if not os.path.isfile(jpg):
+            ext = os.path.splitext(path)[1].lower()
+            if ext in self.IMAGE_EXT:
+                cmd = ["ffmpeg", "-v", "error", "-y", "-i", path, "-vf", "scale=160:-2", "-frames:v", "1", jpg]
+            else:
+                p = self._probe(path)
+                if not p["video"]:
+                    return self._json(404, {"ok": False, "error": "그림 없음"})
+                t = 1.0 if p["dur"] > 2 else p["dur"] / 2
+                cmd = ["ffmpeg", "-v", "error", "-y", "-ss", "%.2f" % t, "-i", path, "-vf", "scale=160:-2",
+                       "-frames:v", "1", "-q:v", "5", jpg]
+            subprocess.run(cmd, capture_output=True, check=True)
+        with open(jpg, "rb") as f:
+            data = f.read()
+        self.send_response(200)
+        self.send_header("Content-Type", "image/jpeg")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "max-age=3600")
+        self.end_headers()
+        self.wfile.write(data)
+
+    SKIP_DIRS = {"$recycle.bin", "system volume information", "__pycache__", "node_modules", ".git"}
+
+    def _kind(self, name):
+        ext = os.path.splitext(name)[1].lower()
+        if ext in self.IMAGE_EXT:
+            return "image"
+        if ext in (".wav", ".mp3", ".m4a", ".aac", ".flac", ".ogg"):
+            return "audio"
+        if ext in self.MEDIA_EXT:
+            return "video"
+        return None
+
+    def media_browse(self, path):
+        """폴더 고르기 창: 하위 폴더와 미디어 파일. 경로가 비면 드라이브 목록."""
+        if not path:
+            drives = []
+            if os.name == "nt":
+                import string
+                drives = [c + ":\\" for c in string.ascii_uppercase if os.path.isdir(c + ":\\")]
+            else:
+                drives = ["/"]
+            return self._json(200, {"ok": True, "path": "", "parent": None,
+                                    "dirs": [{"name": d, "path": d} for d in drives], "files": []})
+        path = os.path.abspath(path)
+        if not os.path.isdir(path):
+            return self._json(404, {"ok": False, "error": "폴더가 없다: " + path})
+        dirs, files = [], []
+        try:
+            for name in sorted(os.listdir(path), key=lambda s: s.lower()):
+                full = os.path.join(path, name)
+                if name.startswith(".") or name.lower() in self.SKIP_DIRS:
+                    continue
+                if os.path.isdir(full):
+                    dirs.append({"name": name, "path": full})
+                elif self._kind(name):
+                    files.append({"name": name, "path": full, "kind": self._kind(name), "size": os.path.getsize(full)})
+        except OSError as e:
+            return self._json(400, {"ok": False, "error": str(e)})
+        par = os.path.dirname(path)
+        return self._json(200, {"ok": True, "path": path, "parent": "" if par == path else par,
+                                "dirs": dirs, "files": files})
+
+    def media_list(self, path):
+        """소스 폴더 하나의 미디어 파일 (아래 폴더까지 3단, 800개까지). 이름은 폴더 기준 상대 경로."""
+        path = os.path.abspath(path or "")
+        if not os.path.isdir(path):
+            return self._json(404, {"ok": False, "error": "폴더가 없다: " + path})
+        out = []
+        for here, ds, fs in os.walk(path):
+            depth = os.path.relpath(here, path).count(os.sep) + (0 if here == path else 1)
+            ds[:] = sorted([d for d in ds if not d.startswith(".") and d.lower() not in self.SKIP_DIRS
+                            and d != "_media_cache"], key=lambda s: s.lower()) if depth < 3 else []
+            for name in sorted(fs, key=lambda s: s.lower()):
+                k = self._kind(name)
+                if not k:
+                    continue
+                full = os.path.join(here, name)
+                try:
+                    size = os.path.getsize(full)
+                except OSError:
+                    continue
+                out.append({"name": os.path.relpath(full, path).replace("\\", "/"), "path": full, "kind": k, "size": size})
+                if len(out) >= 800:
+                    break
+            if len(out) >= 800:
+                break
+        return self._json(200, {"ok": True, "path": path, "files": out, "more": len(out) >= 800})
 
     # ------------------------------------------------------------------
     # 설치된 폰트 목록
@@ -1047,7 +1254,8 @@ class Handler(SimpleHTTPRequestHandler):
             # ripple (리플 켬/끔) · restoreCaps (되살린 자리 자막) 도 사용자 것이다 (2026-09-30: 안 받아서 새로 열면 사라지고
             # 렌더 단추가 못 봤다)
             # userClips: 사용자 편집 탭 (2026-10-02) 의 클립 목록 [{s, e, at}] - 없으면 지운다 (초기화)
-            for k in ("prompt", "notes", "drop", "restore", "ripple", "restoreCaps", "userClips"):
+            # srcFolders: 사용자 편집 탭 소스 폴더 (절대 경로 목록)
+            for k in ("prompt", "notes", "drop", "restore", "ripple", "restoreCaps", "userClips", "srcFolders"):
                 if k in newr:
                     merged[k] = newr[k]
                 elif k in ("ripple", "userClips"):

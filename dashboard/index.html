@@ -415,9 +415,9 @@
 <main class="view" id="view-edit">
   <div class="ue-grid">
     <section class="ue-pane ue-pool">
-      <div class="ue-head"><svg class="i"><use href="#i-video"/></svg><span>미디어 · 클립</span></div>
-      <div class="ue-src"><svg class="i"><use href="#i-file"/></svg><span id="ueSrcName">-</span></div>
-      <div class="ue-list" id="ueList"></div>
+      <div class="ue-head"><svg class="i"><use href="#i-folder"/></svg><span>소스</span><span class="ue-fill"></span>
+        <button class="ue-btn ue-btn-sm" id="ueAddFolder" title="소스 폴더 추가"><svg class="i"><use href="#i-plus"/></svg><span>폴더 추가</span></button></div>
+      <div class="ue-bins" id="ueBins"></div>
     </section>
     <section class="ue-pane ue-vpane">
       <div class="ue-head ue-vhead"><span>타임라인</span><span class="ue-tc" id="ueTc">00:00:00:00</span></div>
@@ -494,6 +494,10 @@
         </div>
       </div>
     </section>
+    <!-- 칸 크기 조절 (2026-10-02 둘째: "사용자 편집도 피드백 처럼 레이아웃 사이즈 변경 가능하게") - 드래그: 크기 · 더블클릭: 기본값 -->
+    <div class="ue-gut ue-gut-x" id="gUeC1" title="드래그: 크기 조절 · 더블클릭: 기본값"></div>
+    <div class="ue-gut ue-gut-x" id="gUeC3" title="드래그: 크기 조절 · 더블클릭: 기본값"></div>
+    <div class="ue-gut ue-gut-y" id="gUeR" title="드래그: 크기 조절 · 더블클릭: 기본값"></div>
   </div>
 </main>
 

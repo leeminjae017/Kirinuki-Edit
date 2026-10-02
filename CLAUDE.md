@@ -117,6 +117,9 @@ ebur128 로 재서 `min(-16 - I, -1.5 - TP)` 만큼 올린다.
   낱말 시각이 어긋난 옛 편: keep 인데 AI 조각 밖 (또는 반쯤 걸친) 낱말 덩이는 가장 가까운 조각 끝 안으로 옮겨 잰다 (keep 이 정본).
   **피드백 탭은 추가 소스 · 영상 (쪽지 그리기) · 프롬프트 (머리에 편집 단추) · 메모 목록만** - 자막 칸 · 렌더 칸은 사용자 편집 탭으로 옮겼다. 옛 자막 칸 마크업은
   feedback.js 가 아직 참조해서 `.fb-legacy` 에 숨겨 두었다 (지울 때는 feedback.js 의 fillSubs 쪽부터).
+  **셋째 판 (2026-10-02): 영상은 피드백 탭과 하나** - 탭이 보일 때 피드백 화면 (.fb-stage-wrap) 을 뷰어로 옮겨 오고 떠날 때 돌려놓는다 (쪽지 · 자막 고침 · 재생 위치 같음).
+  왼쪽은 소스 폴더 (review.srcFolders, 서버 /api/media/browse · list · poster), V1 썸네일 (/api/media/thumbs, 0.5초 격자 jpg) · A1 파형 (review.wave 없으면 /api/media/wave) -
+  서버 임시 폴더 kirinuki_media 에 남는다. 칸 크기 손잡이 셋 (split.js .ue-grid). 대시보드 전체 색은 이 탭의 중성 회색 (base.css 토큰, 켬 = 주황 --on).
 - **대시보드 저장은 review 를 칸 목록으로 걸러 받는다** (server.py save_project - 옛 탭이 파이프라인 결과를 되감지 못하게).
   피드백 탭에 새 칸을 만들면 그 목록에도 넣고, 저장 뒤 project.json 에 들어갔는지 본다 (2026-09-30: 낱말 빼기 표 · e2 · kind · 리플이 버려지고 있었다).
 - 대시보드 스타일 목록은 프리셋 `name` 으로 고른다. 이름을 바꾸면 옛 이름을 `aliases` 에 남긴다 -

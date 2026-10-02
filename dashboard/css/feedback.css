@@ -92,7 +92,7 @@
 .fb-stage-wrap{
   flex:1 1 auto; min-height:0;
   display:flex; align-items:center; justify-content:center;
-  padding:10px; background:#0a0c10;
+  padding:10px; background:#0d0d11;
 }
 
 /* 화면은 **그림이 실제로 그려지는 상자**와 딱 같아야 한다. 그래야 영상
@@ -147,7 +147,7 @@
   position:absolute; max-width:30%; min-width:64px;
   display:flex; gap:6px; align-items:flex-start;
   padding:6px 8px;
-  background:var(--warn); color:#12141a;
+  background:var(--warn); color:#151519;
   font-size:11.5px; line-height:1.45;
   border-radius:3px 3px 3px 10px;
   box-shadow:0 2px 10px rgba(0,0,0,.55);
@@ -169,7 +169,7 @@
   position:absolute; transform:translate(-50%,-50%);
   min-width:20px; height:20px; padding:0 5px;
   display:flex; align-items:center; justify-content:center;
-  background:var(--warn); color:#12141a;
+  background:var(--warn); color:#151519;
   font-size:11px; font-weight:700; line-height:1;
   border-radius:10px; cursor:pointer; pointer-events:auto;
   box-shadow:0 1px 6px rgba(0,0,0,.5);
@@ -305,7 +305,7 @@
 .fb-note .n{
   flex:0 0 auto; min-width:17px; height:17px; padding:0 4px;
   display:flex; align-items:center; justify-content:center;
-  background:var(--warn); color:#12141a;
+  background:var(--warn); color:#151519;
   font-size:10.5px; font-weight:700; border-radius:9px;
 }
 .fb-note .fb-note-t{flex:0 0 auto;color:var(--txt-mute);font-family:var(--mono);font-size:11px}
@@ -349,7 +349,7 @@
 .btn-ai{background:#34224a;border-color:var(--caption);color:#e6ccff}
 .btn-ai:hover{background:#43295f;border-color:#c98af0}
 /* 렌더 진행 */
-.rnd-prog{display:flex;flex-direction:column;gap:5px;padding:8px 9px;border:1px solid var(--line);border-radius:var(--r-sm);background:rgba(76,141,255,.06);margin-bottom:8px}
+.rnd-prog{display:flex;flex-direction:column;gap:5px;padding:8px 9px;border:1px solid var(--line);border-radius:var(--r-sm);background:rgba(58,111,208,.06);margin-bottom:8px}
 .rnd-prog-head{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--txt)}
 .rnd-prog-head b{font-variant-numeric:tabular-nums;color:var(--accent)}
 .rnd-bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
@@ -509,7 +509,7 @@
 .fb-plan-badge{
   position:absolute; left:8px; top:8px; z-index:20; display:none; pointer-events:none;
   font-size:11px; padding:3px 8px; border-radius:6px;
-  background:rgba(20,24,32,.82); color:#8ff0c4; border:1px solid rgba(62,207,142,.6);
+  background:rgba(25,25,29,.82); color:#8ff0c4; border:1px solid rgba(62,207,142,.6);
 }
 #fbStage.is-plan .fb-plan-badge{display:block}
 
@@ -531,7 +531,7 @@
 .tl-seg.is-back{border-color:rgba(62,207,142,.8);background:rgba(62,207,142,.28)}
 .tl-seg.is-back.is-on{background:rgba(62,207,142,.5);box-shadow:0 0 0 1px #3ecf8e}
 .tl-t.is-back{color:#8ff0c4}
-.tl-t.is-back::before{content:"+";display:inline-block;width:13px;height:13px;line-height:13px;margin-right:5px;text-align:center;border-radius:3px;background:#3ecf8e;color:#0b0f14;font-size:11px;font-weight:700}
+.tl-t.is-back::before{content:"+";display:inline-block;width:13px;height:13px;line-height:13px;margin-right:5px;text-align:center;border-radius:3px;background:#3ecf8e;color:#0f0f13;font-size:11px;font-weight:700}
 
 /* 원본 쪽 줄 끝 +/- (줄 전체 되살리기 · 빼기) */
 .tl-lab.is-run{padding-right:44px}
@@ -551,10 +551,10 @@
 /* 리플 켬/끔 (2026-09-30) - 원본 · 편집 탭 옆 */
 .fb-ripple{display:inline-flex;align-items:center;gap:6px;cursor:pointer;user-select:none;color:var(--txt-mute);font-size:11.5px}
 .fb-ripple input{position:absolute;opacity:0;width:0;height:0}
-.fb-ripple .sw{position:relative;width:26px;height:14px;border-radius:999px;background:#2a2f3b;border:1px solid var(--line-2);transition:background .15s}
+.fb-ripple .sw{position:relative;width:26px;height:14px;border-radius:999px;background:#313135;border:1px solid var(--line-2);transition:background .15s}
 .fb-ripple .sw::after{content:"";position:absolute;top:1px;left:1px;width:10px;height:10px;border-radius:50%;background:#8a93a6;transition:transform .15s,background .15s}
-.fb-ripple.is-on{color:#cfdcf5}
-.fb-ripple.is-on .sw{background:#1f3352;border-color:#39598f}
+.fb-ripple.is-on{color:#e0e0e3}
+.fb-ripple.is-on .sw{background:#37373b;border-color:#39598f}
 .fb-ripple.is-on .sw::after{transform:translateX(12px);background:#a9c8ff}
 .fb-ripple input:focus-visible + .sw{outline:2px solid #39598f;outline-offset:1px}
 
