@@ -30,6 +30,14 @@ export type Overlay =
   | { type: 'insert'; s: number; e: number; src: string; srcW: number; srcH: number; area?: 'canvas' | 'window';
       background?: { src: string; scale?: number }; maxW: number; maxH: number; maxZoom: number };
 
+/* hand-laid extra track clip (dashboard user edit tab): file seconds [s, e] placed at output second `at`.
+   box: canvas px (video / image). vol dB, fin / fout fade seconds, color 1 = unchanged. */
+export type Layer = {
+  id?: string; kind: 'video' | 'image' | 'audio'; track: number; src: string; at: number; s: number; e: number;
+  box?: { x: number; y: number; w: number; h: number }; opacity?: number; vol?: number; mute?: boolean; fin?: number; fout?: number;
+  color?: { brightness?: number; contrast?: number; saturation?: number };
+};
+
 export type Fx =
   | { type: 'zoom'; s: number; e: number; z: number }
   | { type: 'push'; s: number; e: number; z0: number; z1: number }
@@ -48,6 +56,7 @@ export type Scene = {
   captions: Caption[];
   overlays?: Overlay[];
   fx?: Fx[];
+  layers?: Layer[];
   kinds?: Record<string, string>;
   hideCaptions?: [number, number][];     // e.g. while an insert shows the text being read
   /* Dashboard preview only: play a planned edit straight from a light copy of the whole source instead of the cut

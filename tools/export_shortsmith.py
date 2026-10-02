@@ -148,6 +148,8 @@ review = {"video": {"ko": FINAL.replace(os.sep, "/")} if os.path.exists(FINAL) e
           "scene": os.path.abspath("scene.json").replace(os.sep, "/"), "notes": [], "prompt": ""}
 # 굽지 않은 판 (2026-10-02, 사용자: "마지막에 한 번만 렌더링하고 그 전까지는 미리보기에서만"): scene.json 이 완성본보다 새것이면
 # (shortsmith preview / tools/preview_update.py 로 고친 판) 피드백 · 사용자 편집 미리보기가 완성본 대신 원본 사본에서 컷대로 이어 튼다
+# 덧 트랙 (edit.json layers -> 사용자 편집 탭 V2.. · A2.., 2026-10-02) - 내보낼 때마다 파일 쪽이 정본
+review["userLayers"] = [dict({k: v for k, v in L.items() if k != "src"}, path=L["src"]) for L in (E.get("layers") or []) if L.get("src")]
 review["unbaked"] = not os.path.exists(FINAL) or os.path.getmtime(FINAL) < os.path.getmtime("scene.json") - 1
 # 원본 소리 파형 - 피드백 탭 편집 축에 그린다 (2026-09-30, tools/src_wave.py, 원본이 그대로면 편 폴더 wave.json 을 다시 씀)
 sys.path.insert(0, os.path.join(ROOT, "tools"))

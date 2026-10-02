@@ -178,6 +178,8 @@ export function buildScene(projectDir, edit, loaded, body, cutsList) {
     face: fx.face || preset.layout.face || [W.x + W.w / 2, W.y + body.windowH / 2],
     title: (fx.title || title) ? { text: fx.title || title } : null,
     captions, overlays, fx: effects, kinds, hideCaptions,
+    // hand-laid extra tracks (edit.json layers, written by the dashboard user edit tab via tools/apply_review.py) - output seconds
+    ...(Array.isArray(edit.layers) && edit.layers.length ? { layers: edit.layers.filter((L) => L && L.src && L.e > L.s) } : {}),
   };
   writeJson(path.join(projectDir, 'scene.json'), scene);
   return scene;

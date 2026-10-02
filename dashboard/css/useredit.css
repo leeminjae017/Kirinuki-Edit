@@ -181,3 +181,35 @@
 .ue-cap-cut{margin-top:6px;justify-content:center;border-color:#4a3a3a;color:#ffb0a8}
 .ue-cap-cut:hover{background:#3a2626}
 .ue-tag{font-style:normal;font-size:10.5px;font-weight:600;color:#1b1b1f;background:var(--ue-on);border-radius:3px;padding:1px 6px;margin-left:6px}
+
+/* ---------- 2026-10-02 넷째: 가운데 선 위 비디오 (ST1 · Vn .. V1) / 아래 오디오 (A1 .. An), 칸마다 세로 넘김 · 덧 클립 ---------- */
+.ue-heads{flex:0 0 74px;display:flex;flex-direction:column;overflow:hidden}
+.ue-heads .ue-hd-r{height:26px;flex:0 0 26px}
+.ue-content{display:flex;flex-direction:column}
+.ue-ruler{flex:0 0 26px}
+.ue-varea, .ue-aarea{position:relative;flex:1 1 0;min-height:0;overflow:hidden}
+.ue-vin{position:absolute;left:0;right:0;bottom:0}
+.ue-ain{position:absolute;left:0;right:0;top:0}
+.ue-mid{flex:0 0 5px;background:#0b0b0d;border-top:1px solid #3c3c45;border-bottom:1px solid #3c3c45}
+.ue-heads .ue-hd{flex:0 0 auto;box-sizing:border-box}
+.ue-hd.is-main b{color:#a9c4ec}
+.ue-lane{box-sizing:border-box}
+.ue-lane.is-main{background:#1f1f25}
+.ue-lane-v:not(.is-main), .ue-lane-a:not(.is-main){background:#1a1a1e}
+.ue-drop{position:absolute;top:26px;bottom:0;width:2px;margin-left:-1px;background:#3ad07a;z-index:11;pointer-events:none}
+.ue-x.ue-v{--ue-v-top:#6c5aa8;--ue-v:#4a3f75}
+.ue-x.ue-v.is-img{--ue-v-top:#2f8a87;--ue-v:#22504f}
+.ue-x.ue-a{background:#1f5a4a}
+.ue-img{background-repeat:repeat-x;background-size:auto 100%;background-position:left center}
+.ue-clip.is-mute{opacity:.45}
+.ue-fade{position:absolute;top:0;bottom:0;pointer-events:none;z-index:1}
+.ue-fade-in{left:0;background:linear-gradient(to top right, transparent 49%, rgba(0,0,0,.55) 51%)}
+.ue-fade-out{right:0;background:linear-gradient(to top left, transparent 49%, rgba(0,0,0,.55) 51%)}
+.ue-vol{left:auto !important;right:6px;color:#d6f5e0}
+.ue-media[draggable="true"]{cursor:grab}
+.ue-num{display:flex;align-items:center;gap:5px;min-width:0}
+.ue-num input{flex:1 1 auto;width:100%}
+.ue-num small{color:var(--ue-dim);font-size:11px;flex:0 0 auto}
+.ue-ins-sub{font-size:11px;color:var(--ue-dim);margin-top:4px;padding-top:6px;border-top:1px solid #33333a}
+.ue-ins-btns{display:flex;gap:6px;flex-wrap:wrap}
+.ue-ins-btns .ue-btn{border-color:#3a3a42}

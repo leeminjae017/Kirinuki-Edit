@@ -640,6 +640,10 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._json(200, dict(self.media_thumbs(path), ok=True))
             if what == "poster":
                 return self.media_poster(path)
+            if what == "info":                 # 타임라인에 끌어 놓을 때: 길이 · 그림 크기 · 소리 있는지
+                p = self._probe(path)
+                p["kind"] = self._kind(path)
+                return self._json(200, dict(p, ok=True))
         except subprocess.CalledProcessError as e:
             return self._json(500, {"ok": False, "error": (e.stderr or b"")[-400:].decode("utf-8", "replace")})
         return self._json(404, {"ok": False, "error": "모르는 요청: " + what})
@@ -1258,8 +1262,8 @@ class Handler(SimpleHTTPRequestHandler):
             # ripple (리플 켬/끔) · restoreCaps (되살린 자리 자막) 도 사용자 것이다 (2026-09-30: 안 받아서 새로 열면 사라지고
             # 렌더 단추가 못 봤다)
             # userClips: 사용자 편집 탭 (2026-10-02) 의 클립 목록 [{s, e, at}] - 없으면 지운다 (초기화)
-            # srcFolders: 사용자 편집 탭 소스 폴더 (절대 경로 목록)
-            for k in ("prompt", "notes", "drop", "restore", "ripple", "restoreCaps", "userClips", "srcFolders"):
+            # srcFolders: 사용자 편집 탭 소스 폴더 (절대 경로 목록) · userLayers: 덧 트랙 클립 (V2.. · A2.., 2026-10-02)
+            for k in ("prompt", "notes", "drop", "restore", "ripple", "restoreCaps", "userClips", "srcFolders", "userLayers"):
                 if k in newr:
                     merged[k] = newr[k]
                 elif k in ("ripple", "userClips"):

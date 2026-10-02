@@ -95,6 +95,12 @@ ebur128 로 재서 `min(-16 - I, -1.5 - TP)` 만큼 올린다.
   `tools/apply_review.py`(대시보드 자막 -> captions.csv, 고친 줄을 가리키는 fx.json 참조도 바꿈, **되살리기 · 빼기는 미리보기와 같은 계산으로 edit.json keep 을 고침** (2026-09-29, 전 판 edit.json.bak)) -> (keep 이 바뀌었으면 `shortsmith cuts`) -> `shortsmith build` ->
   `tools/export_shortsmith.py --keep-feedback`(프롬프트 · 쪽지 남김). **그래서 captions.csv 에 사용자 고침이 들어 있을 수 있다 -
   AI 편집 때 편 폴더의 자막 생성 스크립트(make_captions.py 등)를 그냥 다시 돌리면 그 고침이 사라진다.** 돌리기 전에 captions.csv 와 견준다.
+- **트랙 · 덧 클립 (2026-10-02 넷째):** 사용자 편집 타임라인은 가운데 선 위가 비디오 (ST1 자막 · Vn .. V2 · V1 원본), 아래가 오디오 (A1 원본 · A2 .. An), 칸마다 바퀴로 세로 넘김 (Shift 는 가로).
+  소스 칸 파일을 끌어 놓으면 덧 클립 (영상은 소리와 묶음 · 그림 · 소리) - review.userLayers -> apply_review.py 가 edit.json `layers` (출력 시각, src 절대 경로) -> scene.layers ->
+  미리보기는 src/parts/Layers.tsx (Remotion Video · Img · Audio), 렌더는 lib/render.mjs 가 ffmpeg 로 창 위 · React 덧그림 아래에 합성 (layerGraph) 하고 finish 에서 amix (각자 dB · 페이드, 정규화 없음).
+  인스펙터: 위치 · 크기 % (창에 맞춘 크기 기준) · 불투명도 · 밝기 · 대비 · 채도 (렌더는 eq + colorchannelmixer - CSS 와 근사) · 소리 dB · 음소거 · 페이드 인/아웃. 원본 클립 (A1) 도 소리 dB (userClips.vol -> keep gainDb).
+  덧 클립은 원본 리플에 안 밀린다 (놓은 시각 그대로) · AI 가 컷을 바꾸면 자리가 어긋날 수 있다. 내보내기는 edit.json layers 를 review.userLayers 로 되싣는다 (파일 쪽이 정본).
+  미리보기 묶음을 고치면 `NODE_PATH=<본 저장소>/shortsmith/node_modules node <esbuild> preview/entry.tsx ...` 로 다시 묶어 dashboard/js/vendor 에 복사 (작업 사본에는 node_modules 가 없고 E: 는 연결 폴더가 안 된다).
 - **렌더는 마지막에 한 번 (2026-10-02, 사용자: "매번 렌더링 할게 아니라 마지막에 한 번만 렌더링하고 그 전까지는 미리보기에서만", "렌더링 시간이 오래 걸리잖아 토큰도 더 많이 먹고").**
   1차 편집 · AI 피드백 판은 **`shortsmith build` 를 돌리지 않는다.** 순서: 1) `python tools/apply_review.py <편> projects/<id>/project.json` (사용자가 대시보드에서 고친 컷 · 자막을
   편 폴더에 넣는다 - 안 하면 2 의 내보내기가 사용자 편집 탭 컷을 지운다) 2) edit.json · captions.csv · fx.json 고침 3) `python tools/preview_update.py <편> <id>`
