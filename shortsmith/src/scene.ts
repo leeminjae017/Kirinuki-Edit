@@ -8,6 +8,9 @@
 
    All times are output seconds. Paths are relative to the scene.json folder unless absolute. */
 import type { Preset } from './preset';
+import type { ColorTone } from '../lib/color.mjs';
+/* move / zoom / rotate on top of what the edit set (dashboard user edit tab, 2026-10-03): x, y px, z scale (1 = as is), r degrees */
+export type Tf = { x?: number; y?: number; z?: number; r?: number };
 
 export type Caption = {
   s: number; e: number; text: string;
@@ -16,6 +19,7 @@ export type Caption = {
   size?: number;
   color?: string;           // per-caption color for "$color" paints (guest colors)
   id?: string;
+  tf?: Tf;                  // user move / zoom / rotate about the caption's own anchor
 };
 
 export type Overlay =
@@ -35,7 +39,8 @@ export type Overlay =
 export type Layer = {
   id?: string; kind: 'video' | 'image' | 'audio'; track: number; src: string; at: number; s: number; e: number;
   box?: { x: number; y: number; w: number; h: number }; opacity?: number; vol?: number; mute?: boolean; fin?: number; fout?: number;
-  color?: { brightness?: number; contrast?: number; saturation?: number };
+  color?: { brightness?: number; contrast?: number; saturation?: number } & ColorTone;   // tone: lib/color.mjs
+  rot?: number;                                                         // degrees about the box centre
   keys?: { t: number; x: number; y: number; w: number; h: number }[];   // motion: box keyframes, t = seconds into the clip
   ease?: boolean;                                                       // smoothstep between keys (else linear)
   tin?: { type: 'dissolve' | 'black' | 'white' | 'wipe' | 'slide'; d: number };   // from the clip that ends here on this track
@@ -71,7 +76,8 @@ export type Scene = {
            camera?: { t: number; x: number; y: number; h: number; in?: string }[];   // edit.json camera.keys (source px / s) - dance
            ranges: { at: number; s: number; e: number; crop: { x: number; y: number; w: number; h: number }; vol?: number;
                      color?: Layer['color'];                                 // piece colour (1 = unchanged)
-                     tin?: { type: 'dissolve' | 'black' | 'white' | 'wipe' | 'slide'; d: number } }[] };   // transition into this range
+                     tin?: { type: 'dissolve' | 'black' | 'white' | 'wipe' | 'slide'; d: number };   // transition into this range
+                     tf?: Tf }[] };                                          // user move / zoom / rotate of the window picture
 };
 
 export type Env = {

@@ -185,7 +185,7 @@ export const CaptionView: React.FC<{ c: Caption; t: number; style: Preset; width
   ));
 
   return (
-    <g transform={`translate(${x} ${y}) rotate(${rot}) scale(${scale})`} opacity={opacity}>
+    <g transform={`translate(${x + (c.tf?.x || 0)} ${y + (c.tf?.y || 0)}) rotate(${rot + (c.tf?.r || 0)}) scale(${scale * (c.tf?.z ?? 1)})`} opacity={opacity}>
       {defs.length ? <defs>{defs}</defs> : null}
       {box}
       {body}

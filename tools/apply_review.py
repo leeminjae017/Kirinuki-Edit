@@ -168,7 +168,8 @@ if CUT:
     keep, cur = [], 0.0
     # 클립 소리 크기 (사용자 편집 인스펙터 '소리', dB, 2026-10-02) - 그 클립에서 나온 조각의 gainDb 에 더한다
     # 색 (color) 은 그 클립의 모든 조각에, 전환 (tin: 앞 클립에서 넘어오는 것) 은 그 클립의 첫 조각에 (2026-10-02)
-    UVOL = [(c["at"], c["at"] + c["e"] - c["s"], float(c.get("vol") or 0), c.get("color"), c.get("tin")) for c in UC] if UC else []
+    # 변형 (tf: 이동 · 확대 · 회전) 은 색처럼 그 클립의 모든 조각에 (2026-10-03)
+    UVOL = [(c["at"], c["at"] + c["e"] - c["s"], float(c.get("vol") or 0), c.get("color"), c.get("tin"), c.get("tf")) for c in UC] if UC else []
     for a, b, at in sorted(P, key=lambda r: r[2]):
         a0, at0 = a, at
         if at > cur + 0.01:
@@ -190,8 +191,12 @@ if CUT:
             if v:
                 ent["gainDb"] = round((ent.get("gainDb") or 0) + v, 2)
             col = u[3] if u else (inside or {}).get("color")
-            if col and any(abs(float(col.get(k, 1)) - 1) > 1e-3 for k in ("brightness", "contrast", "saturation")):
+            if col and (any(abs(float(col.get(k, 1)) - 1) > 1e-3 for k in ("brightness", "contrast", "saturation"))
+                        or any(col.get(k) for k in ("lift", "gamma", "gain", "curves"))):      # RGBW · 커브 (2026-10-03)
                 ent["color"] = col
+            tf = u[5] if u else (inside or {}).get("tf")
+            if tf:
+                ent["tf"] = tf
             tin = (u[4] if u else (inside or {}).get("tin")) if abs(x - a) < 1e-3 else None
             if tin and tin.get("d"):
                 ent["tin"] = tin
@@ -217,7 +222,8 @@ if caps and os.path.exists(out):
 with io.open(out if caps else os.devnull, "w", encoding="utf-8-sig", newline="") as f:
     w = csv.writer(f)
     # kind 칸(자막 디자인 이름)도 같이 쓴다 - 안 쓰면 렌더 단추 한 번에 모든 줄이 기본 자막이 된다
-    w.writerow(["start", "end", "speaker", "kind", "text"])
+    # tf: 자막 변형 "x y z r" (사용자 편집 탭, 2026-10-03) - shortsmith scene.mjs 가 읽는다
+    w.writerow(["start", "end", "speaker", "kind", "text", "tf"])
     # 전체 자막 칸(두 축 타임라인)에서 고친 시작/끝은 s2 · e2 로 온다 - 그것이 있으면 그것을 쓴다
     def ts(c):
         return (c["s2"] if c.get("s2") is not None else c["s"],
@@ -246,14 +252,16 @@ with io.open(out if caps else os.devnull, "w", encoding="utf-8-sig", newline="")
         if e0 - s0 < 0.01 and (c.get("speaker") or "").strip() not in ("제목", "title"):
             gone[txt] = s0                               # 피드백 탭에서 옆 줄에 덮여 길이 0 (롤 편집, 2026-09-30)
             continue
-        rows.append((s0, e0, c.get("speaker") or "", c.get("kind") or "", txt))
+        tf = c.get("tf") or {}
+        tfs = " ".join("%g" % float(tf.get(k, d)) for k, d in (("x", 0), ("y", 0), ("z", 1), ("r", 0))) if tf else ""
+        rows.append((s0, e0, c.get("speaker") or "", c.get("kind") or "", txt, tfs))
     if CUT:                                              # 되살린 자리 자막 (피드백 탭 편집 쪽 초록 줄)
         for o in R.get("restoreCaps") or []:
             if (o.get("text") or "").strip() and o.get("src"):
                 rows.append((planned(o["src"][0]), planned(o["src"][1]), o.get("speaker") or "담유이", o.get("kind") or "",
-                             o["text"].strip()))
+                             o["text"].strip(), ""))
     for r in sorted(rows, key=lambda r: (r[2] not in ("제목", "title"), r[0])):
-        w.writerow([hms(r[0]), hms(r[1]), r[2], r[3], r[4]])
+        w.writerow([hms(r[0]), hms(r[1]), r[2], r[3], r[4], r[5]])
 
 # 빈 글로 바꾸는 것은 fx.json 에 옮기지 않는다 - 자막 줄을 지운 것이 채팅 카드 글까지 지워 버렸다
 # (퍼리 취향 2026-09-28: 같은 시각에 자막 줄과 채팅 줄이 둘 다 있어 빈칸이 채팅 쪽에 먹었다)

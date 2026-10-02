@@ -68,6 +68,7 @@
     <symbol id="i-chev" viewBox="0 0 24 24"><path d="M8 10l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3l8 4.5-8 4.5-8-4.5L12 3z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M4 12.5l8 4.5 8-4.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M17.5 18v5M15 20.5h5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
     <symbol id="i-vol" viewBox="0 0 24 24"><path d="M4 10h3.5L12 6v12l-4.5-4H4z"/><path d="M15.5 9.5a3.6 3.6 0 0 1 0 5M18 7a7 7 0 0 1 0 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
     <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   </defs>
 </svg>
@@ -464,16 +465,16 @@
       </div>
     </section>
     <div class="ue-toolbar">
-      <button class="ue-btn" data-tool="select" title="선택 (A)"><svg class="i"><use href="#i-pointer"/></svg></button><button class="ue-btn" data-tool="blade" title="자르기 칼 (B)"><svg class="i"><use href="#i-cut"/></svg></button>
+      <button class="ue-btn" data-tool="select" title="선택 (A)"><svg class="i"><use href="#i-pointer"/></svg></button><button class="ue-btn" data-tool="blade" title="자르기 칼 (C)"><svg class="i"><use href="#i-cut"/></svg></button>
       <i class="ue-sep"></i>
       <button class="ue-btn" id="ueSplit" title="재생 위치에서 자르기 (Ctrl+B)"><svg class="i"><use href="#i-cut"/></svg></button><button class="ue-btn" id="ueDel" title="지우기 (Delete)"><svg class="i"><use href="#i-trash"/></svg></button>
       <i class="ue-sep"></i>
-      <button class="ue-btn" id="ueSnapBtn" title="붙기 (N)"><svg class="i"><use href="#i-magnet"/></svg></button><button class="ue-btn" id="ueRipBtn" title="리플 - 지우고 줄이면 뒤가 당겨진다"><svg class="i"><use href="#i-ripple"/></svg></button>
+      <button class="ue-btn" id="ueSnapBtn" title="붙기 (N)"><svg class="i"><use href="#i-magnet"/></svg></button><button class="ue-btn" id="ueRipBtn" title="리플 - 지우고 줄이면 뒤가 당겨진다"><svg class="i"><use href="#i-ripple"/></svg></button><button class="ue-btn" id="ueLinkBtn" title="연결 - 켜면 영상과 그 소리를 같이 고르고 옮긴다, 끄면 따로"><svg class="i"><use href="#i-link"/></svg></button>
       <i class="ue-sep"></i>
       <button class="ue-btn" id="ueUndo" title="되돌리기 (Ctrl+Z)"><svg class="i"><use href="#i-undo"/></svg></button><button class="ue-btn" id="ueRedo" title="다시 (Ctrl+Shift+Z)"><svg class="i"><use href="#i-redo"/></svg></button>
       <span class="ue-fill"></span>
       <button class="ue-btn" id="ueReset" title="AI 컷으로 되돌리기"><svg class="i"><use href="#i-sync"/></svg></button>
-      <input type="range" class="ue-zoom" id="ueZoom" min="1.4" max="7" step="0.01" value="4.38" title="확대 (Ctrl+바퀴)">
+      <input type="range" class="ue-zoom" id="ueZoom" min="1.4" max="7" step="0.01" value="4.38" title="확대 (Alt+바퀴)">
       <button class="ue-btn" id="ueFit" title="전체 보기 (Shift+Z)"><svg class="i"><use href="#i-fit"/></svg></button>
     </div>
     <section class="ue-timeline">
@@ -490,6 +491,8 @@
           <div class="ue-varea" id="ueVA"><div class="ue-vin" id="ueVin"></div></div>
           <div class="ue-mid"></div>
           <div class="ue-aarea" id="ueAA"><div class="ue-ain" id="ueAin"></div></div>
+          <div class="ue-range" id="ueRangeL" hidden></div><div class="ue-range" id="ueRangeR" hidden></div>
+          <div class="ue-marq" id="ueMarq" hidden></div>
           <div class="ue-snapline" id="ueSnap" hidden></div>
           <div class="ue-drop" id="ueDrop" hidden></div>
           <div class="ue-ph" id="uePh"><i></i></div>

@@ -1265,7 +1265,7 @@ class Handler(SimpleHTTPRequestHandler):
             # 렌더 단추가 못 봤다)
             # userClips: 사용자 편집 탭 (2026-10-02) 의 클립 목록 [{s, e, at}] - 없으면 지운다 (초기화)
             # srcFolders: 사용자 편집 탭 소스 폴더 (절대 경로 목록) · userLayers: 덧 트랙 클립 (V2.. · A2.., 2026-10-02)
-            for k in ("prompt", "notes", "drop", "restore", "ripple", "restoreCaps", "userClips", "srcFolders", "userLayers"):
+            for k in ("prompt", "notes", "drop", "restore", "ripple", "restoreCaps", "userClips", "srcFolders", "userLayers", "userGroups"):   # userGroups: 클립 그룹 이름 (2026-10-03)
                 if k in newr:
                     merged[k] = newr[k]
                 elif k in ("ripple", "userClips"):
@@ -1298,7 +1298,13 @@ class Handler(SimpleHTTPRequestHandler):
             for c in newr.get("captions") or []:
                 if c.get("by") != "user" or not base:
                     continue
-                near = min(base, key=lambda x: abs(x.get("s", 0) - c.get("s", 0)))
+                # 같은 줄 찾기: 시작이 1.5초 안이면서 원래 글 (orig, 없으면 글) 이 같은 줄을 먼저, 그다음 화자가 같은 줄, 마지막에 가장 가까운 줄.
+                # 시각만 보면 같은 시각에 시작하는 두 줄 (설명 딱지 0.05초 · "어? 잠깐만" 0.05초) 에서 딱지 고침이 옆 줄 글을 덮었다 (2026-10-03)
+                def _k(x):
+                    return ((x.get("orig") if x.get("orig") is not None else x.get("text")) or "").strip()
+                near_all = [x for x in base if abs(x.get("s", 0) - c.get("s", 0)) <= 1.5]
+                same = [x for x in near_all if _k(x) == _k(c)] or                        [x for x in near_all if (x.get("speaker") or "").strip() == (c.get("speaker") or "").strip()] or near_all or base
+                near = min(same, key=lambda x: abs(x.get("s", 0) - c.get("s", 0)))
                 if abs(near.get("s", 0) - c.get("s", 0)) <= 1.5:
                     near["text"] = c.get("text")
                     near["by"] = "user"
@@ -1311,7 +1317,7 @@ class Handler(SimpleHTTPRequestHandler):
                     for k in ("speaker", "kind", "orig"):
                         if k in c:
                             near[k] = c[k]
-                    for k in ("s2", "e2", "os2", "oe2"):
+                    for k in ("s2", "e2", "os2", "oe2", "tf"):     # tf: 자막 변형 (2026-10-03)
                         if k in c:
                             near[k] = c[k]
                         else:
