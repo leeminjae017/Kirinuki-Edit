@@ -1106,7 +1106,11 @@ class Handler(SimpleHTTPRequestHandler):
         if not work:
             return
         work = os.path.abspath(os.path.join(ROOT, work))
-        if os.path.commonpath([work, ROOT]) != ROOT or not os.path.isdir(work):
+        try:
+            inside = os.path.commonpath([work, ROOT]) == ROOT
+        except ValueError:                # 다른 드라이브 (시험 사본 등)
+            inside = False
+        if not inside or not os.path.isdir(work):
             return
         review = data.get("review") or {}
 

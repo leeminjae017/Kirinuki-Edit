@@ -49,26 +49,34 @@ pp = os.path.join(ROOT, "presets", E.get("preset", ""), "preset.json")
 if os.path.exists(pp):
     preset = json.load(io.open(pp, encoding="utf-8"))
 A = preset.get("audio") or {}
-I, TP = loud("window.mkv")
-pg = min(A.get("targetLufs", -16) - I, A.get("maxTruePeakDb", -1.5) - TP)      # render.mjs 와 같은 식
 gmax = max([0.0] + [float(p.get("gainDb") or 0) for p in CUTS])
-gain = round(pg + gmax, 2)
+old = json.load(io.open("src_preview.json", encoding="utf-8")) if os.path.exists("src_preview.json") else None
+# 미리보기만 하는 판 (2026-10-02, shortsmith preview): window.mkv 가 없거나 컷보다 옛것이면 그걸로 재지 않는다.
+# 전에 구운 사본이 있으면 그 이득을 그대로 (소리 크기는 미리보기용이라 다시 구울 까닭이 없다), 없으면 원본 통째로 잰다 (짐작에 가까움)
+stale = not os.path.exists("window.mkv") or os.path.getmtime("window.mkv") < os.path.getmtime("cuts.json")
+if stale and old and old.get("src") == SRC and os.path.exists(os.path.join(work, "src_preview.mp4")):
+    gain = old["gain"]
+    gmax = old.get("gmax", gmax)      # 대시보드가 조각 소리를 10^((이득 - gmax)/20) 로 줄인다 - 구운 사본 기준 값을 그대로
+    pg = gain - gmax
+else:
+    I, TP = loud(SRC if stale else "window.mkv")
+    pg = min(A.get("targetLufs", -16) - I, A.get("maxTruePeakDb", -1.5) - TP)      # render.mjs 와 같은 식
+    gain = round(pg + gmax, 2)
 
 st = os.stat(SRC)
 key = {"src": SRC, "size": st.st_size, "mtime": int(st.st_mtime), "gain": gain, "v": 1}
 out = os.path.join(work, "src_preview.mp4")
-old = json.load(io.open("src_preview.json", encoding="utf-8")) if os.path.exists("src_preview.json") else None
-if old != key or not os.path.exists(out):
+if {k: v for k, v in (old or {}).items() if k != "gmax"} != key or not os.path.exists(out):
     subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", SRC, "-vf", "fps=30,scale=1280:-2",
                     "-c:v", "libx264", "-preset", "veryfast", "-crf", "26", "-g", "15", "-pix_fmt", "yuv420p",
                     "-movflags", "+faststart", "-af", "volume=%.2fdB" % gain, "-c:a", "aac", "-b:a", "160k", out], check=True)
-    json.dump(key, io.open("src_preview.json", "w", encoding="utf-8"), ensure_ascii=False)
+    json.dump(dict(key, gmax=gmax), io.open("src_preview.json", "w", encoding="utf-8"), ensure_ascii=False)
     print("원본 사본 구움: %s (이득 %+.2fdB = 고정 %+.2f + 조각 최대 %+.1f)" % (out, gain, pg, gmax))
 else:
     print("원본 사본 그대로 씀: %s" % out)
 
 # ---- 프로젝트에 적는다 (자막 · 쪽지는 안 건드린다) ----
-STORE = os.path.join(ROOT, "projects")
+STORE = os.environ.get("KIRINUKI_PROJECTS") or os.path.join(ROOT, "projects")   # 시험용 저장소로 돌릴 때 (2026-10-02)
 pid = sys.argv[2] if len(sys.argv) > 2 else None
 if not pid:
     for nm in sorted(os.listdir(STORE)):

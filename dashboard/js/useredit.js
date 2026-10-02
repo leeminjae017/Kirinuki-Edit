@@ -148,9 +148,14 @@
     if (!SC) return;
     D.Feedback.livePreview(Math.min(t, Math.max(0, total() - 1 / FPS)));   // 같은 영상에 새 장면 - 고쳐도 보던 시각을 지킨다
     bindShared();
+    tag();
     draw();
   }
-  function fitViewer() { if (SHOWN && D.Feedback && D.Feedback.refresh) D.Feedback.refresh(); }
+  function fitViewer() { if (SHOWN && D.Feedback && D.Feedback.refresh) D.Feedback.refresh(); tag(); }
+  function tag() {                         // 렌더 전 (완성본이 옛것 · 고친 컷이 있다) 이면 뷰어 머리에 표
+    var t = D.$('#ueTag');
+    if (t) t.hidden = !(D.Feedback && D.Feedback.sceneNow && (D.Feedback.sceneNow() || {}).plan);
+  }
   function icon(name) { var u = D.$('#uePlay use'); if (u) u.setAttribute('href', '#i-' + name); }
   function toggle() { var v = video(); if (!v) return; if (v.paused) { if (v.currentTime >= total() - 0.02) v.currentTime = 0; v.play(); } else v.pause(); }
   function seek(t) {
@@ -204,11 +209,11 @@
     side();
     drawWords();
   }
-  /* 타임라인 칸 높이를 V1 · A1 이 나눠 갖는다 (칸 크기를 끌어 바꾸면 썸네일 · 파형도 같이 커진다) */
+  /* V1 · A1 높이는 고정 (사용자 2026-10-02: "클립 높이가 너무 긴데 줄여줘" - 타임라인 칸을 나눠 갖게 했더니 클립이 길쭉해졌다).
+     타임라인 칸을 키우면 아래가 빈다 (리졸브도 트랙 높이는 칸 크기와 따로) */
+  var LANE_H = 50;
   function laneHeights() {
-    var tl = D.$('#view-edit .ue-timeline'), ls = D.$('#ueLaneS');
-    var free = (tl ? tl.clientHeight : 300) - 27 - (ls ? ls.offsetHeight : 34) - 3;
-    var h = Math.max(44, Math.floor(free / 2));
+    var h = LANE_H;
     ['#ueLaneV', '#ueLaneA', '#view-edit .ue-hd-v', '#view-edit .ue-hd-a'].forEach(function (q) {
       var e = D.$(q); if (e) { e.style.height = h + 'px'; e.style.flexBasis = h + 'px'; }
     });
@@ -748,7 +753,52 @@
     tf('끝', sc.e, 'e2');
     var ln = D.el('input', { type: 'text', value: (sc.e - sc.s).toFixed(2) + 's' }); ln.readOnly = true;
     row('길이', ln);
+    /* 자막으로 컷 더하기 · 빼기 (사용자 2026-10-02: "자막에 의해 컷 추가 / 삭제 할 때 미리보기에서 바로 볼 수도 없지").
+       원본 시각을 앞당기면 그만큼 원본을 되살리고 늦추면 그만큼 뺀다 - 클립 목록을 바로 고쳐 미리보기에 곧장 보인다.
+       줄은 os2 · oe2 (원본 시각) 에 선다 - 미리보기 (feedback.js planScene) 와 렌더 (apply_review.py) 가 같이 읽는다 */
+    var s0 = c.os2 != null ? c.os2 : srcOfT(sc.s), e0 = c.oe2 != null ? c.oe2 : srcOfT(sc.e - 1e-3);
+    var sf = function (label, val, isEnd) {
+      var inp = D.el('input', { type: 'text', value: val != null ? stc(val) : '-' });
+      inp.title = '원본 시각 - 앞당기면 그만큼 컷을 되살리고, 늦추면 그만큼 뺍니다 (미리보기에 바로)';
+      inp.addEventListener('keydown', function (ev) {
+        if (ev.key !== 'Enter') return;
+        var v = parseT(inp.value);
+        if (v == null || s0 == null || e0 == null) { D.toast('시각을 못 읽었습니다 (예: 1:23.45 또는 83.45)'); return; }
+        var a = isEnd ? s0 : v, b = isEnd ? v : e0;
+        if (b - a < 0.1) { D.toast('끝이 시작보다 앞입니다'); return; }
+        remember();
+        if (!isEnd) { if (v < s0) restoreSrc(v, s0); else if (v > s0) removeSrc(s0, v); }
+        else if (v > e0) restoreSrc(e0, v); else if (v < e0) removeSrc(v, e0);
+        merge();
+        c.os2 = +a.toFixed(3); c.oe2 = +b.toFixed(3); c.by = 'user';
+        changed();
+      });
+      row(label, inp);
+    };
+    sf('원본 시작', s0, false);
+    sf('원본 끝', e0, true);
+    var cut = D.el('button', { class: 'ue-btn ue-cap-cut', title: '이 줄의 원본 구간을 컷에서 뺍니다 (Delete) - 되돌리기는 Ctrl+Z' });
+    cut.appendChild(D.icon('trash')); cut.appendChild(D.el('span', { text: '이 줄 컷에서 빼기' }));
+    cut.addEventListener('click', cutCaption);
+    ins.appendChild(cut);
     return true;
+  }
+  function srcOfT(t) {                     // 이 타임라인 시각 -> 원본 시각 (그 자리 클립)
+    var c = clipAt(t);
+    return c ? c.s + (t - c.at) : null;
+  }
+  function cutCaption() {                  // 고른 자막 줄의 원본 구간을 컷에서 뺀다 (줄도 같이 사라진다 - 남은 말이 0.1초 미만)
+    var sc = ((SC && SC.captions) || []).filter(function (x) { return x.id === CSEL; })[0];
+    if (!sc) return;
+    var i = capIndex(sc.id), c = R && i >= 0 ? (R.captions || [])[i] : null;
+    var a = c && c.os2 != null ? c.os2 : srcOfT(sc.s), b = c && c.oe2 != null ? c.oe2 : srcOfT(sc.e - 1e-3);
+    if (a == null || b == null || b - a < 0.05) { D.toast('이 줄은 컷 밖에 있습니다'); return; }
+    remember();
+    removeSrc(a, b);
+    merge();
+    CSEL = null;
+    changed();
+    D.toast('자막 줄 구간을 컷에서 뺐습니다 (Ctrl+Z 로 되돌림)');
   }
   function parseTC(s) {                    // 00:00:12:30 (프레임) 또는 초
     s = String(s || '').trim();
@@ -928,7 +978,7 @@
       case 'ArrowDown': ev.preventDefault(); jumpEdit(1); break;
       case 'Home': ev.preventDefault(); seek(0); break;
       case 'End': ev.preventDefault(); seek(total()); break;
-      case 'Delete': case 'Backspace': ev.preventDefault(); removeSel(); break;
+      case 'Delete': case 'Backspace': ev.preventDefault(); if (CSEL && !selected().length) cutCaption(); else removeSel(); break;
       case 'Escape': pick(null); break;
       default:
         if (low === 'a') setTool('select');

@@ -95,6 +95,14 @@ ebur128 로 재서 `min(-16 - I, -1.5 - TP)` 만큼 올린다.
   `tools/apply_review.py`(대시보드 자막 -> captions.csv, 고친 줄을 가리키는 fx.json 참조도 바꿈, **되살리기 · 빼기는 미리보기와 같은 계산으로 edit.json keep 을 고침** (2026-09-29, 전 판 edit.json.bak)) -> (keep 이 바뀌었으면 `shortsmith cuts`) -> `shortsmith build` ->
   `tools/export_shortsmith.py --keep-feedback`(프롬프트 · 쪽지 남김). **그래서 captions.csv 에 사용자 고침이 들어 있을 수 있다 -
   AI 편집 때 편 폴더의 자막 생성 스크립트(make_captions.py 등)를 그냥 다시 돌리면 그 고침이 사라진다.** 돌리기 전에 captions.csv 와 견준다.
+- **렌더는 마지막에 한 번 (2026-10-02, 사용자: "매번 렌더링 할게 아니라 마지막에 한 번만 렌더링하고 그 전까지는 미리보기에서만", "렌더링 시간이 오래 걸리잖아 토큰도 더 많이 먹고").**
+  1차 편집 · AI 피드백 판은 **`shortsmith build` 를 돌리지 않는다.** 순서: 1) `python tools/apply_review.py <편> projects/<id>/project.json` (사용자가 대시보드에서 고친 컷 · 자막을
+  편 폴더에 넣는다 - 안 하면 2 의 내보내기가 사용자 편집 탭 컷을 지운다) 2) edit.json · captions.csv · fx.json 고침 3) `python tools/preview_update.py <편> <id>`
+  (= `shortsmith preview` 컷 + scene 만, 영상 안 구움, 1초 안팎 + export_shortsmith.py). 1 을 빼먹으면 3 이 멈춘다 (applied_review.json 의 표와 견줌, 버려도 되면 --force).
+  scene.json 이 완성본보다 새것이면 review.unbaked -> 피드백 · 사용자 편집 미리보기가 원본 사본에서 지금 컷대로 이어 튼다 ("렌더 전" 표). 완성본은 사용자가 사용자 편집 > 렌더 에서 굽는다.
+  아래 "굽고 나서 네 가지" 검사는 완성본이 생긴 뒤 (마지막 렌더 뒤) 에 돌린다 - 그 전에는 probe.py 처럼 원본 시각으로 답할 수 있는 것만 본다.
+  사용자 편집 인스펙터의 자막 **원본 시작 · 끝** 을 고치면 컷도 같이 바뀐다 (앞당기면 되살림 · 늦추면 뺌, 줄은 os2 · oe2 원본 시각에 선다 - planScene 과 apply_review.py 가 같이 읽는다).
+  "이 줄 컷에서 빼기" (자막 고르고 Delete) 는 그 줄 원본 구간을 컷에서 뺀다.
 - 피드백 탭 미리보기 영상은 가벼운 사본 (window_preview 30fps 720폭 · bg_preview 540폭) - 렌더용 60fps 를 그대로 틀면 브라우저가 멈춘다.
 - 피드백 탭 미리보기는 `dashboard/js/vendor/shortsmith-preview.js` (`cd shortsmith && npm run preview:build` 후 복사).
 - **굽지 않은 미리보기 (2026-09-29):** 되살리기 · 빼기가 걸려 있으면 미리보기가 원본 사본(`src_preview.mp4`, 전체 화면 1280폭 30fps)에서
