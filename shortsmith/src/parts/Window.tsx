@@ -113,12 +113,29 @@ const PlanWindow: React.FC<{ scene: Scene; env: Env; fps: number }> = ({ scene, 
 };
 
 type PlanR = NonNullable<Scene['plan']>['ranges'][number];
+/* camera box at source second t - the same as cameraSpans in lib/body.mjs: a key holds until the next, a next key with
+   in: "linear" is reached at constant speed; box width = h * window aspect, kept inside the source */
+type CamK = NonNullable<NonNullable<Scene['plan']>['camera']>[number];
+const camBox = (K: CamK[], t: number, aspect: number, SW: number, SH: number) => {
+  let lo = 0, hi = K.length - 1;
+  while (lo < hi) { const m = (lo + hi + 1) >> 1; if (K[m].t <= t + 1e-6) lo = m; else hi = m - 1; }
+  const a = K[lo], b = K[lo + 1];
+  let x = a.x, y = a.y, h = a.h;
+  if (t >= a.t - 1e-6 && b && b.in === 'linear') {
+    const u = (t - a.t) / Math.max(1e-6, b.t - a.t);
+    x += (b.x - a.x) * u; y += (b.y - a.y) * u; h += (b.h - a.h) * u;
+  }
+  h = Math.min(SH, h);
+  const w = Math.min(SW, h * aspect);
+  return { x: clamp(x, 0, SW - w), y: clamp(y, 0, SH - h), w, h };
+};
 type Tr = 'dissolve' | 'black' | 'white' | 'wipe' | 'slide' | null;
 const PlanRange: React.FC<{ scene: Scene; env: Env; fps: number; r: PlanR; len: number; h0: number; h1: number;
                             a0: number; a1: number; t0: number; t1: number; tin: Tr; tout: Tr; z: number }> =
   ({ scene, env, fps, r, len, h0, h1, a0, a1, t0, t1, tin, tout }) => {
     const W = scene.window, P = scene.plan!, f = useCurrentFrame();
-    const k = W.w / r.crop.w, v = r.vol ?? 1;
+    const crop = P.camera && P.camera.length ? camBox(P.camera, r.s + (f - h0) / fps, W.w / W.h, P.srcW, P.srcH) : r.crop;
+    const k = W.w / crop.w, v = r.vol ?? 1;
     const vol = (x: number) => {                 // the sound crossfade at a cut stays the render's 0.15s, not the picture transition
       if (x < h0 - a0) return 0;
       if (a0 && x < h0 + a0) return v * clamp((x - (h0 - a0)) / (2 * a0), 0, 1);
@@ -144,7 +161,7 @@ const PlanRange: React.FC<{ scene: Scene; env: Env; fps: number; r: PlanR; len: 
       <div style={{ position: 'absolute', left: dx, top: 0, width: W.w, height: W.h, overflow: 'hidden', opacity: op, clipPath: clip }}>   {/* no zIndex - it lifted the video over the caption layer */}
         <Video src={env.url(abs(scene.dir, P.src))} startFrom={Math.round(r.s * fps) - h0} volume={vol}
           acceptableTimeShiftInSeconds={0.3}
-          style={{ position: 'absolute', left: -r.crop.x * k, top: -r.crop.y * k, width: P.srcW * k, height: P.srcH * k, maxWidth: 'none',
+          style={{ position: 'absolute', left: -crop.x * k, top: -crop.y * k, width: P.srcW * k, height: P.srcH * k, maxWidth: 'none',
                    filter: colorCss({ color: r.color } as any) }} />
       </div>
     );

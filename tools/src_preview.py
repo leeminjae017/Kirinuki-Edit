@@ -95,6 +95,10 @@ pj = os.path.join(STORE, pid, "project.json")
 cur = json.load(io.open(pj, encoding="utf-8"))
 rv = cur.get("review") or {}
 rv["srcPreview"] = {"path": out.replace(os.sep, "/"), "w": W0, "h": H0, "crop": crop0, "gmax": gmax}
+# 카메라 경로가 있는 편 (댄스, 2026-10-03): 굽지 않은 미리보기도 그 경로로 화면을 잡는다 (Window.tsx PlanRange, body.mjs cameraSpans 와 같은 계산)
+cam = (E.get("camera") or {}).get("keys") or []
+if cam:
+    rv["srcPreview"]["camera"] = [dict({k: round(float(c[k]), 2) for k in ("t", "x", "y", "h")}, **({"in": c["in"]} if c.get("in") else {})) for c in cam]
 cl = rv.get("clips") or []
 main = [p for p in CUTS if not p.get("source") and not p.get("gap")]
 if len(cl) == len(main):

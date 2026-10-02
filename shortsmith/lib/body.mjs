@@ -219,7 +219,7 @@ export async function buildBody(projectDir, edit, preset, cutsList) {
       keys.push([key, +(cur + off).toFixed(3), qo]);
       off += qo;
     });
-    parts.push({ file, s: pc.s, e: pc.e, sp, gain, at: cur, outDur, pc, vf0: cropVf(pcC) });
+    parts.push({ file, s: pc.s, e: pc.e, sp, gain, at: cur, outDur, pc, vf0: cropVf(pcC), cam: !!(cam && !pc.source && !pc.crop), tail });
     if (!pc.source) mainDur = cur + outDur;
     cur += outDur;
   }
@@ -235,17 +235,24 @@ export async function buildBody(projectDir, edit, preset, cutsList) {
   /* Transitions between pieces (dashboard user edit tab, 2026-10-02): centered on the cut and made from the source beyond each
      piece's ends (the handles), so the length and every caption time stay the same. Each one is a small patch at window size -
      A from its out point -h..+h and B from its in point -h..+h, joined by ffmpeg xfade - that render.mjs lays over window.mkv.
-     Not with a camera path (the patch would not follow it). */
+     With a camera path (dance, 2026-10-03) each side's handle follows the camera over its own source seconds, the same path
+     the pieces are drawn with - so the patch moves like the shots around it. */
   const transitions = [];
   const srcLen = duration(src);
   for (let i = 1; i < parts.length; i++) {
     const A = parts[i - 1], B = parts[i], t = B.pc.tin;
-    if (!t || !t.d || cam || A.pc.gap || B.pc.gap || A.pc.source || B.pc.source || A.sp !== 1) continue;
+    if (!t || !t.d || A.pc.gap || B.pc.gap || A.pc.source || B.pc.source || A.sp !== 1) continue;
     if (Math.abs(A.at + A.outDur - B.at) > 0.01) continue;          // a gap (ripple off) sits between them
     const h = Math.min(t.d / 2, B.s, srcLen - A.e - 0.05, A.outDur / 2, B.outDur / 2);
     if (h < 1 / fps) continue;
     const d = Math.round(2 * h * fps) / fps;
-    const fc = `[0:v]${A.vf0}[a];[1:v]${B.vf0}[b];[a][b]xfade=transition=${XFADE[t.type] || 'fade'}:duration=${d.toFixed(4)}:offset=0,format=nv12[v]`;
+    const camVf = (P, s0) => {                    // the camera's path over [s0, s0 + d] of the source, as the pieces draw it
+      const q = cameraSpans(cam, s0, s0 + d + 1 / srcInfo.fps, W.w / wh, srcInfo.w, srcInfo.h, srcInfo.fps, 1e9)[0];
+      return `fps=${srcInfo.fps}:start_time=0,` + pathVf(q.path, q.s, srcInfo.fps, srcInfo.w, srcInfo.h)
+        + `,scale=${W.w}:${wh}:flags=lanczos,setsar=1` + colorVf(P.pc.color) + P.tail;
+    };
+    const vfA = A.cam ? camVf(A, +(A.e - d / 2).toFixed(4)) : A.vf0, vfB = B.cam ? camVf(B, +(B.s - d / 2).toFixed(4)) : B.vf0;
+    const fc = `[0:v]${vfA}[a];[1:v]${vfB}[b];[a][b]xfade=transition=${XFADE[t.type] || 'fade'}:duration=${d.toFixed(4)}:offset=0,format=nv12[v]`;
     const key = md5([VERSION, 'xfade', sigOf(src), A.e, B.s, d, fc, enc.name]);
     const out = path.join(cache, `tr_${key}.mkv`);
     if (!fs.existsSync(out)) {

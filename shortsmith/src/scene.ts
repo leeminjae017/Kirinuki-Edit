@@ -38,9 +38,9 @@ export type Layer = {
   color?: { brightness?: number; contrast?: number; saturation?: number };
   keys?: { t: number; x: number; y: number; w: number; h: number }[];   // motion: box keyframes, t = seconds into the clip
   ease?: boolean;                                                       // smoothstep between keys (else linear)
-  tin?: { type: 'dissolve'; d: number };                                // dissolve from the clip that ends here on this track
+  tin?: { type: 'dissolve' | 'black' | 'white' | 'wipe' | 'slide'; d: number };   // from the clip that ends here on this track
   dur?: number;                                                         // file length (how far a transition may run past e)
-  xin?: number;                                                         // (derived) dissolve fade-in length
+  xin?: { type: string; d: number }; xout?: { type: string; d: number };   // (derived, withTrans) this clip's part of a transition
 };
 
 export type Fx =
@@ -68,6 +68,7 @@ export type Scene = {
      window video, so restored/dropped words can be heard before anything is rendered. Ranges are source seconds,
      placed back to back at output second `at`; crop is in source pixels, vol 0-1 (per-piece gain below the loudest). */
   plan?: { src: string; srcW: number; srcH: number; xf?: number;   // xf: crossfade at real cuts, like the render
+           camera?: { t: number; x: number; y: number; h: number; in?: string }[];   // edit.json camera.keys (source px / s) - dance
            ranges: { at: number; s: number; e: number; crop: { x: number; y: number; w: number; h: number }; vol?: number;
                      color?: Layer['color'];                                 // piece colour (1 = unchanged)
                      tin?: { type: 'dissolve' | 'black' | 'white' | 'wipe' | 'slide'; d: number } }[] };   // transition into this range
