@@ -47,7 +47,7 @@ Pipeline, one command each: `cuts` -> `body` -> `scene` -> `render` (`build` run
 
 | file | written by | what |
 |---|---|---|
-| `edit.json` | you | source, preset, crop, keep ranges, file names |
+| `edit.json` | you | source, preset, crop, keep ranges, file names; `layers` = extra video / image / audio clips on their own tracks (output seconds, box, opacity, colour, volume dB, fades) - composited under the captions and mixed in by `render` |
 | `captions.csv` | you | caption rows, output clock by default |
 | `fx.json` | you | caption kinds, labels, images, chat cards, zoom/push/shake/mono - placed by caption text |
 | `cuts.json` | `cuts` | exact pieces from the waveform |

@@ -21,7 +21,7 @@ os.chdir(work)
 E = json.load(io.open("edit.json", encoding="utf-8"))
 caps = R.get("captions") or []
 # 자막이 없는 편 (댄스 등) 도 사용자 편집 탭의 컷은 굽는다 - 자막 파일은 그때 안 건드린다
-if not caps and not (R.get("userClips") or []):
+if not caps and not (R.get("userClips") or []) and not R.get("userLayers"):
     sys.exit("피드백 탭에 자막이 없습니다")
 clock, speed = E.get("captionClock", "output"), float(E.get("speed") or 1)
 if clock == "source":
@@ -166,7 +166,10 @@ def kept_of(s0, e0):                          # 자막 줄이 걸친 원본 구�
 TOTAL = max(r[2] + r[1] - r[0] for r in P) if CUT else None
 if CUT:
     keep, cur = [], 0.0
+    # 클립 소리 크기 (사용자 편집 인스펙터 '소리', dB, 2026-10-02) - 그 클립에서 나온 조각의 gainDb 에 더한다
+    UVOL = [(c["at"], c["at"] + c["e"] - c["s"], float(c.get("vol") or 0)) for c in UC] if UC else []
     for a, b, at in sorted(P, key=lambda r: r[2]):
+        a0, at0 = a, at
         if at > cur + 0.01:
             keep.append({"gap": round(at - cur, 3)})      # 리플 끔 - 뺀 자리를 틈으로 남긴다
         elif at < cur:
@@ -180,6 +183,10 @@ if CUT:
             ent = {"s": round(x, 3), "e": round(y, 3), "raw": True}
             if inside and inside.get("gainDb"):
                 ent["gainDb"] = inside["gainDb"]
+            tm = at0 + ((x + y) / 2 - a0)
+            v = next((u[2] for u in UVOL if u[0] - 1e-3 <= tm < u[1] + 1e-3), 0.0)
+            if v:
+                ent["gainDb"] = round((ent.get("gainDb") or 0) + v, 2)
             if near.get("crop"):
                 ent["crop"] = near["crop"]
             keep.append(ent)
@@ -297,5 +304,20 @@ import hashlib
 def user_sig(rv):
     w = [[x.get("s"), bool(x.get("restore")), bool(x.get("drop"))] for sg in (rv.get("transcript") or []) for x in (sg.get("words") or [])
          if x.get("restore") or x.get("drop")]
-    return hashlib.sha1(json.dumps([rv.get("userClips") or [], w], sort_keys=True).encode("utf-8")).hexdigest()
+    return hashlib.sha1(json.dumps([rv.get("userClips") or [], w, rv.get("userLayers") or []], sort_keys=True).encode("utf-8")).hexdigest()
+
+
+# 덧 트랙 (사용자 편집 탭 V2.. · A2.., 2026-10-02): edit.json layers 로 (출력 시각). shortsmith scene 이 scene.layers 로 싣고 render 가 합성 · 섞는다
+if "userLayers" in R:
+    LY = [dict(L) for L in (R.get("userLayers") or []) if L.get("path") and L.get("e", 0) - L.get("s", 0) > 0.01]
+    for L in LY:
+        L["src"] = L.pop("path").replace(chr(92), "/")      # 나머지 칸 (이름 · 길이 · 묶음) 은 그대로 - 내보내기가 되돌려 싣는다
+    E2 = json.load(io.open("edit.json", encoding="utf-8"))
+    if (E2.get("layers") or []) != LY:
+        if LY:
+            E2["layers"] = LY
+        else:
+            E2.pop("layers", None)
+        io.open("edit.json", "w", encoding="utf-8").write(json.dumps(E2, ensure_ascii=False, indent=1) + chr(10))
+        print("덧 트랙 %d 클립 -> edit.json layers" % len(LY))
 json.dump({"sig": user_sig(R)}, io.open("applied_review.json", "w", encoding="utf-8"))

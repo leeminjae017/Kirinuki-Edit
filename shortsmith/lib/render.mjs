@@ -71,7 +71,42 @@ function chunkKey(i, a, b, bundleKey) {
     files: (scene.overlays || []).filter((o) => o.src && hit(o.s, o.e)).map((o) => {   // swapping an image file re-renders too
       const st = fs.statSync(path.isAbsolute(o.src) ? o.src : path.join(dir, o.src)); return [o.src, st.size, st.mtimeMs | 0];
     }),
+    layers: visLayers(a, b).map((L) => {
+      const st = fs.statSync(layerPath(L)); return [L, st.size, st.mtimeMs | 0];
+    }),
   }));
+}
+
+/* ---------------------------------------------------------------- hand-laid extra tracks (dashboard user edit tab, 2026-10-02)
+   Video / image clips on V2.. are composited here (window -> layers -> React overlay, so captions stay on top); audio clips on
+   A2.. are mixed in finish(). Volume dB, fades and colour are what the user set on the clip - nothing else is applied. */
+const layerPath = (L) => (path.isAbsolute(L.src) ? L.src : path.join(dir, L.src));
+const layerLen = (L) => L.e - L.s;
+function visLayers(a, b) {
+  return (scene.layers || []).filter((L) => L.kind !== 'audio' && L.at < b && L.at + layerLen(L) > a).sort((x, y) => x.track - y.track);
+}
+function layerGraph(a, b, firstInput, base) {
+  const fps = scene.fps, ins = [], g = [];
+  let cur = base;
+  visLayers(a, b).forEach((L, j) => {
+    const k = firstInput + j, start = Math.max(a, L.at), end = Math.min(b, L.at + layerLen(L)), dur = end - start;
+    const off = L.s + (start - L.at);
+    if (L.kind === 'image') ins.push('-loop', '1', '-framerate', String(fps), '-t', (dur + 0.1).toFixed(3), '-i', layerPath(L));
+    else ins.push('-ss', off.toFixed(4), '-t', (dur + 0.1).toFixed(3), '-i', layerPath(L));
+    const B = L.box || scene.window, ev = (v) => Math.max(2, Math.round(v / 2) * 2);
+    const c = L.color || {}, op = L.opacity ?? 1, br = c.brightness ?? 1;
+    const f = [`fps=${fps}`, `scale=${ev(B.w)}:${ev(B.h)}`];
+    if ((c.contrast ?? 1) !== 1 || (c.saturation ?? 1) !== 1) f.push(`eq=contrast=${(c.contrast ?? 1).toFixed(3)}:saturation=${(c.saturation ?? 1).toFixed(3)}`);
+    f.push('format=rgba');
+    if (br !== 1 || op !== 1) f.push(`colorchannelmixer=rr=${br.toFixed(3)}:gg=${br.toFixed(3)}:bb=${br.toFixed(3)}:aa=${op.toFixed(3)}`);
+    f.push(`setpts=PTS-STARTPTS+${start.toFixed(4)}/TB`);
+    if (L.fin) f.push(`fade=t=in:st=${L.at.toFixed(4)}:d=${L.fin.toFixed(3)}:alpha=1`);
+    if (L.fout) f.push(`fade=t=out:st=${(L.at + layerLen(L) - L.fout).toFixed(4)}:d=${L.fout.toFixed(3)}:alpha=1`);
+    g.push(`[${k}:v]${f.join(',')}[ly${j}]`,
+      `[${cur}][ly${j}]overlay=${Math.round(B.x)}:${Math.round(B.y)}:eof_action=pass:enable='between(t,${start.toFixed(4)},${end.toFixed(4)})'[lb${j}]`);
+    cur = `lb${j}`;
+  });
+  return { ins, g, out: cur };
 }
 
 function measure(file, limit = null) {
@@ -165,15 +200,16 @@ function chunkFfmpegPipe(a, frames, pngs, out) {
   const W = scene.window, fps = scene.fps;
   const { g, out: wout } = fxGraph(a, a + frames / fps);
   const shift = `setpts=PTS-STARTPTS+${a.toFixed(4)}/TB`;
+  const LG = layerGraph(a, a + frames / fps, 3, 'b');
   const graph = [
     `[0:v]${shift}[bg]`, `[1:v]fps=${fps},${shift}[w]`, ...g, `[2:v]${shift}[ov]`,
-    `[bg][${wout}]overlay=${W.x}:${W.y}[b]`, `[b][ov]overlay=0:0,setpts=PTS-STARTPTS,format=nv12[v]`,
+    `[bg][${wout}]overlay=${W.x}:${W.y}[b]`, ...LG.g, `[${LG.out}][ov]overlay=0:0,setpts=PTS-STARTPTS,format=nv12[v]`,
   ].join(';');
   return new Promise((ok, no) => {
     const p = spawn('ffmpeg', ['-y', '-v', 'error',
       '-ss', a.toFixed(4), '-i', path.join(dir, scene.body.bg || 'bg.mp4'),
       '-ss', a.toFixed(4), '-i', path.join(dir, scene.body.window),
-      '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'png', '-i', '-',
+      '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'png', '-i', '-', ...LG.ins,
       '-filter_complex', graph, '-map', '[v]', '-frames:v', String(frames), ...VENC, '-an', out + '.tmp.mkv'],
     { stdio: ['pipe', 'inherit', 'inherit'] });
     p.on('close', (code) => (code ? no(new Error('ffmpeg ' + code)) : (fs.renameSync(out + '.tmp.mkv', out), ok())));
@@ -207,7 +243,7 @@ export async function renderScene(scenePath, outPath) {
   // only re-encode window.mkv. Copy its picture instead - measured 허니하트 23s: render 28s -> a few s, and no second
   // generation of encoding loss. Checked on the real overlay: one image for every frame, fully transparent.
   const W = scene.window;
-  if (W.x === 0 && W.y === 0 && W.w === scene.width && W.h === scene.height && !fxGraph(0, scene.duration).g.length) {
+  if (W.x === 0 && W.y === 0 && W.w === scene.width && W.h === scene.height && !fxGraph(0, scene.duration).g.length && !visLayers(0, scene.duration).length) {
     const sig0 = JSON.stringify(overlaySig(0));
     let same = true;
     for (let f = 1; f < total && same; f++) same = JSON.stringify(overlaySig(f)) === sig0;
@@ -282,9 +318,24 @@ async function finish(lines, cache, outPath, ovDir, TARGET_I, TARGET_TP) {
   const list = path.join(cache, 'chunks.txt');
   fs.writeFileSync(list, lines.join('\n'));
   fs.mkdirSync(path.dirname(path.resolve(outPath)), { recursive: true });
-  const r = spawnSync('ffmpeg', ['-y', '-v', 'error', '-f', 'concat', '-safe', '0', '-i', list, '-i', path.join(dir, scene.body.window),
-    '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-af', `volume=${gain.toFixed(2)}dB` + (mainDur ? `:enable='lt(t,${mainDur})'` : ''), '-c:a', 'aac', '-b:a', '192k',
+  const wa = `volume=${gain.toFixed(2)}dB` + (mainDur ? `:enable='lt(t,${mainDur})'` : '');
+  // extra audio tracks (A2..): each at its own dB with its fades, delayed to its place, summed with the window (no normalising)
+  const aud = (scene.layers || []).filter((L) => L.kind === 'audio' && !L.mute && L.at < scene.duration && layerLen(L) > 0.01);
+  const ain = [], fc = [`[1:a]aresample=48000,aformat=channel_layouts=stereo,${wa}[m]`];
+  aud.forEach((L, j) => {
+    const len = layerLen(L), f = ['aresample=48000', 'aformat=channel_layouts=stereo'];
+    if (L.vol) f.push(`volume=${L.vol.toFixed(2)}dB`);
+    if (L.fin) f.push(`afade=t=in:st=0:d=${L.fin.toFixed(3)}`);
+    if (L.fout) f.push(`afade=t=out:st=${Math.max(0, len - L.fout).toFixed(3)}:d=${L.fout.toFixed(3)}`);
+    f.push(`adelay=${Math.round(L.at * 1000)}:all=1`);
+    ain.push('-ss', L.s.toFixed(4), '-t', len.toFixed(4), '-i', layerPath(L));
+    fc.push(`[${2 + j}:a]${f.join(',')}[x${j}]`);
+  });
+  if (aud.length) fc.push(`[m]${aud.map((_, j) => `[x${j}]`).join('')}amix=inputs=${aud.length + 1}:normalize=0:duration=first[aout]`);
+  const r = spawnSync('ffmpeg', ['-y', '-v', 'error', '-f', 'concat', '-safe', '0', '-i', list, '-i', path.join(dir, scene.body.window), ...ain,
+    '-map', '0:v', ...(aud.length ? ['-filter_complex', fc.join(';'), '-map', '[aout]'] : ['-map', '1:a', '-af', wa]), '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k',
     '-t', scene.duration.toFixed(3), '-movflags', '+faststart', path.resolve(outPath)], { stdio: 'inherit' });
+  if (aud.length) log(`mixed ${aud.length} extra audio clip(s)`);
   if (r.status) process.exit(1);
   log(`audio ${I.toFixed(1)} LUFS / peak ${TP.toFixed(1)} dB -> gain ${gain >= 0 ? '+' : ''}${gain.toFixed(1)} dB`);
   log('done:', outPath);

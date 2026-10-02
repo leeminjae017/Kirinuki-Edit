@@ -477,19 +477,21 @@
       <button class="ue-btn" id="ueFit" title="전체 보기 (Shift+Z)"><svg class="i"><use href="#i-fit"/></svg></button>
     </div>
     <section class="ue-timeline">
+      <!-- 가운데 선 위가 비디오 (자막 포함, V1 부터 위로 V2 · V3 ...), 아래가 오디오 (A1 부터 아래로 A2 · A3 ...) - 둘 다 따로 세로 넘김 (2026-10-02 사용자) -->
       <div class="ue-heads">
         <div class="ue-hd ue-hd-r"></div>
-        <div class="ue-hd ue-hd-s"><b>ST1</b><small>자막</small></div>
-        <div class="ue-hd ue-hd-v"><b>V1</b><small>비디오</small></div>
-        <div class="ue-hd ue-hd-a"><b>A1</b><small>오디오</small></div>
+        <div class="ue-varea"><div class="ue-vin" id="ueHVin"></div></div>
+        <div class="ue-mid"></div>
+        <div class="ue-aarea"><div class="ue-ain" id="ueHAin"></div></div>
       </div>
       <div class="ue-scroll" id="ueScroll">
         <div class="ue-content" id="ueContent">
           <div class="ue-ruler" id="ueRuler"></div>
-          <div class="ue-lane ue-lane-s" id="ueLaneS"></div>
-          <div class="ue-lane ue-lane-v" id="ueLaneV"></div>
-          <div class="ue-lane ue-lane-a" id="ueLaneA"></div>
+          <div class="ue-varea" id="ueVA"><div class="ue-vin" id="ueVin"></div></div>
+          <div class="ue-mid"></div>
+          <div class="ue-aarea" id="ueAA"><div class="ue-ain" id="ueAin"></div></div>
           <div class="ue-snapline" id="ueSnap" hidden></div>
+          <div class="ue-drop" id="ueDrop" hidden></div>
           <div class="ue-ph" id="uePh"><i></i></div>
         </div>
       </div>

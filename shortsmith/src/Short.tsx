@@ -5,6 +5,7 @@ import { useFonts } from './fonts';
 import { Background, WindowView } from './parts/Window';
 import { CaptionView, TitleView } from './parts/Caption';
 import { BubbleView, ChatView, ImageView, InsertView } from './parts/Overlays';
+import { LayersView } from './parts/Layers';
 
 /* One short. Layers bottom to top: background > window > images > chat cards > captions > title.
    Everything is a pure function of the frame number, so any frame range renders identically on its own.
@@ -22,6 +23,7 @@ export const Short: React.FC<ShortProps> = ({ scene, env, layers, frameMap }) =>
     <AbsoluteFill style={{ background: body ? '#000' : 'transparent', overflow: 'hidden' }}>
       {body && <Background scene={scene} env={env} />}
       {body && <WindowView scene={scene} env={env} t={t} />}
+      {body && (scene.layers || []).length > 0 && <LayersView scene={scene} env={env} fps={fps} />}
       {fonts && (scene.overlays || []).filter((o) => o.type === 'image' && on(t, o.s, o.e)).map((o, i) =>
         <ImageView key={'i' + i} o={o as any} scene={scene} env={env} t={t} />)}
       {fonts && (scene.overlays || []).filter((o) => o.type === 'chat' && on(t, o.s, o.e)).map((o, i) =>
