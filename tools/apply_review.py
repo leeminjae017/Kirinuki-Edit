@@ -20,7 +20,8 @@ R = (json.load(io.open(pj, encoding="utf-8")).get("review") or {})
 os.chdir(work)
 E = json.load(io.open("edit.json", encoding="utf-8"))
 caps = R.get("captions") or []
-if not caps:
+# 자막이 없는 편 (댄스 등) 도 사용자 편집 탭의 컷은 굽는다 - 자막 파일은 그때 안 건드린다
+if not caps and not (R.get("userClips") or []):
     sys.exit("피드백 탭에 자막이 없습니다")
 clock, speed = E.get("captionClock", "output"), float(E.get("speed") or 1)
 if clock == "source":
@@ -50,15 +51,23 @@ K = R.get("clips") or []
 PIECES = json.load(io.open("cuts.json", encoding="utf-8"))["pieces"] if os.path.exists("cuts.json") else []
 MAIN = [pc for pc in PIECES if not pc.get("gap")]          # 빈 틈 조각(리플 끔)은 대시보드 조각이 아니다
 CUT = bool((RS or DS) and K and len(MAIN) == len(K))
+# 사용자 편집 탭 (2026-10-02): 사용자가 직접 자르고 늘이고 옮긴 클립 목록 [{s, e, at}] (원본 시각 · 편집 시각). 있으면 그것이 정본 -
+# 낱말 되살리기 · 빼기는 그 탭이 처음 열릴 때 이미 들어가 있다. 자막 · 연출 시각은 원본 시각을 거쳐 옮긴다 (리플 켬과 같은 길)
+UC = [c for c in (R.get("userClips") or []) if c.get("e", 0) - c.get("s", 0) > 0.01]
+if UC and K:
+    CUT, RS, DS = True, [], []
 if (RS or DS) and not CUT:
     print("알림: 되살리기/빼기가 있지만 조각 목록이 cuts.json 과 안 맞아 컷은 반영하지 않습니다 - '편집'(AI)으로 넘기세요")
 RPAD0, RPAD1 = 0.10, 0.15                      # 되살린 말 앞뒤 여유 - feedback.js 와 같아야 한다
 # 리플 (2026-09-30, feedback.js ripple()): 켜면 뺀 자리를 당기고 되살린 만큼 뒤를 민다. 끄면 뒤 시각이 그대로 -
 # 뺀 자리는 빈 틈(edit.json keep 의 { gap }, 검은 창 · 무음), 되살린 말은 옆 내용을 덮어쓴다
-RIP = R.get("ripple") is not False
+RIP = R.get("ripple") is not False or bool(UC)
 # 남길 구간 [원본 시작, 원본 끝, 편집 시각] (feedback.js plan() 과 같은 계산)
 P = [[c["s"], c["e"], c["os"]] for c in K]
-if CUT:
+if UC and K:
+    P = sorted([[c["s"], c["e"], c["at"]] for c in UC], key=lambda r: r[2])
+    print("사용자 편집 클립 %d 개를 남길 구간으로" % len(P))
+elif CUT:
     S = [[c["s"], c["e"], c["os"], False] for c in K]
     for d in DS:
         Q = []
@@ -188,9 +197,9 @@ def hms(t):
 
 
 out = E.get("captions", "captions.csv")
-if os.path.exists(out):
+if caps and os.path.exists(out):
     shutil.copyfile(out, out + ".bak")
-with io.open(out, "w", encoding="utf-8-sig", newline="") as f:
+with io.open(out if caps else os.devnull, "w", encoding="utf-8-sig", newline="") as f:
     w = csv.writer(f)
     # kind 칸(자막 디자인 이름)도 같이 쓴다 - 안 쓰면 렌더 단추 한 번에 모든 줄이 기본 자막이 된다
     w.writerow(["start", "end", "speaker", "kind", "text"])

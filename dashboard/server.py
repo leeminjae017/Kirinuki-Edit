@@ -1046,10 +1046,11 @@ class Handler(SimpleHTTPRequestHandler):
             merged = dict(oldr)
             # ripple (리플 켬/끔) · restoreCaps (되살린 자리 자막) 도 사용자 것이다 (2026-09-30: 안 받아서 새로 열면 사라지고
             # 렌더 단추가 못 봤다)
-            for k in ("prompt", "notes", "drop", "restore", "ripple", "restoreCaps"):
+            # userClips: 사용자 편집 탭 (2026-10-02) 의 클립 목록 [{s, e, at}] - 없으면 지운다 (초기화)
+            for k in ("prompt", "notes", "drop", "restore", "ripple", "restoreCaps", "userClips"):
                 if k in newr:
                     merged[k] = newr[k]
-                elif k == "ripple":
+                elif k in ("ripple", "userClips"):
                     merged.pop(k, None)
             # 낱말의 빼기 · 되살리기 표. 지금까지 drop · restore 구간 요약만 받고 낱말 표는 버려서, 렌더 단추(apply_review.py,
             # 낱말 표를 읽는다)가 브라우저에서 뺀 말을 못 봤다 (2026-09-30 확인). 같은 낱말(글 + 시작 0.05초 안)에 옮겨 단다

@@ -9,12 +9,22 @@
 <link rel="stylesheet" href="css/editor.css">
 <link rel="stylesheet" href="css/feedback.css">
 <link rel="stylesheet" href="css/projects.css">
+<link rel="stylesheet" href="css/useredit.css">
 </head>
 <body>
 
 <!-- ===== 아이콘 스프라이트 ===== -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
+    <symbol id="i-pointer" viewBox="0 0 24 24"><path d="M5 3l14 8-6.2 1.6L16 20l-2.6 1.2-3.2-7.4L5 18z"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 7H4V2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.5 7.5A8 8 0 1 1 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-redo" viewBox="0 0 24 24"><path d="M15 7h5V2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M19.5 7.5A8 8 0 1 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-ripple" viewBox="0 0 24 24"><rect x="2" y="7" width="6" height="10" rx="1"/><rect x="10" y="7" width="5" height="10" rx="1" opacity=".55"/><path d="M17 12h5M19.5 9.5L22 12l-2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-tostart" viewBox="0 0 24 24"><rect x="4" y="5" width="2.4" height="14"/><path d="M20 5v14L8 12z"/></symbol>
+    <symbol id="i-toend" viewBox="0 0 24 24"><rect x="17.6" y="5" width="2.4" height="14"/><path d="M4 5v14l12-7z"/></symbol>
+    <symbol id="i-prevedit" viewBox="0 0 24 24"><path d="M12 5v14L3 12zM21 5v14l-9-7z"/></symbol>
+    <symbol id="i-nextedit" viewBox="0 0 24 24"><path d="M12 5v14l9-7zM3 5v14l9-7z"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="5" rx="1"/><rect x="2" y="11" width="12" height="4" rx="1"/><rect x="15" y="11" width="7" height="4" rx="1"/><rect x="2" y="17" width="20" height="3" rx="1" opacity=".55"/><path d="M9 2v20" stroke="currentColor" stroke-width="1.6"/></symbol>
     <symbol id="i-ai" viewBox="0 0 24 24"><path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3z"/><path d="M18.5 14.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2z"/><path d="M5 14l.6 1.7 1.7.6-1.7.7L5 18.6 4.4 17l-1.7-.7 1.7-.6L5 14z"/></symbol>
     <symbol id="i-user" viewBox="0 0 24 24"><path d="M3 5h18M3 12h18M3 19h18" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/><circle cx="8" cy="5" r="2.4"/><circle cx="15" cy="12" r="2.4"/><circle cx="10" cy="19" r="2.4"/></symbol>
     <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6z"/></symbol>
@@ -83,6 +93,9 @@
     </button>
     <button class="mtab" data-view="user" role="tab">
       <svg class="i"><use href="#i-note"/></svg><span>피드백</span>
+    </button>
+    <button class="mtab" data-view="edit" role="tab">
+      <svg class="i"><use href="#i-edit"/></svg><span>사용자 편집</span>
     </button>
   </nav>
 
@@ -424,6 +437,62 @@
 <div class="toast-wrap" id="toastWrap"></div>
 
 <!-- ===================== 프로젝트 매니저 ===================== -->
+<main class="view" id="view-edit">
+  <div class="ue-grid">
+    <section class="ue-pane ue-pool">
+      <div class="ue-head"><svg class="i"><use href="#i-video"/></svg><span>미디어 · 클립</span></div>
+      <div class="ue-src"><svg class="i"><use href="#i-file"/></svg><span id="ueSrcName">-</span></div>
+      <div class="ue-list" id="ueList"></div>
+    </section>
+    <section class="ue-pane ue-vpane">
+      <div class="ue-head ue-vhead"><span>타임라인</span><span class="ue-tc" id="ueTc">00:00:00:00</span></div>
+      <div class="ue-viewer" id="ueViewer"><div class="ue-msg" id="ueEmpty">프로젝트를 열면 여기에</div></div>
+      <div class="ue-transport">
+        <button class="ue-btn" id="ueStart" title="처음으로 (Home)"><svg class="i"><use href="#i-tostart"/></svg></button><button class="ue-btn" id="uePrev" title="앞 편집 점 (위 화살표)"><svg class="i"><use href="#i-prevedit"/></svg></button>
+        <button class="ue-btn ue-play" id="uePlay" title="재생 / 멈춤 (Space)"><svg class="i"><use href="#i-play"/></svg></button>
+        <button class="ue-btn" id="ueNext" title="다음 편집 점 (아래 화살표)"><svg class="i"><use href="#i-nextedit"/></svg></button><button class="ue-btn" id="ueEnd" title="끝으로 (End)"><svg class="i"><use href="#i-toend"/></svg></button>
+        <span class="ue-dur" id="ueDur">00:00:00:00</span>
+      </div>
+    </section>
+    <section class="ue-pane ue-inspector">
+      <div class="ue-head"><svg class="i"><use href="#i-layers"/></svg><span>인스펙터</span></div>
+      <div class="ue-ins" id="ueIns"></div>
+    </section>
+    <div class="ue-toolbar">
+      <button class="ue-btn" data-tool="select" title="선택 (A)"><svg class="i"><use href="#i-pointer"/></svg></button><button class="ue-btn" data-tool="blade" title="자르기 칼 (B)"><svg class="i"><use href="#i-cut"/></svg></button>
+      <i class="ue-sep"></i>
+      <button class="ue-btn" id="ueSplit" title="재생 위치에서 자르기 (Ctrl+B)"><svg class="i"><use href="#i-cut"/></svg></button><button class="ue-btn" id="ueDel" title="지우기 (Delete)"><svg class="i"><use href="#i-trash"/></svg></button>
+      <i class="ue-sep"></i>
+      <button class="ue-btn" id="ueSnapBtn" title="붙기 (N)"><svg class="i"><use href="#i-magnet"/></svg></button><button class="ue-btn" id="ueRipBtn" title="리플 - 지우고 줄이면 뒤가 당겨진다"><svg class="i"><use href="#i-ripple"/></svg></button>
+      <i class="ue-sep"></i>
+      <button class="ue-btn" id="ueUndo" title="되돌리기 (Ctrl+Z)"><svg class="i"><use href="#i-undo"/></svg></button><button class="ue-btn" id="ueRedo" title="다시 (Ctrl+Shift+Z)"><svg class="i"><use href="#i-redo"/></svg></button>
+      <span class="ue-fill"></span>
+      <button class="ue-btn" id="ueReset" title="AI 컷으로 되돌리기"><svg class="i"><use href="#i-sync"/></svg></button>
+      <input type="range" class="ue-zoom" id="ueZoom" min="1.4" max="7" step="0.01" value="4.38" title="확대 (Ctrl+바퀴)">
+      <button class="ue-btn" id="ueFit" title="전체 보기 (Shift+Z)"><svg class="i"><use href="#i-fit"/></svg></button>
+      <button class="ue-btn ue-render" id="ueRender" title="렌더 (AI 없음): 이 타임라인 그대로 굽습니다"><svg class="i"><use href="#i-render"/></svg><span>렌더</span></button>
+    </div>
+    <section class="ue-timeline">
+      <div class="ue-heads">
+        <div class="ue-hd ue-hd-r"></div>
+        <div class="ue-hd ue-hd-s"><b>ST1</b><small>자막</small></div>
+        <div class="ue-hd ue-hd-v"><b>V1</b><small>비디오</small></div>
+        <div class="ue-hd ue-hd-a"><b>A1</b><small>오디오</small></div>
+      </div>
+      <div class="ue-scroll" id="ueScroll">
+        <div class="ue-content" id="ueContent">
+          <div class="ue-ruler" id="ueRuler"></div>
+          <div class="ue-lane ue-lane-s" id="ueLaneS"></div>
+          <div class="ue-lane ue-lane-v" id="ueLaneV"></div>
+          <div class="ue-lane ue-lane-a" id="ueLaneA"></div>
+          <div class="ue-snapline" id="ueSnap" hidden></div>
+          <div class="ue-ph" id="uePh"><i></i></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
 <main class="view" id="view-projects">
   <div class="pm">
     <div class="pm-head">
@@ -449,6 +518,7 @@
 <script src="js/ai.js"></script>
 <script src="js/vendor/shortsmith-preview.js"></script>
 <script src="js/feedback.js"></script>
+<script src="js/useredit.js"></script>
 <script src="js/projects.js"></script>
 <script src="js/app.js"></script>
 </body>
