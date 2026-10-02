@@ -25,7 +25,7 @@ import { animLen } from './animlen.mjs';
 
 const HERE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CHUNK_SEC = 2;
-const VERSION = 6;                         // bump when the graph or capture changes, or stale chunks come back from cache
+const VERSION = 7;                         // bump when the graph or capture changes, or stale chunks come back from cache
 
 let scene, dir, body, VENC;
 const t0 = Date.now();
@@ -83,29 +83,37 @@ function chunkKey(i, a, b, bundleKey) {
    A2.. are mixed in finish(). Volume dB, fades and colour are what the user set on the clip - nothing else is applied. */
 const layerPath = (L) => (path.isAbsolute(L.src) ? L.src : path.join(dir, L.src));
 const layerLen = (L) => L.e - L.s;
-/* transitions between extra clips on one track (2026-10-03): a picture clip with tin {type: 'dissolve', d} whose track neighbour
-   ends where it starts crosses over it - both run h = d/2 past the cut (cut short to what their files hold beyond the clip; a
-   still image always has it) and the later one fades in over 2h on top. Lengths elsewhere do not move.
-   Same as withTrans in src/parts/Layers.tsx - change both together. */
+/* transitions between extra clips on one track (2026-10-03): a picture clip with tin {type, d} whose track neighbour ends where
+   it starts. dissolve / wipe / slide cross over: both run h = d/2 past the cut (cut short to what their files hold beyond the
+   clip; a still image always has it) and the later one comes in over 2h on top (slide also pushes the earlier one out).
+   black / white dip through that colour: the earlier one goes to it over the last h before the cut, the later one comes out
+   of it over the first h - nothing runs past the cut. Lengths elsewhere do not move. Gives xin / xout {type, d} (d = how long
+   the clip's own part of the transition lasts). Same as withTrans in src/parts/Layers.tsx - change both together. */
+const DIP = { black: 'black', white: 'white' };
 function withTrans(list) {
   const vis = list.filter((L) => L.kind !== 'audio'), out = new Map(list.map((L) => [L, { ...L }]));
   vis.forEach((B) => {
     if (!B.tin || !(B.tin.d > 0)) return;
     const A = vis.find((A) => A !== B && A.track === B.track && Math.abs(A.at + (A.e - A.s) - B.at) < 0.02);
     if (!A) return;
+    const a = out.get(A), b = out.get(B), ty = B.tin.type || 'dissolve';
+    if (DIP[ty]) {
+      const h = Math.min(B.tin.d / 2, (A.e - A.s) / 2, (B.e - B.s) / 2);
+      if (h >= 0.01) { a.xout = { type: ty, d: h }; b.xin = { type: ty, d: h }; }
+      return;
+    }
     const hA = A.kind === 'image' ? Infinity : A.dur ? A.dur - A.e : 0, hB = B.kind === 'image' ? Infinity : B.s;
     const h = Math.min(B.tin.d / 2, hA, hB, (A.e - A.s) / 2, (B.e - B.s) / 2);
     if (!(h >= 0.01)) return;
-    const a = out.get(A), b = out.get(B);
-    a.e += h;
-    b.at -= h; b.s -= h; b.xin = 2 * h;
+    a.e += h; a.xout = { type: ty, d: 2 * h };
+    b.at -= h; b.s -= h; b.xin = { type: ty, d: 2 * h };
     if (b.keys) b.keys = b.keys.map((k) => ({ ...k, t: k.t + h }));
   });
   return list.map((L) => out.get(L));
 }
 let EFF = null, EFF_OF;
 function visLayers(a, b) {
-  if (EFF_OF !== scene.layers) { EFF_OF = scene.layers; EFF = withTrans(scene.layers || []); }
+  if (!EFF || EFF_OF !== scene.layers) { EFF_OF = scene.layers; EFF = withTrans(scene.layers || []); }   // !EFF: an episode with no layers (undefined === undefined) crashed every render (#23)
   return EFF.filter((L) => L.kind !== 'audio' && L.at < b && L.at + layerLen(L) > a).sort((x, y) => x.track - y.track || x.at - y.at);
 }
 /* transitions between window pieces (lib/body.mjs patches, window size): laid over the window stream before the zoom / shake
@@ -127,8 +135,15 @@ function layerGraph(a, b, firstInput, base) {
   const fps = scene.fps, ins = [], g = [];
   let cur = base;
   visLayers(a, b).forEach((L, j) => {
-    const k = firstInput + j, start = Math.max(a, L.at), end = Math.min(b, L.at + layerLen(L)), dur = end - start;
-    const off = L.s + (start - L.at);
+    const k = firstInput + j, start = Math.max(a, L.at), end = Math.min(b, L.at + layerLen(L)), Lend = L.at + layerLen(L);
+    // wipe / slide are ffmpeg xfade against a transparent clip, which needs the clip from the transition's first frame:
+    // a chunk that starts inside one reads from there (rb) and trims after
+    const xi = L.xin && (L.xin.type === 'wipe' || L.xin.type === 'slide') && start < L.at + L.xin.d ? L.xin : null;
+    const xo = L.xout && L.xout.type === 'slide' && end > Lend - L.xout.d ? L.xout : null;
+    let rb = start;
+    if (xi) rb = L.at;
+    if (xo) rb = Math.max(L.at, Math.min(rb, Lend - L.xout.d));
+    const dur = (xo ? Math.max(end, Lend) : end) - rb, off = L.s + (rb - L.at);   // a slide out reads to the clip's end (xfade needs it all)
     if (L.kind === 'image') ins.push('-loop', '1', '-framerate', String(fps), '-t', (dur + 0.1).toFixed(3), '-i', layerPath(L));
     else ins.push('-ss', off.toFixed(4), '-t', (dur + 0.1).toFixed(3), '-i', layerPath(L));
     const K = (L.keys || []).length ? L.keys : null, moving = K && K.length > 1;
@@ -141,10 +156,34 @@ function layerGraph(a, b, firstInput, base) {
     if ((c.contrast ?? 1) !== 1 || (c.saturation ?? 1) !== 1) f.push(`eq=contrast=${(c.contrast ?? 1).toFixed(3)}:saturation=${(c.saturation ?? 1).toFixed(3)}`);
     f.push('format=rgba');
     if (br !== 1 || op !== 1) f.push(`colorchannelmixer=rr=${br.toFixed(3)}:gg=${br.toFixed(3)}:bb=${br.toFixed(3)}:aa=${op.toFixed(3)}`);
+    let pre = '';                                  // [k:v] -> xfade chain (wipe / slide) -> the rest of f
+    if (xi || xo) {
+      const z = (d, n) => `color=c=black@0:s=${MW}x${MH}:r=${fps}:d=${d.toFixed(4)},format=yuva444p,settb=1/${fps}[z${n}${j}]`;
+      const head = `[${k}:v]${f.join(',')},format=yuva444p,setpts=PTS-STARTPTS,settb=1/${fps}[s0${j}]`;
+      const ch = [head];
+      let last = `s0${j}`;
+      if (xi) {
+        ch.push(z(xi.d, 'i'), `[zi${j}][${last}]xfade=transition=${xi.type === 'wipe' ? 'wipeleft' : 'slideleft'}:duration=${xi.d.toFixed(4)}:offset=0[s1${j}]`);
+        last = `s1${j}`;
+      }
+      if (xo) {
+        ch.push(z(xo.d, 'o'), `[${last}][zo${j}]xfade=transition=slideleft:duration=${xo.d.toFixed(4)}:offset=${(Lend - xo.d - rb).toFixed(4)}[s2${j}]`);
+        last = `s2${j}`;
+      }
+      g.push(...ch);
+      pre = `[${last}]trim=start=${(start - rb).toFixed(4)},`;
+      f.length = 0;
+    }
     f.push(`setpts=PTS-STARTPTS+${start.toFixed(4)}/TB`);
-    if (L.xin) f.push(`fade=t=in:st=${L.at.toFixed(4)}:d=${L.xin.toFixed(4)}:alpha=1`);   // dissolve from the clip before on this track
-    if (L.fin) f.push(`fade=t=in:st=${(L.at + (L.xin || 0) / 2).toFixed(4)}:d=${L.fin.toFixed(3)}:alpha=1`);
-    if (L.fout) f.push(`fade=t=out:st=${(L.at + layerLen(L) - L.fout).toFixed(4)}:d=${L.fout.toFixed(3)}:alpha=1`);
+    if (L.xin && L.xin.type === 'dissolve') f.push(`fade=t=in:st=${L.at.toFixed(4)}:d=${L.xin.d.toFixed(4)}:alpha=1`);
+    // fade color= on packed rgba fades the alpha too (the clip went see-through instead of black, measured 2026-10-03) - yuva is right
+    if ((L.xin && DIP[L.xin.type]) || (L.xout && DIP[L.xout.type])) f.push('format=yuva444p');
+    if (L.xin && DIP[L.xin.type]) f.push(`fade=t=in:st=${L.at.toFixed(4)}:d=${L.xin.d.toFixed(4)}:color=${DIP[L.xin.type]}`);   // out of black / white
+    if (L.xout && DIP[L.xout.type]) f.push(`fade=t=out:st=${(Lend - L.xout.d).toFixed(4)}:d=${L.xout.d.toFixed(4)}:color=${DIP[L.xout.type]}`);
+    const x0 = L.xin && !DIP[L.xin.type] ? L.xin.d / 2 : 0;    // a crossing transition starts the clip early - its own fade-in starts at the cut
+    if (L.fin) f.push(`fade=t=in:st=${(L.at + x0).toFixed(4)}:d=${L.fin.toFixed(3)}:alpha=1`);
+    const x1 = L.xout && !DIP[L.xout.type] ? L.xout.d / 2 : 0;
+    if (L.fout) f.push(`fade=t=out:st=${(Lend - x1 - L.fout).toFixed(4)}:d=${L.fout.toFixed(3)}:alpha=1`);
     let ox = Math.round(B.x), oy = Math.round(B.y);
     if (moving) {
       // perspective counts its own input frames (in) from this chunk's first frame of the clip
@@ -166,7 +205,7 @@ function layerGraph(a, b, firstInput, base) {
         `perspective=x0='${x0}':y0='${y0}':x1='${x1}':y1='${y0}':x2='${x0}':y2='${y1}':x3='${x1}':y3='${y1}':sense=destination:eval=frame`);
       ox = 0; oy = 0;
     }
-    g.push(`[${k}:v]${f.join(',')}[ly${j}]`,
+    g.push(`${pre || `[${k}:v]`}${f.join(',')}[ly${j}]`,
       `[${cur}][ly${j}]overlay=${ox}:${oy}:eof_action=pass:enable='between(t,${start.toFixed(4)},${end.toFixed(4)})'[lb${j}]`);
     cur = `lb${j}`;
   });

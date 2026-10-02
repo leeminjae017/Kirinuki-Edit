@@ -233,7 +233,7 @@
       if (!x.tin || !x.tin.d || !prevOnTrack(x)) return;
       var ln = laneEl(areaOf(x), x.track);
       if (!ln) return;
-      var tr = D.el('div', { class: 'ue-trans', title: '디졸브 ' + x.tin.d + '초' });
+      var tr = D.el('div', { class: 'ue-trans', title: (TRANS.filter(function (kv) { return kv[0] === x.tin.type; })[0] || ['', '디졸브'])[1] + ' ' + x.tin.d + '초' });
       tr.style.left = X(x.at - x.tin.d / 2) + 'px'; tr.style.width = Math.max(6, X(x.tin.d)) + 'px';
       tr.dataset.xid = x.id;
       ln.appendChild(tr);
@@ -641,7 +641,7 @@
     var row = D.el('label', { class: 'ue-field' });
     row.appendChild(D.el('span', { text: '종류' }));
     var sel = D.el('select');
-    [['', '없음 (컷)'], ['dissolve', '디졸브']].forEach(function (kv) { sel.appendChild(D.el('option', { value: kv[0], text: kv[1] })); });
+    TRANS.forEach(function (kv) { sel.appendChild(D.el('option', { value: kv[0], text: kv[1] })); });   // 원본 클립 전환과 같은 종류
     sel.value = (x.tin && x.tin.type) || '';
     sel.addEventListener('change', function () {
       remember();
@@ -651,7 +651,8 @@
     row.appendChild(sel); ins.appendChild(row);
     if (!x.tin) return;
     numRow(ins, '길이', x.tin.d, '초', function (v) { x.tin = { type: x.tin.type, d: Math.max(0.1, Math.min(3, v)) }; }, 0.1);
-    var hA = A.kind === 'image' ? Infinity : A.dur ? A.dur - A.e : 0, hB = x.kind === 'image' ? Infinity : x.s;
+    var dip = x.tin.type === 'black' || x.tin.type === 'white';     // 검은 · 흰 화면 거쳐는 컷 너머를 안 쓴다
+    var hA = dip || A.kind === 'image' ? Infinity : A.dur ? A.dur - A.e : 0, hB = dip || x.kind === 'image' ? Infinity : x.s;
     var h = Math.min(x.tin.d / 2, hA, hB, xlen(A) / 2, xlen(x) / 2);
     if (h < x.tin.d / 2 - 1e-3) ins.appendChild(D.el('div', { class: 'ue-ins-note',
       text: h >= 0.01 ? '파일에 남은 부분이 모자라 ' + (2 * h).toFixed(2) + '초로 걸립니다' : '앞 클립 뒤나 이 클립 앞에 파일이 남아 있지 않아 전환이 안 걸립니다 (앞 끝을 조금 잘라 주세요)' }));
