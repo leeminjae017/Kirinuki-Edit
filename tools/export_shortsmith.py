@@ -12,7 +12,7 @@
 import csv, datetime, io, json, os, shutil, subprocess, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))     # E:\Edit\Claude
-STORE = os.path.join(ROOT, "projects")
+STORE = os.environ.get("KIRINUKI_PROJECTS") or os.path.join(ROOT, "projects")   # 시험용 저장소로 돌릴 때 (2026-10-02)
 KEEP = "--keep-feedback" in sys.argv          # AI 없는 렌더 단추가 붙인다 (tools/apply_review.py 다음)
 # 전사만 갈아 끼운다 (2026-09-29, 낱말 단위 재전사 뒤). 자막 · 쪽지 · 프롬프트 · 편집기는 그대로 둔다 -
 # 대시보드에서 고친 자막(화자 · 시각)이 아직 captions.csv 에 안 들어갔을 수 있어서 통째로 다시 쓰면 사라진다
@@ -146,6 +146,9 @@ review = {"video": {"ko": FINAL.replace(os.sep, "/")} if os.path.exists(FINAL) e
           "captions": [{"s": round(conv(ts(r["start"])), 3), "e": round(conv(ts(r["end"])), 3), "speaker": r["speaker"].strip(),
                         "kind": (r.get("kind") or "").strip(), "text": r["text"].strip(), "by": "claude"} for r in rows],
           "scene": os.path.abspath("scene.json").replace(os.sep, "/"), "notes": [], "prompt": ""}
+# 굽지 않은 판 (2026-10-02, 사용자: "마지막에 한 번만 렌더링하고 그 전까지는 미리보기에서만"): scene.json 이 완성본보다 새것이면
+# (shortsmith preview / tools/preview_update.py 로 고친 판) 피드백 · 사용자 편집 미리보기가 완성본 대신 원본 사본에서 컷대로 이어 튼다
+review["unbaked"] = not os.path.exists(FINAL) or os.path.getmtime(FINAL) < os.path.getmtime("scene.json") - 1
 # 원본 소리 파형 - 피드백 탭 편집 축에 그린다 (2026-09-30, tools/src_wave.py, 원본이 그대로면 편 폴더 wave.json 을 다시 씀)
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 from src_wave import wave_of
@@ -215,7 +218,7 @@ cur.update({"version": 1, "layout": {"canvas": [W, H]}, "editNotes": notes, "sav
             "editor": {"assets": assets, "tracks": tracks, "clips": clips, "duration": TOTAL, "pxPerSec": 60, "playhead": 0, "sync": True, "snap": True}})
 r = cur.setdefault("render", {}) or {}
 cur["render"] = r
-r["dir"] = os.path.relpath(WORK, ROOT).replace(os.sep, "/")
+r["dir"] = (os.path.relpath(WORK, ROOT) if os.path.splitdrive(WORK)[0].lower() == os.path.splitdrive(ROOT)[0].lower() else WORK).replace(os.sep, "/")
 r["out"] = FINAL.replace(os.sep, "/")
 r["base"] = r.get("base") or "ko"
 r["engine"] = "shortsmith"

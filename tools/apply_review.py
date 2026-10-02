@@ -215,6 +215,13 @@ with io.open(out if caps else os.devnull, "w", encoding="utf-8-sig", newline="")
         if CUT:
             if (c.get("speaker") or "").strip() in ("제목", "title"):
                 s0, e0 = 0.0, TOTAL
+            elif c.get("os2") is not None and c.get("oe2") is not None:
+                # 원본 시각으로 고친 줄 (사용자 편집 인스펙터, 2026-10-02 - 컷도 같이 고쳤다): 그 원본 시각에 선다 (feedback.js planScene 과 같다)
+                a, b = c["os2"], c["oe2"]
+                if sum(max(0.0, min(b, r[1]) - max(a, r[0])) for r in P) < 0.1:
+                    gone[txt] = planned(a)
+                    continue
+                s0, e0 = planned(a), min(planned(b), TOTAL)
             else:
                 s1, e1 = remap(s0), remap(e0, True)
                 if e1 - s1 < 0.05 or kept_of(s0, e0) < 0.1:    # 이 줄의 말이 다 빠졌다
@@ -281,5 +288,14 @@ if (CUT or gone) and E.get("fx") and os.path.exists(E["fx"]):
     if gone:
         print("말이 다 빠져 버린 자막 줄 %d: %s" % (len(gone), " / ".join(gone)))
 print("자막 %d줄 -> %s (고친 줄 %d, 연출 참조 %d곳 따라 바꿈, 컷 따라 옮긴 연출 시각 %d)" % (len(caps), out, len(ren), n, moved))
-if any(c.get("os2") is not None or c.get("oe2") is not None for c in caps):
+if not CUT and any(c.get("os2") is not None or c.get("oe2") is not None for c in caps):
     print("알림: 원본 시각 고침은 컷이라 이번 렌더에 안 들어갑니다 - '편집'(AI)으로 넘기세요")
+
+# 사용자 고침을 편 폴더에 넣었다는 표 (2026-10-02, tools/preview_update.py 가 본다): AI 편집이 이걸 안 돌리고 미리보기를 갱신하면
+# 내보내기가 review 를 새로 써서 사용자 편집 탭 컷 · 낱말 빼기 · 되살리기가 사라진다
+import hashlib
+def user_sig(rv):
+    w = [[x.get("s"), bool(x.get("restore")), bool(x.get("drop"))] for sg in (rv.get("transcript") or []) for x in (sg.get("words") or [])
+         if x.get("restore") or x.get("drop")]
+    return hashlib.sha1(json.dumps([rv.get("userClips") or [], w], sort_keys=True).encode("utf-8")).hexdigest()
+json.dump({"sig": user_sig(R)}, io.open("applied_review.json", "w", encoding="utf-8"))

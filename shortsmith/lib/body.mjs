@@ -90,6 +90,19 @@ export function pathVf(path, s, fps, SW = Infinity, SH = Infinity) {
 }
 const FPS_DEFAULT = 60;
 
+/* What scene.json needs from the body, without encoding anything (2026-10-02, `shortsmith preview`): the dashboard previews
+   an edit straight from the light source copy (src_preview.mp4) and only the final render bakes window.mkv. Length = sum of
+   the piece lengths the body would cut (a few ms off frame rounding), window height = the same formula as buildBody. */
+export function estimateBody(projectDir, edit, preset, cutsList) {
+  const C = edit.crop || { x: 0, y: 0, w: 1920, h: 1080 };
+  const speed = edit.speed || 1;
+  const W = preset.layout.window;
+  const wh = W.h || Math.round(W.w * C.h / C.w / 2) * 2;
+  let d = 0;
+  for (const pc of cutsList) d += pc.gap ? pc.e - pc.s : (pc.e - pc.s) / (pc.source ? 1 : speed);
+  return { duration: +d.toFixed(3), windowH: wh, crossfadeSec: edit.crossfadeSec ?? preset.audio?.crossfadeSec ?? 0, estimated: true };
+}
+
 export async function buildBody(projectDir, edit, preset, cutsList) {
   const cache = path.join(projectDir, 'cache');
   fs.mkdirSync(cache, { recursive: true });

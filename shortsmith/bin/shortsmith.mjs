@@ -19,7 +19,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { analyze, planCuts } from '../lib/cuts.mjs';
-import { buildBody } from '../lib/body.mjs';
+import { buildBody, estimateBody } from '../lib/body.mjs';
 import { buildScene } from '../lib/scene.mjs';
 // render.mjs pulls in Remotion (headless Chrome, bundler): load it only for the commands that draw, so cuts / body / scene
 // start fast and run without node_modules
@@ -69,6 +69,7 @@ const COMMANDS = {
   scene [dir]               captions + fx.json + preset -> scene.json
   render [dir] [--out f]    scene.json -> mp4 (only changed 2s chunks re-render)
   build [dir] [--recut]     everything that is missing or stale
+  preview [dir]             cuts + scene only (no encoding) - for a dashboard preview from the source copy
   still <dir> <sec> <png>   one full frame for checking a design
   map [dir] <sourceSec>     source time -> output time`);
   },
@@ -111,6 +112,15 @@ const COMMANDS = {
   async render() {
     const P = project(args[0]);
     await (await renderer()).renderScene(path.join(P.dir, 'scene.json'), path.resolve(P.dir, flag('out', P.edit.out || 'out/short.mp4')));
+  },
+
+  /* Feedback rounds preview without baking (user 2026-10-02: render once at the end, preview until then). Re-cuts every
+     time (cheap) because edit.json keep may have changed; body.json and the render outputs are left alone. */
+  async preview() {
+    const P = project(args[0]);
+    const pieces = await cuts(P);
+    const s = buildScene(P.dir, P.edit, P.loaded, estimateBody(P.dir, P.edit, P.loaded.preset, pieces), pieces);
+    log(`preview scene: ${pieces.length} pieces, ${s.captions.length} captions, ${s.duration}s (not rendered)`);
   },
 
   async build() {

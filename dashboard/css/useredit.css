@@ -167,7 +167,7 @@
 
 /* 피드백 탭에서 옮겨 온 화면 (영상 · 쪽지가 든 상자) */
 .ue-viewer > .fb-stage-wrap{position:absolute;inset:0;background:transparent;padding:8px}
-.ue-viewer .fb-plan-badge{display:none}
+#ueViewer .fb-plan-badge{display:none !important}   /* 이 탭은 머리의 '렌더 전' 표로 */
 .ue-viewer .fb-stage{box-shadow:0 0 0 1px #000;border-radius:0}
 
 /* 썸네일 줄 (V1) - 머리 16px 아래 */
@@ -178,3 +178,6 @@
 .ue-v::before{content:'';position:absolute;left:0;right:0;top:0;height:16px;background:var(--ue-v-top)}
 .ue-a{background:#284d36}
 .ue-wave{top:0;transform:none}
+.ue-cap-cut{margin-top:6px;justify-content:center;border-color:#4a3a3a;color:#ffb0a8}
+.ue-cap-cut:hover{background:#3a2626}
+.ue-tag{font-style:normal;font-size:10.5px;font-weight:600;color:#1b1b1f;background:var(--ue-on);border-radius:3px;padding:1px 6px;margin-left:6px}

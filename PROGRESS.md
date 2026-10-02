@@ -3388,3 +3388,17 @@ Basic Shorts(공개 프리셋) 첫 쓰임. 영도모캡랜디.mp4 8.60-11.60 한
   - 칸 크기: 손잡이 셋 (소스 | 뷰어 | 인스펙터 너비, 타임라인 높이) - split.js 에 .ue-grid, 칸 사이에 떠 있는 띠 (.ue-gut). 더블클릭 기본값.
   - 테마: base.css 토큰을 리졸브 중성 회색 (--bg #141417 · --panel #232328 ...) 으로, 다른 css 의 남색 · 푸른 회색 (초록 · 보라 기는 그대로) 을 같은 밝기 회색으로 기계로 바꿨다 (87곳).
     켬 상태 (토글 · 탭 아이콘 · 거터) 는 주황 --on #f39c38, 주 단추는 리졸브 파랑 #3a6fd0.
+## 2026-10-02 렌더는 마지막에 한 번 · 자막으로 컷 고치기 · 클립 높이
+
+- 사용자: "클립 높이가 너무 긴데 줄여줘", "피드백 방식 자체도 매번 렌더링 할게 아니라 마지막에 한 번만 렌더링하고 그 전까지는 미리보기에서만 ... 렌더링 시간이 오래 걸리잖아 토큰도 더 많이 먹고,
+  특히 자막에 의해 컷 추가 / 삭제 할 때 미리보기에서 바로 볼 수도 없지".
+- 클립 높이: V1 · A1 을 타임라인 칸 높이로 나눠 갖게 했던 것 (셋째 판) 을 50px 고정으로.
+- `shortsmith preview`: cuts + scene 만 (몸통 길이는 estimateBody - 조각 길이 합, 창 높이는 buildBody 와 같은 식). body.json · 완성본은 안 건드린다.
+  `tools/preview_update.py`: preview + export_shortsmith.py. 퍼리취향 사본에서 keep 하나 빼고 돌리니 1.1초 (렌더는 50초 넘게). src_preview.py 는 window.mkv 가 옛것이면 전 사본 이득을 그대로 쓴다 (다시 안 구움).
+  export_shortsmith.py: review.unbaked = 완성본이 scene.json 보다 옛것. feedback.js planNow 는 unbaked 면 고친 것이 없어도 계획 (원본 사본) 으로 튼다.
+- AI 판이 사용자 고침을 지우는 길 막기: apply_review.py 가 applied_review.json (userClips · 낱말 빼기/되살리기 표의 sha1) 을 남기고, preview_update.py 가 프로젝트의 지금 표와 다르면 멈춘다.
+  시험: userClips 를 넣은 채 돌리면 멈춤 -> apply_review 뒤 통과, 25.50초 (사용자 컷과 같음).
+- 자막으로 컷: 인스펙터 원본 시작 · 끝 (os2 · oe2). "나 믿는다" 원본 시작 23.40 -> 22.40 이면 그 앞 0.92초를 되살려 25.50 -> 26.42초, Delete (이 줄 컷에서 빼기) 23.68초, Ctrl+Z 26.42초.
+  렌더 쪽 (apply_review) 도 그 줄을 4.14-6.87 에 써서 미리보기 (4.14-6.869) 와 같다.
+- 작은 고침: export_shortsmith · src_preview 저장소를 KIRINUKI_PROJECTS 로 바꿀 수 있게 (시험용), 다른 드라이브 편 폴더에서 relpath · commonpath 가 죽던 것.
+- 편집 (AI) 단추가 넘기는 글 첫 줄에 [방식] 세 단계 (apply_review -> 고침 -> preview_update, 렌더 금지).
