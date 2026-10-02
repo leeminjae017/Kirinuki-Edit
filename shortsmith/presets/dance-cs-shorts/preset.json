@@ -43,13 +43,6 @@
     "If the source's audio starts later or earlier than its video (ffprobe stream start_time), body warns - beat and level times are on the video clock."
   ],
   "sources": {
-    "measuredFrom": [
-      "a creator's own 9:16 reframe of a 16:9 stream dance (private)",
-      "youtube.com/shorts/9PiDvmhfIRQ",
-      "youtube.com/shorts/X_jpUuMEYEQ",
-      "youtube.com/shorts/rVf-2blE5Co",
-      "youtube.com/shorts/R14ZVrYoWSs (challenge)"
-    ],
     "createdAt": "2026-10-01"
   }
 }
