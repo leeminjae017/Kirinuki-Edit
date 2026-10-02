@@ -147,6 +147,12 @@ ebur128 로 재서 `min(-16 - I, -1.5 - TP)` 만큼 올린다.
   멈춤은 crop, 이어진 이동 키는 3초까지 한 조각의 perspective 경로(프레임마다 소수 위치) 로 굽는다. 굽지 않은 미리보기(되살리기 · 빼기 중)에는 카메라가 안 보인다.
   shortsmith 는 **shortsmith 폴더에서 실행한다** - Remotion 이 실행 폴더에 Chrome(521MB)을 새로 받는다.
 - E: 는 하드링크가 안 된다 (fs.linkSync EISDIR).
+- **카덴라이브로 넘기기 (2026-10-02 첫 판):** `python tools/export_kdenlive.py <편>` -> `<편>/kdenlive/<편>.kdenlive` (+ `.kdenlive.ass` 자막). shortsmith build 뒤에 돌린다.
+  원본을 가리키는 조각 (끌어 늘이기 됨) · 배경 · 창 자르기 · 조각 이득 · 전체 고정 이득 · 카덴라이브 자막 (글 고침 됨, 종류마다 ASS 스타일). 아직 없음: 제목 · 그림 · 채팅 · 효과 · 카메라.
+  **카덴라이브 함정 (잰 것):** 프로필 이름 (`vertical_hd_60`) 이 없으면 720x576 25fps 로 굽는다 · 자르기 효과는 카덴라이브가 use_profile=1 을 채워 프로젝트 크기 값으로 읽는다
+  (원본 px 로 적으면 카덴라이브에서만 크게 확대) · 시퀀스 tractor id 는 uuid 자체 · 자막 필터에 kdenlive_id 를 붙이지 않는다 ·
+  **`kdenlive --render` 는 자막이 든 프로젝트면 무조건 죽는다** (카덴라이브가 저장한 프로젝트도 같음 - 26.08.1 버그) - 자막 없는 판으로 렌더 검사, 자막은 melt 나 화면으로 연다.
+  melt 는 한글 파일 이름을 못 연다 (영문 사본으로).
 - **새 소스는 오디오 start_time 부터 본다** (`ffprobe -show_entries stream=codec_type,start_time`). OBS 녹화는 0 이지만
   2시.mp4 (Quick Share) 는 0.450 이었다 - 그대로 wav 를 뽑으면 전사 · 레벨 시각이 전부 그만큼 일러 말끝이 잘리고 자막이 이르다.
   분석 wav 는 `adelay=<ms>:all=1` 로 영상 시계에 맞춘다 (샘플 수 `S` 는 입력 표본율 기준이라 틀리기 쉽다). body.mjs 가 경고한다.
