@@ -141,8 +141,9 @@ if TRF and os.path.exists(TRF):
 review = {"video": {"ko": FINAL.replace(os.sep, "/")} if os.path.exists(FINAL) else {}, "base": "ko", "canvas": [W, H],
           "kept": [[round(a, 3), round(b, 3)] for a, b in main], "restore": [], "drop": [], "transcript": segs,
           # 조각(클립)마다 원본 시각과 완성본 시각 - 피드백 탭의 타임스탬프 칸이 쓴다 (2026-09-28)
-          "clips": [{"i": i + 1, "s": round(pc["s"], 3), "e": round(pc["e"], 3),
-                     "os": round(o, 3), "oe": round(o + d, 3)} for i, (pc, o, d) in enumerate([f for f in flat if not f[0].get("gap")])],
+          "clips": [dict({"i": i + 1, "s": round(pc["s"], 3), "e": round(pc["e"], 3), "os": round(o, 3), "oe": round(o + d, 3)},
+                         **{k: pc[k] for k in ("color", "tin") if pc.get(k)})          # 색 · 전환 (사용자 편집 탭, 2026-10-02)
+                    for i, (pc, o, d) in enumerate([f for f in flat if not f[0].get("gap")])],
           "captions": [{"s": round(conv(ts(r["start"])), 3), "e": round(conv(ts(r["end"])), 3), "speaker": r["speaker"].strip(),
                         "kind": (r.get("kind") or "").strip(), "text": r["text"].strip(), "by": "claude"} for r in rows],
           "scene": os.path.abspath("scene.json").replace(os.sep, "/"), "notes": [], "prompt": ""}

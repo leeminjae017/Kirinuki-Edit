@@ -1,5 +1,6 @@
 import React from 'react';
 import { AbsoluteFill, Img, OffthreadVideo, Sequence, Video, useCurrentFrame, useVideoConfig } from 'remotion';
+import { colorCss } from './Layers';
 import { Env, Fx, Scene, abs, on } from '../scene';
 
 /* Window = the cut source video. Zoom, push, shake and mono are CSS versions of the ffmpeg graph in lib/render.mjs
@@ -80,15 +81,30 @@ const PlanWindow: React.FC<{ scene: Scene; env: Env; fps: number }> = ({ scene, 
   const h = Math.round(((P.xf ?? 0) / 2) * fps);
   const cutAt = (i: number) => i > 0 && i < R.length
     && (Math.abs(R[i - 1].e - R[i].s) > 0.01 || Math.abs(R[i - 1].at + (R[i - 1].e - R[i - 1].s) - R[i].at) > 0.01);
+  /* transition into range i (dashboard user edit tab, 2026-10-02): centered on the cut, half its length from each side's
+     handles - the same frames lib/body.mjs feeds to ffmpeg xfade, so the length and caption times do not change */
+  const half = (i: number) => {
+    const t = i > 0 && i < R.length && cutAt(i) ? R[i].tin : null;
+    if (!t || !t.d) return 0;
+    const A = R[i - 1], B = R[i];
+    return Math.max(0, Math.round(Math.min(t.d / 2, B.s, (A.e - A.s) / 2, (B.e - B.s) / 2) * fps));
+  };
   return (
     <>
       <div style={{ position: 'absolute', left: 0, top: 0, width: W.w, height: W.h, background: '#000' }} />
+      {R.map((r, i) => (r.tin && r.tin.type === 'white' && half(i)
+        ? <Sequence key={'wt' + i} from={Math.round(r.at * fps) - half(i)} durationInFrames={2 * half(i)}>
+            <div style={{ position: 'absolute', left: 0, top: 0, width: W.w, height: W.h, background: '#fff' }} />
+          </Sequence> : null))}
       {R.map((r, i) => {
         const from = Math.round(r.at * fps), len = Math.max(1, Math.round((r.e - r.s) * fps));
-        const h0 = cutAt(i) ? Math.min(h, from, Math.round(r.s * fps)) : 0, h1 = cutAt(i + 1) ? h : 0;
+        const t0 = Math.min(half(i), from), t1 = half(i + 1);
+        const a0 = cutAt(i) ? Math.min(h, from, Math.round(r.s * fps)) : 0, a1 = cutAt(i + 1) ? h : 0;   // sound crossfade (render: 0.15s)
+        const h0 = Math.max(a0, t0), h1 = Math.max(a1, t1);
         return (
           <Sequence key={i + ':' + r.s} from={from - h0} durationInFrames={len + h0 + h1} premountFor={Math.round(fps * 0.6)}>
-            <PlanRange scene={scene} env={env} fps={fps} r={r} len={len} h0={h0} h1={h1} z={i} />
+            <PlanRange scene={scene} env={env} fps={fps} r={r} len={len} h0={h0} h1={h1} a0={a0} a1={a1} t0={t0} t1={t1}
+              tin={t0 ? r.tin!.type : null} tout={t1 ? R[i + 1].tin!.type : null} z={i} />
           </Sequence>
         );
       })}
@@ -97,21 +113,39 @@ const PlanWindow: React.FC<{ scene: Scene; env: Env; fps: number }> = ({ scene, 
 };
 
 type PlanR = NonNullable<Scene['plan']>['ranges'][number];
-const PlanRange: React.FC<{ scene: Scene; env: Env; fps: number; r: PlanR; len: number; h0: number; h1: number; z: number }> =
-  ({ scene, env, fps, r, len, h0, h1, z }) => {
+type Tr = 'dissolve' | 'black' | 'white' | 'wipe' | 'slide' | null;
+const PlanRange: React.FC<{ scene: Scene; env: Env; fps: number; r: PlanR; len: number; h0: number; h1: number;
+                            a0: number; a1: number; t0: number; t1: number; tin: Tr; tout: Tr; z: number }> =
+  ({ scene, env, fps, r, len, h0, h1, a0, a1, t0, t1, tin, tout }) => {
     const W = scene.window, P = scene.plan!, f = useCurrentFrame();
     const k = W.w / r.crop.w, v = r.vol ?? 1;
-    const shown = f >= h0 && f < h0 + len;
-    const vol = (x: number) => {
-      if (h0 && x < 2 * h0) return v * clamp(x / (2 * h0), 0, 1);
-      if (h1 && x > len + h0 - h1) return v * clamp((len + h0 + h1 - x) / (2 * h1), 0, 1);
+    const vol = (x: number) => {                 // the sound crossfade at a cut stays the render's 0.15s, not the picture transition
+      if (x < h0 - a0) return 0;
+      if (a0 && x < h0 + a0) return v * clamp((x - (h0 - a0)) / (2 * a0), 0, 1);
+      if (x >= h0 + len + a1) return 0;
+      if (a1 && x > h0 + len - a1) return v * clamp((h0 + len + a1 - x) / (2 * a1), 0, 1);
       return v;
     };
+    // picture: a plain cut shows only its own frames; a transition widens that by t0 / t1 on each side
+    let op = f >= h0 && f < h0 + len ? 1 : 0, clip: string | undefined, dx = 0;
+    if (tin && f >= h0 - t0 && f < h0 + t0) {          // coming in (drawn over the outgoing range)
+      const p = (f - (h0 - t0)) / (2 * t0);
+      if (tin === 'dissolve') op = p;
+      else if (tin === 'black' || tin === 'white') op = f < h0 ? 0 : (f - h0) / t0;
+      else if (tin === 'wipe') { op = 1; clip = `inset(0 0 0 ${((1 - p) * 100).toFixed(2)}%)`; }
+      else if (tin === 'slide') { op = 1; dx = (1 - p) * W.w; }
+    }
+    if (tout && f >= h0 + len - t1 && f < h0 + len + t1) {   // going out (under the incoming range)
+      if (tout === 'black' || tout === 'white') op = f >= h0 + len ? 0 : 1 - (f - (h0 + len - t1)) / t1;
+      else if (tout === 'slide') { op = 1; dx = -((f - (h0 + len - t1)) / (2 * t1)) * W.w; }
+      else op = 1;
+    }
     return (
-      <div style={{ position: 'absolute', left: 0, top: 0, width: W.w, height: W.h, overflow: 'hidden', opacity: shown ? 1 : 0 }}>   {/* no zIndex - it lifted the video over the caption layer */}
+      <div style={{ position: 'absolute', left: dx, top: 0, width: W.w, height: W.h, overflow: 'hidden', opacity: op, clipPath: clip }}>   {/* no zIndex - it lifted the video over the caption layer */}
         <Video src={env.url(abs(scene.dir, P.src))} startFrom={Math.round(r.s * fps) - h0} volume={vol}
           acceptableTimeShiftInSeconds={0.3}
-          style={{ position: 'absolute', left: -r.crop.x * k, top: -r.crop.y * k, width: P.srcW * k, height: P.srcH * k, maxWidth: 'none' }} />
+          style={{ position: 'absolute', left: -r.crop.x * k, top: -r.crop.y * k, width: P.srcW * k, height: P.srcH * k, maxWidth: 'none',
+                   filter: colorCss({ color: r.color } as any) }} />
       </div>
     );
   };

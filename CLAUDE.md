@@ -101,6 +101,11 @@ ebur128 로 재서 `min(-16 - I, -1.5 - TP)` 만큼 올린다.
   인스펙터: 위치 · 크기 % (창에 맞춘 크기 기준) · 불투명도 · 밝기 · 대비 · 채도 (렌더는 eq + colorchannelmixer - CSS 와 근사) · 소리 dB · 음소거 · 페이드 인/아웃. 원본 클립 (A1) 도 소리 dB (userClips.vol -> keep gainDb).
   덧 클립은 원본 리플에 안 밀린다 (놓은 시각 그대로) · AI 가 컷을 바꾸면 자리가 어긋날 수 있다. 내보내기는 edit.json layers 를 review.userLayers 로 되싣는다 (파일 쪽이 정본).
   미리보기 묶음을 고치면 `NODE_PATH=<본 저장소>/shortsmith/node_modules node <esbuild> preview/entry.tsx ...` 로 다시 묶어 dashboard/js/vendor 에 복사 (작업 사본에는 node_modules 가 없고 E: 는 연결 폴더가 안 된다).
+- **원본 색 · 전환 (2026-10-02 다섯째):** 원본 클립 (V1) 인스펙터에 색 (밝기 · 대비 · 채도) 과 "전환 (앞 클립에서)" - 디졸브 · 검은 화면 거쳐 · 흰 화면 거쳐 · 닦아내기 · 밀어내기, 길이.
+  userClips {color, tin:{type, d}} -> apply_review.py 가 keep 조각에 color (그 클립 모든 조각) · tin (첫 조각) -> cuts.mjs 가 그대로 넘김 -> body.mjs: 색은 조각 필터 (colorVf: eq + colorchannelmixer),
+  전환은 컷 가운데 길이 d 의 작은 조각 (양쪽 클립 바깥 원본 = 손잡이로 ffmpeg xfade, cache/tr_*.mkv, body.json transitions) -> render.mjs transGraph 가 창 위에 얹는다 (확대 · 흔들기 전).
+  길이 · 자막 시각은 안 바뀐다. 손잡이가 모자라면 (원본 처음 · 끝) 짧아진다. 카메라 경로가 있는 편 (댄스) 은 전환을 굽지 않는다. 소리 크로스페이드는 그대로 0.15초.
+  미리보기는 PlanWindow 가 같은 계산 (src/parts/Window.tsx) - 전환이 있으면 구운 뒤에도 원본 사본으로 튼다 (window_preview 에는 전환이 없다). 내보내기는 조각 color · tin 을 review.clips 에 실어 다시 열어도 남는다.
 - **렌더는 마지막에 한 번 (2026-10-02, 사용자: "매번 렌더링 할게 아니라 마지막에 한 번만 렌더링하고 그 전까지는 미리보기에서만", "렌더링 시간이 오래 걸리잖아 토큰도 더 많이 먹고").**
   1차 편집 · AI 피드백 판은 **`shortsmith build` 를 돌리지 않는다.** 순서: 1) `python tools/apply_review.py <편> projects/<id>/project.json` (사용자가 대시보드에서 고친 컷 · 자막을
   편 폴더에 넣는다 - 안 하면 2 의 내보내기가 사용자 편집 탭 컷을 지운다) 2) edit.json · captions.csv · fx.json 고침 3) `python tools/preview_update.py <편> <id>`

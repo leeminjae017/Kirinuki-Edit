@@ -71,6 +71,7 @@ function chunkKey(i, a, b, bundleKey) {
     files: (scene.overlays || []).filter((o) => o.src && hit(o.s, o.e)).map((o) => {   // swapping an image file re-renders too
       const st = fs.statSync(path.isAbsolute(o.src) ? o.src : path.join(dir, o.src)); return [o.src, st.size, st.mtimeMs | 0];
     }),
+    trans: (body.transitions || []).filter((t) => hit(t.at, t.at + t.d)),
     layers: visLayers(a, b).map((L) => {
       const st = fs.statSync(layerPath(L)); return [L, st.size, st.mtimeMs | 0];
     }),
@@ -84,6 +85,21 @@ const layerPath = (L) => (path.isAbsolute(L.src) ? L.src : path.join(dir, L.src)
 const layerLen = (L) => L.e - L.s;
 function visLayers(a, b) {
   return (scene.layers || []).filter((L) => L.kind !== 'audio' && L.at < b && L.at + layerLen(L) > a).sort((x, y) => x.track - y.track);
+}
+/* transitions between window pieces (lib/body.mjs patches, window size): laid over the window stream before the zoom / shake
+   effects, so they move with it like the rest of the window */
+function transGraph(a, b, firstInput) {
+  const ins = [], g = [];
+  let cur = 'w0';
+  (body.transitions || []).filter((t) => t.at < b && t.at + t.d > a).forEach((t, j) => {
+    const start = Math.max(a, t.at), end = Math.min(b, t.at + t.d);
+    ins.push('-ss', (start - t.at).toFixed(4), '-t', (end - start + 0.1).toFixed(4), '-i', path.join(dir, 'cache', t.file));
+    g.push(`[${firstInput + j}:v]setpts=PTS-STARTPTS+${start.toFixed(4)}/TB[tr${j}]`,
+      `[${cur}][tr${j}]overlay=0:0:eof_action=pass:enable='between(t,${start.toFixed(4)},${end.toFixed(4)})'[tw${j}]`);
+    cur = `tw${j}`;
+  });
+  g.push(`[${cur}]null[w]`);
+  return { ins, g };
 }
 function layerGraph(a, b, firstInput, base) {
   const fps = scene.fps, ins = [], g = [];
@@ -201,15 +217,16 @@ function chunkFfmpegPipe(a, frames, pngs, out) {
   const { g, out: wout } = fxGraph(a, a + frames / fps);
   const shift = `setpts=PTS-STARTPTS+${a.toFixed(4)}/TB`;
   const LG = layerGraph(a, a + frames / fps, 3, 'b');
+  const TG = transGraph(a, a + frames / fps, 3 + LG.ins.filter((x) => x === '-i').length);
   const graph = [
-    `[0:v]${shift}[bg]`, `[1:v]fps=${fps},${shift}[w]`, ...g, `[2:v]${shift}[ov]`,
+    `[0:v]${shift}[bg]`, `[1:v]fps=${fps},${shift}[w0]`, ...TG.g, ...g, `[2:v]${shift}[ov]`,
     `[bg][${wout}]overlay=${W.x}:${W.y}[b]`, ...LG.g, `[${LG.out}][ov]overlay=0:0,setpts=PTS-STARTPTS,format=nv12[v]`,
   ].join(';');
   return new Promise((ok, no) => {
     const p = spawn('ffmpeg', ['-y', '-v', 'error',
       '-ss', a.toFixed(4), '-i', path.join(dir, scene.body.bg || 'bg.mp4'),
       '-ss', a.toFixed(4), '-i', path.join(dir, scene.body.window),
-      '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'png', '-i', '-', ...LG.ins,
+      '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'png', '-i', '-', ...LG.ins, ...TG.ins,
       '-filter_complex', graph, '-map', '[v]', '-frames:v', String(frames), ...VENC, '-an', out + '.tmp.mkv'],
     { stdio: ['pipe', 'inherit', 'inherit'] });
     p.on('close', (code) => (code ? no(new Error('ffmpeg ' + code)) : (fs.renameSync(out + '.tmp.mkv', out), ok())));
@@ -243,7 +260,7 @@ export async function renderScene(scenePath, outPath) {
   // only re-encode window.mkv. Copy its picture instead - measured 허니하트 23s: render 28s -> a few s, and no second
   // generation of encoding loss. Checked on the real overlay: one image for every frame, fully transparent.
   const W = scene.window;
-  if (W.x === 0 && W.y === 0 && W.w === scene.width && W.h === scene.height && !fxGraph(0, scene.duration).g.length && !visLayers(0, scene.duration).length) {
+  if (W.x === 0 && W.y === 0 && W.w === scene.width && W.h === scene.height && !fxGraph(0, scene.duration).g.length && !visLayers(0, scene.duration).length && !(body.transitions || []).length) {
     const sig0 = JSON.stringify(overlaySig(0));
     let same = true;
     for (let f = 1; f < total && same; f++) same = JSON.stringify(overlaySig(f)) === sig0;

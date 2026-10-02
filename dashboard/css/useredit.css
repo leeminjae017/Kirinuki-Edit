@@ -213,3 +213,9 @@
 .ue-ins-sub{font-size:11px;color:var(--ue-dim);margin-top:4px;padding-top:6px;border-top:1px solid #33333a}
 .ue-ins-btns{display:flex;gap:6px;flex-wrap:wrap}
 .ue-ins-btns .ue-btn{border-color:#3a3a42}
+
+/* 전환 표 (2026-10-02 다섯째) - V1 컷 가운데에 길이만큼 */
+.ue-trans{position:absolute;top:8px;bottom:8px;z-index:4;border-radius:3px;cursor:pointer;
+  background:linear-gradient(135deg, rgba(255,255,255,.85) 0 50%, rgba(160,160,170,.85) 50% 100%);box-shadow:0 0 0 1px #000}
+.ue-trans:hover{outline:2px solid var(--ue-sel)}
+.ue-field select{width:100%}
