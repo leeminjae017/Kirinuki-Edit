@@ -12,7 +12,8 @@
     D.$$('.view').forEach(function (v) { v.classList.toggle('is-active', v.id === 'view-' + name); });
     /* 숨어 있는 동안 창이 바뀌었을 수 있으므로 보이는 시점에 다시 맞춘다 */
     D.Split.reflow(true);
-    if (name === 'user') D.Feedback.refresh();
+    if (name === 'user') { D.Feedback.refresh(); if (D.Feedback.livePreview) D.Feedback.livePreview(); }
+    if (D.UserEdit) D.UserEdit.shown(name === 'edit');
   }
 
   /* ---------- 상태 적용 ---------- */
@@ -67,6 +68,7 @@
     D.AI.refresh();
     /* 피드백 탭은 클립이 아니라 완성본을 본다 - review 블록 하나면 된다 */
     D.Feedback.load(data.review || null);
+    if (D.UserEdit) D.UserEdit.load(data.review || null);
     if (D.Projects) D.Projects.markClean();
     showNotes();
 
@@ -147,6 +149,8 @@
         ev.preventDefault(); D.Projects.showManager(!D.Projects.isManagerOpen()); return;
       }
       if (D.Projects.isManagerOpen()) return;
+      /* 사용자 편집 탭 (2026-10-02): 편집 프로그램 단축키는 그 탭이 받는다 */
+      if (D.UserEdit && D.$('#view-edit') && D.$('#view-edit').classList.contains('is-active')) { D.UserEdit.key(ev); return; }
       if (!userView) return;
 
       /* 자막 고침 되돌리기 / 다시 (2026-09-29 지시). 글을 쓰는 중에는 위 isTyping 에서 빠지므로
