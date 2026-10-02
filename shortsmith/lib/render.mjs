@@ -83,8 +83,30 @@ function chunkKey(i, a, b, bundleKey) {
    A2.. are mixed in finish(). Volume dB, fades and colour are what the user set on the clip - nothing else is applied. */
 const layerPath = (L) => (path.isAbsolute(L.src) ? L.src : path.join(dir, L.src));
 const layerLen = (L) => L.e - L.s;
+/* transitions between extra clips on one track (2026-10-03): a picture clip with tin {type: 'dissolve', d} whose track neighbour
+   ends where it starts crosses over it - both run h = d/2 past the cut (cut short to what their files hold beyond the clip; a
+   still image always has it) and the later one fades in over 2h on top. Lengths elsewhere do not move.
+   Same as withTrans in src/parts/Layers.tsx - change both together. */
+function withTrans(list) {
+  const vis = list.filter((L) => L.kind !== 'audio'), out = new Map(list.map((L) => [L, { ...L }]));
+  vis.forEach((B) => {
+    if (!B.tin || !(B.tin.d > 0)) return;
+    const A = vis.find((A) => A !== B && A.track === B.track && Math.abs(A.at + (A.e - A.s) - B.at) < 0.02);
+    if (!A) return;
+    const hA = A.kind === 'image' ? Infinity : A.dur ? A.dur - A.e : 0, hB = B.kind === 'image' ? Infinity : B.s;
+    const h = Math.min(B.tin.d / 2, hA, hB, (A.e - A.s) / 2, (B.e - B.s) / 2);
+    if (!(h >= 0.01)) return;
+    const a = out.get(A), b = out.get(B);
+    a.e += h;
+    b.at -= h; b.s -= h; b.xin = 2 * h;
+    if (b.keys) b.keys = b.keys.map((k) => ({ ...k, t: k.t + h }));
+  });
+  return list.map((L) => out.get(L));
+}
+let EFF = null, EFF_OF;
 function visLayers(a, b) {
-  return (scene.layers || []).filter((L) => L.kind !== 'audio' && L.at < b && L.at + layerLen(L) > a).sort((x, y) => x.track - y.track);
+  if (EFF_OF !== scene.layers) { EFF_OF = scene.layers; EFF = withTrans(scene.layers || []); }
+  return EFF.filter((L) => L.kind !== 'audio' && L.at < b && L.at + layerLen(L) > a).sort((x, y) => x.track - y.track || x.at - y.at);
 }
 /* transitions between window pieces (lib/body.mjs patches, window size): laid over the window stream before the zoom / shake
    effects, so they move with it like the rest of the window */
@@ -109,17 +131,43 @@ function layerGraph(a, b, firstInput, base) {
     const off = L.s + (start - L.at);
     if (L.kind === 'image') ins.push('-loop', '1', '-framerate', String(fps), '-t', (dur + 0.1).toFixed(3), '-i', layerPath(L));
     else ins.push('-ss', off.toFixed(4), '-t', (dur + 0.1).toFixed(3), '-i', layerPath(L));
-    const B = L.box || scene.window, ev = (v) => Math.max(2, Math.round(v / 2) * 2);
+    const K = (L.keys || []).length ? L.keys : null, moving = K && K.length > 1;
+    const B = K ? K[0] : L.box || scene.window, ev = (v) => Math.max(2, Math.round(v / 2) * 2);
     const c = L.color || {}, op = L.opacity ?? 1, br = c.brightness ?? 1;
-    const f = [`fps=${fps}`, `scale=${ev(B.w)}:${ev(B.h)}`];
+    // a moving clip is scaled once to its largest box and placed per frame by perspective (overlay cannot take a picture
+    // whose size changes - scale eval=frame keeps the first frame's size, tried 2026-10-03)
+    const MW = moving ? ev(Math.max(...K.map((k) => k.w))) : ev(B.w), MH = moving ? ev(Math.max(...K.map((k) => k.h))) : ev(B.h);
+    const f = [`fps=${fps}`, `scale=${MW}:${MH}`];
     if ((c.contrast ?? 1) !== 1 || (c.saturation ?? 1) !== 1) f.push(`eq=contrast=${(c.contrast ?? 1).toFixed(3)}:saturation=${(c.saturation ?? 1).toFixed(3)}`);
     f.push('format=rgba');
     if (br !== 1 || op !== 1) f.push(`colorchannelmixer=rr=${br.toFixed(3)}:gg=${br.toFixed(3)}:bb=${br.toFixed(3)}:aa=${op.toFixed(3)}`);
     f.push(`setpts=PTS-STARTPTS+${start.toFixed(4)}/TB`);
-    if (L.fin) f.push(`fade=t=in:st=${L.at.toFixed(4)}:d=${L.fin.toFixed(3)}:alpha=1`);
+    if (L.xin) f.push(`fade=t=in:st=${L.at.toFixed(4)}:d=${L.xin.toFixed(4)}:alpha=1`);   // dissolve from the clip before on this track
+    if (L.fin) f.push(`fade=t=in:st=${(L.at + (L.xin || 0) / 2).toFixed(4)}:d=${L.fin.toFixed(3)}:alpha=1`);
     if (L.fout) f.push(`fade=t=out:st=${(L.at + layerLen(L) - L.fout).toFixed(4)}:d=${L.fout.toFixed(3)}:alpha=1`);
+    let ox = Math.round(B.x), oy = Math.round(B.y);
+    if (moving) {
+      // perspective counts its own input frames (in) from this chunk's first frame of the clip
+      const T = `(${(start - L.at).toFixed(4)}+in/${fps})`, PW = Math.max(scene.width, MW + 4), PH = Math.max(scene.height, MH + 4);
+      const seg = (key) => {                       // piecewise linear (or smoothstep) in T, held outside the keys
+        const lin = (i) => {
+          const a = K[i], b = K[i + 1], d = Math.max(1e-6, b.t - a.t);
+          const p = `clip((${T}-${a.t.toFixed(4)})/${d.toFixed(4)},0,1)`, q = L.ease ? `(${p}*${p}*(3-2*${p}))` : p;
+          return `(${a[key].toFixed(2)}+${(b[key] - a[key]).toFixed(2)}*${q})`;
+        };
+        let e = lin(K.length - 2);
+        for (let i = K.length - 3; i >= 0; i--) e = `if(lt(${T},${K[i + 1].t.toFixed(4)}),${lin(i)},${e})`;
+        return e;
+      };
+      const X = seg('x'), Y = seg('y'), SX = `(${seg('w')}/${MW})`, SY = `(${seg('h')}/${MH})`;
+      // the clip sits at (2,2) inside a transparent pad; map the pad's corners so the clip lands on the box
+      const x0 = `${X}-2*${SX}`, x1 = `${X}+${PW - 2}*${SX}`, y0 = `${Y}-2*${SY}`, y1 = `${Y}+${PH - 2}*${SY}`;
+      f.push('format=yuva444p', `pad=${PW}:${PH}:2:2:color=black@0`,
+        `perspective=x0='${x0}':y0='${y0}':x1='${x1}':y1='${y0}':x2='${x0}':y2='${y1}':x3='${x1}':y3='${y1}':sense=destination:eval=frame`);
+      ox = 0; oy = 0;
+    }
     g.push(`[${k}:v]${f.join(',')}[ly${j}]`,
-      `[${cur}][ly${j}]overlay=${Math.round(B.x)}:${Math.round(B.y)}:eof_action=pass:enable='between(t,${start.toFixed(4)},${end.toFixed(4)})'[lb${j}]`);
+      `[${cur}][ly${j}]overlay=${ox}:${oy}:eof_action=pass:enable='between(t,${start.toFixed(4)},${end.toFixed(4)})'[lb${j}]`);
     cur = `lb${j}`;
   });
   return { ins, g, out: cur };
