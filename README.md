@@ -82,7 +82,6 @@ node bin/shortsmith.mjs build <편 폴더>
 | `tools/apply_review.py <편> <project.json>` | 대시보드에서 고친 것 → 편 폴더 |
 | `tools/preview_update.py <편> <id>` | 굽지 않고 미리보기만 갱신 |
 | `tools/dance_camera.py <편>` | 댄스 편 카메라 경로 |
-| `tools/export_kdenlive.py <편>` | 카덴라이브 프로젝트로 넘기기 |
 
 ## 라이선스
 
