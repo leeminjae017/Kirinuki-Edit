@@ -1,3514 +1,3455 @@
-# 진행 상황 (2026-09-03 저장)
+# Progress log (started 2026-09-03)
 
-다음에 이어서 할 때 이 파일부터 읽으면 된다.
+Read this file first when picking the work up again. Newest entries are at the bottom.
 
-## 지금 상태
+## State as of 2026-09-03 to 09-05
 
-### 결과물
-- `edited/고구마_ko.mp4`, `edited/고구마_en.mp4` — 51.09초, 컷 2개, 자막 18장
-  (2026-09-04 대시보드 타임라인으로 다시 구웠다)
-- `edited/마로_ko.mp4`, `edited/마로_en.mp4` — 16.08초
-- `edited/담아맷돌_claude_edit.mp4` — 32.40초
-- `edited/네모에게비틱_ko.mp4`, `_en.mp4` — 97.10초 (첫 **롱폼** 편집, 2026-09-05)
-- `edited/마법의날_ko.mp4` — 31.87초 (2026-09-07, 자막 등장 애니메이션을
-  쇼츠에 처음 적용한 편)
+### Outputs
+- `edited/고구마_ko.mp4`, `edited/고구마_en.mp4` - 51.09 s, 2 cuts, 18 captions
+  (re-rendered from the dashboard timeline on 2026-09-04)
+- `edited/마로_ko.mp4`, `edited/마로_en.mp4` - 16.08 s
+- `edited/담아맷돌_claude_edit.mp4` - 32.40 s
+- `edited/네모에게비틱_ko.mp4`, `_en.mp4` - 97.10 s (first **longform** edit, 2026-09-05)
+- `edited/마법의날_ko.mp4` - 31.87 s (2026-09-07, first short with caption entrance animation)
 
-### 스타일 (대시보드에 등록됨)
+### Styles (registered in the dashboard)
 `dashboard/styles/`
-- `담유이_다인쇼츠.json` — 2인 이상. 호스트(담유이) + 게스트 역할로 나뉜다
-- `담유이_1인일반쇼츠.json` — 게스트만 빠진 것
-- `담유이_영도쇼츠.json` — 영상 도네 반응. 크롭 없이 전체 화면, 느슨한 컷,
-  자막이 영상 띠 아래에 얹힌다
-- `담유이_일반롱폼.json` — **가로 롱폼** (2026-09-04 분석). 위 셋과 달리
-  1920x1080 · 60fps · 프리셋 배경 없음 · 크롭 없음 · 방송 오버레이 그대로.
-  자세한 것은 아래 "롱폼 스타일 분석" 참고
+- `담유이_다인쇼츠.json` - two or more people. Split into host (Damyui) and guest roles
+- `담유이_1인일반쇼츠.json` - the same without guests
+- `담유이_영도쇼츠.json` - reactions to video donations. No crop, full frame, loose cuts, captions placed under the video band
+- `담유이_일반롱폼.json` - **landscape longform** (analysed 2026-09-04). Unlike the three above: 1920x1080, 60 fps,
+  no preset background, no crop, stream overlay kept. See "Longform style analysis" below
 
-공통 규칙 (쇼츠 셋): 컷은 파형에서만(ASR 시각 불사용), 자막 폭은 글자 수가 아니라
-픽셀로 잰다(`textwidth.py`, PIL 폭 x 0.7286), 마침표 금지, 반복은 길이가 되면
-그대로 두 번 적고 넘치면 (xN), 발끈 자막은 노랑->주황빨강 그라데이션.
+Shared rules (the three shorts styles): cuts come only from the waveform (ASR times not used), caption width is measured
+in pixels, not characters (`textwidth.py`, PIL width x 0.7286), no full stops, repeats are written out twice when they fit
+and counted as (xN) when they overflow, outburst captions use a yellow -> orange-red gradient.
 
-### 대시보드
-`대시보드.cmd`로 열면 서버가 뜨고 탭을 닫으면 서버도 내려간다.
+### Dashboard
+Opening `대시보드.cmd` starts the server; closing the tab stops it.
 
-**프로젝트 — 편집 한 편이 프로젝트 하나다.** 대시보드의 모든 상태(컷 · 자막 ·
-레이아웃 · 편집 메모 · 스타일 선택)는 열려 있는 프로젝트에 딸린다. 예전에는
-상태가 한 덩어리라서 다음 편집을 시작하면 앞의 것이 그대로 덮였다.
+**Projects - one edit is one project.** All dashboard state (cuts, captions, layout, edit notes, style choice) belongs to
+the open project. State used to be one blob, so starting the next edit overwrote the previous one.
 
-- 상단 왼쪽 **프로젝트 칩** — 지금 무엇을 열고 있는지. 누르면 매니저가 열린다
-- 상단 오른쪽 **메뉴** — 새 프로젝트 추가 / 프로젝트 매니저 / 저장(Ctrl+S) /
-  불러오기 / 파일로 내보내기 / 이 프로젝트 비우기
-- **프로젝트 매니저** (Ctrl+Shift+P) — 카드 5열. 카드에 완성본 미리보기를 그대로
-  구운 썸네일, 이름, 스타일, 길이, 컷 · 자막 · 메모 개수, 수정 시각이 들어간다.
-  마우스를 올리면 열기 · 이름 · 복제 · 삭제
-- 저장 위치 `projects/<id>/` (project.json + meta.json + thumb.jpg).
-  삭제한 것은 `projects/_trash/`로 옮겨 두므로 되살릴 수 있다
-- 서버 없이 열면 브라우저에 저장되고, 다음에 서버가 붙는 순간 디스크로 옮겨진다
-- Ctrl+S로 저장하고, 손댄 뒤 20초쯤 잠잠하면 조용히 한 번 더 저장한다.
-  저장하지 않고 닫아도 마지막 상태는 브라우저에 남아 그대로 이어진다
-- 편집 메모(export_project.py의 NOTES)가 프로젝트를 열 때 로그에 뜬다.
-  전에는 파일에만 있고 화면에는 아무것도 안 나왔다
+- Top-left **project chip** - what is open. Click to open the manager
+- Top-right **menu** - new project / project manager / save (Ctrl+S) / import / export to file / clear this project
+- **Project manager** (Ctrl+Shift+P) - five cards per row. Each card shows a thumbnail rendered from the final preview,
+  name, style, length, cut / caption / note counts and modified time. Hover for open, rename, duplicate, delete
+- Stored in `projects/<id>/` (project.json + meta.json + thumb.jpg). Deleted projects move to `projects/_trash/` and can
+  be restored
+- Without the server, state is stored in the browser and moved to disk as soon as the server connects
+- Ctrl+S saves, and about 20 s after the last change it saves once more quietly. Closing without saving keeps the last
+  state in the browser
+- Edit notes (NOTES in export_project.py) appear in the log when a project opens. Before, they existed only in the file
 
-**완성본에 들어간 것은 전부 클립이다.** 배경 프리셋 영상, 소스 영상과 오디오,
-자막, 상단 캡션이 각자의 트랙에 놓인다. 상단 캡션도 결국 자막이라 자막 클립으로
-나가고, 글자도 디자인도 다른 자막과 똑같이 고칠 수 있다. 영상 클립에는 화면
-자리(frame, 캔버스 픽셀)가 붙어서 배경은 화면 전체, 소스는 가운데 띠가 된다.
-트랙의 role(source / background / caption / title)로 파이프라인이 어느 트랙이
-무엇인지 알아본다 - 안 그러면 배경이 컷으로, 제목이 자막 CSV로 들어간다.
+**Everything in the final is a clip.** The background preset video, source video and audio, captions and the top caption
+each sit on their own track. The top caption is a caption too, so it is exported as a caption clip and its text and design
+can be edited like any other caption. Video clips carry a screen position (frame, canvas pixels): the background fills
+the screen, the source is the middle band. Track roles (source / background / caption / title) tell the pipeline which
+track is which - otherwise the background turns into cuts and the title into caption CSV rows.
 
-- 미리보기가 영상 클립을 트랙 순서대로 겹쳐 그린다 (위 트랙이 앞)
-- 자막 세로 위치를 완성본 프레임을 재서 맞췄다. ASS는 기준선에, 미리보기는
-  한가운데에 글자를 놓아서 그 차이(크기의 0.44배)를 빼야 한다. 상단 캡션 16.3%,
-  자막 74.9%로 완성본과 같다
-- 프리셋 배경이 안 보이던 이유: 서버가 페이지보다 늦게 붙는데 미리보기가 다시
-  안 그렸다. 이제 서버가 붙으면 다시 그린다
-- 인스펙터에 **전체 자막** 탭. 자막을 목록으로 늘어놓고 그 자리에서 고친다.
-  지금 떠 있는 자막은 자막 클립과 같은 보라색. CSV 열기 · 저장 버튼은 없앴다
-- 사용자 편집에서 로그 판을 뺐다. 경고 · 오류는 토스트로 뜬다
-- **폰트 칸에 이 컴퓨터의 폰트 전부**. 서버가 폰트 파일 이름표를 읽고(/api/fonts)
-  대시보드가 브라우저에서 되는 이름만 남긴다. `BM JUA OTF`는 브라우저가 못 찾고
-  `BM JUA_OTF`라야 된다 - 그래서 상단 캡션만 맑은 고딕으로 나오고 있었다
-- **글자 크기 배율**. libass는 크기를 폰트 높이(winAsc+winDesc)로, CSS는 em으로
-  받는다. `upem/(winAsc+winDesc)`를 곱해야 같은 크기가 된다 (쿠키런 0.735,
-  주아 0.912). 완성본과 재 보면 잉크 폭 420:423, 668:668
-- **미리보기에서 직접 옮기고 늘리고 자른다.** 클립을 고르면 상자 + 모서리 손잡이.
-  Shift 비율 유지, Alt로 크롭만 밀기. 인스펙터에 숫자도 있다(화면 자리 · 확대 ·
-  크롭 · 자막 가로/세로 위치)
-- 화자 이름은 화면에 안 그린다 (완성본에 없다). 필요하면 인스펙터에서 켠다
-- 타임라인 휠이 가로로 돈다 (Shift 세로, Ctrl 확대 · 축소)
-- **타임라인에서 클립이 제대로 안 움직이던 것을 고쳤다.** 자석 붙기 snap(t)과
-  되돌리기 스냅샷 snap()이 이름이 같아서, 클립을 끌면 자리 계산 대신 JSON
-  문자열이 돌아오고 start가 NaN이 됐다. 저장하면 JSON이 NaN을 null로 바꿔서
-  고구마 프로젝트에 클립 4개가 자리를 잃은 채로 들어 있었다 (고쳐 놓았다).
-  같이 손본 것: 값이 망가진 클립은 열 때 제자리로 되돌린다, 3px은 움직여야
-  끌기로 친다(클릭이 클립을 밀지 않게), 가장자리에 닿으면 타임라인이 저절로
-  밀린다(먼 자리로 옮기기), 길이 손잡이 6->10px, 좁은 클립은 손잡이 대신
-  옮기기, Shift+클릭으로 선택을 뺄 때 딸려 움직이지 않게, 자를 때 화면 자리 ·
-  크롭 · 돌려 쓰기를 뒤쪽 반에도 물려준다
-- 화면 자리 · 크롭이 렌더까지 간다: import_project.py -> layout_override.json ->
-  build_edit.py (ffmpeg crop= / overlay=x:y)
+- The preview stacks video clips in track order (upper track in front)
+- Caption vertical positions were matched by measuring final frames. ASS places text on the baseline, the preview in the
+  middle, so the difference (0.44 x size) must be subtracted. Top caption 16.3%, captions 74.9% - same as the final
+- Why the preset background did not show: the server connects after the page, and the preview never redrew. It now
+  redraws when the server connects
+- Inspector **all captions** tab: captions as a list, edited in place. The caption on screen is highlighted in the same
+  purple as caption clips. CSV open / save buttons removed
+- The log pane was removed from user edit. Warnings and errors show as toasts
+- **The font field lists every font on this computer.** The server reads font name tables (`/api/fonts`) and the dashboard
+  keeps only names the browser resolves. The browser cannot find `BM JUA OTF` but can find `BM JUA_OTF` - which is why only
+  the top caption was rendering in Malgun Gothic
+- **Font size factor.** libass sizes by font height (winAsc+winDesc), CSS by em. Multiplying by `upem/(winAsc+winDesc)`
+  makes them equal (CookieRun 0.735, Jua 0.912). Against the final, ink widths 420:423 and 668:668
+- **Move, scale and crop directly in the preview.** Selecting a clip shows a box with corner handles. Shift keeps aspect,
+  Alt slides the crop only. The inspector also has numbers (screen position, zoom, crop, caption x / y)
+- Speaker names are not drawn (they are not in the final). They can be turned on in the inspector
+- The timeline wheel scrolls horizontally (Shift vertical, Ctrl zoom)
+- **Fixed clips not moving properly on the timeline.** The snap function `snap(t)` and the undo snapshot `snap()` shared a
+  name, so dragging a clip returned a JSON string instead of a position and start became NaN. Saving turned NaN into
+  null, and the 고구마 project held four clips with no position (fixed).
+  Also fixed: broken clips are put back on open; a drag starts only after 3 px (a click must not nudge a clip); the
+  timeline auto-scrolls at the edges (moving far); trim handles 6 -> 10 px; narrow clips move instead of trimming;
+  Shift+click to deselect no longer drags; a cut passes screen position, crop and reverse to the right half too
+- Screen position and crop reach the render: import_project.py -> layout_override.json -> build_edit.py (ffmpeg crop= /
+  overlay=x:y)
 
-**UI를 걷어 냈다 (2026-09-04).** 굳이 안 보여줘도 될 것을 강제로 전부
-보여주고 있었다. 세 가지를 손봤다.
+**UI cleanup (2026-09-04).** Things that did not need to be shown were all forced on screen. Three changes:
 
-- **툴바는 아이콘만.** 컷 · 삭제 · 자막 추가 · 복제 · 트랙 추가 · 동기화 ·
-  스냅 · 렌더링에서 글자를 걷어 내고 툴팁으로 옮겼다. 상단 바의 저장 · 메뉴도
-  아이콘, 서버 상태는 점 하나. 미리보기의 "오디오 미리듣기"는 스피커 버튼.
-  스냅에 자석 아이콘, 트랙 추가에 레이어 아이콘을 새로 넣었고 잠금 아이콘이
-  스프라이트에 아예 없어서 안 보이던 것도 채웠다
-- **인스펙터를 세 층으로 나눴다.** 클립 머리띠 한 줄(이름 · 시각) → 눌러서
-  목록(트랙 · 시작 · 길이 · 끝 · 소스, 읽기만) → "상세 정보"를 누르면 숫자를
-  고치는 창. 늘 펼쳐져 있던 시작 · 길이 · 소스 오프셋이 자막 내용을 아래로
-  밀어내고 있었다. "재생헤드로 이동" · "클립 시작으로" 버튼은 없앴다.
-  자막은 내용과 폰트 · 크기 · 글자색 · 세로 위치만 펼쳐 두고, 테두리 · 배경 ·
-  가로 위치 · 정렬은 접었다. 영상의 화면 자리 · 크롭도 접었다 (한 번 맞추면
-  다시 안 본다). 긴 안내 문구는 한 줄로 줄였다
-- **타임라인이 높이 가운데로 온다.** 트랙이 몇 개 안 되면 위쪽에 몰려 붙고
-  아래가 텅 비었다. 남는 높이를 반으로 갈라 트랙 묶음을 가운데 놓는다
-  (`--tl-vpad`를 이름표와 레인에 같이 먹인다)
-- **재생선이 화면 밖으로 나가면 타임라인이 따라온다.** 왼쪽 20% 자리로 끌어다
-  놓는다 - 지나간 것도 조금 보이고 앞으로 올 것이 넉넉히 보인다. 화면 안에
-  있는 동안은 건드리지 않는다(스크럽할 때 튀지 않게). 다시 그리기 · 확대는
-  스크롤을 직접 맞추므로 `setPlayhead(t, quiet, noFollow)`로 뺀다
+- **Toolbar icons only.** Text removed from cut, delete, add caption, duplicate, add track, sync, snap and render and moved
+  into tooltips. Save and menu in the top bar are icons, server status is one dot. "Audio preview" is a speaker button.
+  New magnet icon for snap and layer icon for add track; the lock icon was missing from the sprite entirely and was added
+- **Inspector in three layers.** One header line (name, time) -> click for a read-only list (track, start, length, end,
+  source) -> "details" opens the editable numbers. Start, length and source offset were always expanded and pushed the
+  caption text down. "Go to playhead" and "go to clip start" buttons removed. Captions keep text, font, size, colour and
+  vertical position expanded; outline, background, horizontal position and alignment are folded. Video screen position
+  and crop are folded too (set once, rarely revisited). Long hint text cut to one line
+- **The timeline centres vertically.** With few tracks they clustered at the top with empty space below. The spare height
+  is split in half to centre the track block (`--tl-vpad` applied to labels and lanes)
+- **The timeline follows the playhead when it leaves the view,** putting it at 20% from the left - a little of the past and
+  plenty of what is coming. While it stays on screen nothing moves (no jumps while scrubbing). Redraw and zoom set the
+  scroll themselves, so they opt out with `setPlayhead(t, quiet, noFollow)`
 
-**컷 편집을 손봤다 (2026-09-04).**
+**Cut editing (2026-09-04).**
 
-- **컷 자리 뒤로 미리보기가 비던 것을 고쳤다.** video 태그를 클립마다 두고
-  있어서 컷 경계를 넘을 때마다 태그를 버리고 새로 만들었다 - 같은 파일인데도
-  처음부터 다시 읽고 다시 찾아가느라 1초 넘게 화면이 빈다. 47.94초(고구마의
-  두 번째 컷) 뒤가 이랬다. 트랙+소스로 묶어 두니 이어 붙은 클립이 같은
-  태그를 쓰고 시각만 옮긴다 (배경 영상은 readyState 4를 그대로 유지한다).
-  오디오도 같은 이유로 같이 고쳤다 - 컷 자리에서 소리가 끊겼다 다시 읽혔다
-- **컷은 전 트랙에 걸린다.** 예전에는 고른 클립이 있으면 그것만 잘라서,
-  영상만 골라 두고 컷을 누르면 오디오 · 자막 · 배경은 그대로였다. 뒤를 앞으로
-  당기는 순간 소리와 그림이 어긋난다. 이제 재생헤드가 지나는 모든 트랙을
-  함께 자른다 (잠긴 트랙만 뺀다). 한 트랙만 자르려면 나머지를 잠근다
-- **i · o 로 구간을 찍는다.** i가 잘라낼 구간의 앞, o가 뒤다. 둘 다 그 자리에서
-  전 트랙을 자르고, 둘이 다 찍히면 사이에 든 클립을 골라 준다 - Delete 한
-  번이면 구간이 사라진다. 찍은 구간은 타임라인에 띠로 보인다. c(현재 위치
-  컷)는 그대로다. 버튼도 그대로 두고 단축키만 늘렸다. ㅑ · ㅐ도 받는다
-- **빈 자리를 끌면 여러 클립이 골라진다.** 목록에서 드래그로 여러 줄을 고르는
-  것과 같다. 스치기만 해도 골라진다(통째로 감싸게 하면 긴 클립을 못 잡는다).
-  Shift · Ctrl을 누른 채 끌면 이미 고른 것에 보탠다. 움직이지 않고 놓으면
-  예전처럼 선택을 비우고 재생헤드만 옮긴다
-- **발끈 자막 외곽선이 틀려 있었다.** ASS는 색을 &H00BBGGRR로 적는데 발끈
-  외곽선만 &H00382C1C를 #382c1c로 그대로 베꼈다 - 완성본은 짙은 청회색
-  #1C2C38인데 미리보기는 짙은 갈색이었다. 나머지 값은 맞다: 채움 위
-  #FBD65A -> 아래 #FB5D4B, 연두 그림자 #DAFD73, 외곽 7 / 그림자 6.
-  (연두를 채움 맨 위 색으로 읽었던 적이 있는데, 크게 확대해 보면 글자 안이
-  아니라 아래 가장자리에 깔려 있다. 스타일 JSON의 fillTop #DAFD73은 그때
-  값이라 낡았다 - 믿을 것은 build_ass.py다.) 저장된 프로젝트는 열 때
-  자동으로 고쳐지고, export_project.py의 두 곳도 고쳤다
-- **인스펙터에 발끈 스위치.** 미리보기와 목록은 발끈을 그리는데 켜는 곳이
-  없었다. 파이프라인은 화자 이름으로 발끈을 가리므로(speaker가 "...발끈"),
-  스위치가 style.emphasis와 화자 이름표를 같이 움직인다 - 안 그러면
-  미리보기는 주황인데 CSV로 나가는 화자는 그대로라 흰 자막으로 구워진다
+- **Fixed the preview going blank after a cut.** Each clip had its own video tag, so crossing a cut threw the tag away and
+  made a new one - re-reading and seeking the same file from scratch, blank for over a second. This happened after
+  47.94 s (고구마's second cut). Tags are now shared per track + source, so adjacent clips reuse the tag and only move the
+  time (the background video keeps readyState 4). Audio fixed the same way - sound cut out and reloaded at cuts
+- **Cuts apply to all tracks.** Before, a selected clip was cut alone, so cutting with only the video selected left audio,
+  captions and background whole. Pulling the rest forward then desynced sound and picture. Now every track under the
+  playhead is cut (except locked tracks). To cut one track, lock the others
+- **i / o mark a range.** i is the start of the range to remove, o the end. Both cut all tracks there, and with both set
+  the clips in between are selected - one Delete removes the range. The marked range shows as a band. c (cut at
+  playhead) is unchanged. Buttons stayed; only shortcuts were added. ㅑ / ㅐ (Korean layout) work too
+- **Dragging empty space selects several clips,** like dragging over rows in a list. Touching is enough (requiring full
+  enclosure makes long clips impossible to catch). Shift or Ctrl adds to the selection. Releasing without moving clears
+  the selection and moves the playhead as before
+- **The outburst caption outline was wrong.** ASS writes colours as &H00BBGGRR, but the outburst outline alone was copied
+  straight from &H00382C1C to #382c1c - the final is dark blue-grey #1C2C38, the preview was dark brown. The other values
+  are right: fill top #FBD65A -> bottom #FB5D4B, lime shadow #DAFD73, outline 7 / shadow 6.
+  (The lime was once read as the top fill colour, but magnified it lies along the bottom edge, not inside the letters.
+  fillTop #DAFD73 in the style JSON is that old reading and is stale - build_ass.py is the source of truth.) Saved
+  projects are fixed on open, and two places in export_project.py were fixed
+- **Outburst switch in the inspector.** The preview and the list drew outbursts, but nothing turned them on. The pipeline
+  identifies outbursts by speaker name (speaker ends in "...발끈"), so the switch moves style.emphasis and the speaker
+  label together - otherwise the preview is orange while the CSV speaker stays the same and it renders as a white caption
 
-**발끈 자막이 미리보기에서만 어둡게 뭉개지던 것을 고쳤다 (2026-09-04).**
+**Fixed outburst captions looking dark and smeared only in the preview (2026-09-04).**
 
-한 겹으로 그리고 있었다. `background-clip:text` 로 넣은 그라데이션은 배경이라
-글자보다 아래에 깔리는데, `-webkit-text-stroke` 는 획 한가운데를 기준으로
-안팎에 반씩 걸친다. 글자색이 `transparent` 라 외곽선 안쪽 절반을 덮어 줄
-채움이 없어서, 15px 글씨에 2.2px 외곽선이 획의 대부분을 먹었다 (`paint-order`
-는 배경까지는 못 옮긴다). 그래서 ASS 와 같은 순서로 두 겹을 쌓는다 - 뒤에
-외곽선 + 그림자, 앞에 그라데이션 채움. 보통 자막은 글자색이 불투명해서
-이 문제가 없으므로 한 겹 그대로다.
+They were drawn as one layer. A gradient set with `background-clip:text` is a background and sits under the text, while
+`-webkit-text-stroke` straddles the middle of the stroke. With transparent text colour nothing covered the inner half of
+the outline, so a 2.2 px outline on 15 px text ate most of each stroke (`paint-order` cannot move a background). So two
+layers are stacked in the same order as ASS - outline + shadow behind, gradient fill in front. Ordinary captions have an
+opaque text colour and keep one layer.
 
-**그라데이션 창도 완성본에 맞췄다.** ASS 에는 그라데이션이 없어서 build_ass.py
-는 글자를 가로 띠로 잘라 색만 바꿔 쌓는데, 띠가 깔리는 창이 캔버스 좌표로
-못 박혀 있고 창 밖은 PrimaryColour(맨 위 노랑)가 그대로 남는다. 완성본
-`고구마_ko.mp4` 37.2초 프레임을 재 보니
+**The gradient window also matches the final.** ASS has no gradients, so build_ass.py slices the text into horizontal bands
+and changes only the colour; the band window is fixed in canvas coordinates and outside it PrimaryColour (the top yellow)
+remains. Measured on the 37.2 s frame of `고구마_ko.mp4`:
 
-    글자 잉크   y 1392 ~ 1482 (91px)
-    띠 창       y 1376 ~ 1476
-    외곽선      잉크 위아래로 7px  (ASS Outline 7)
-    연두 그림자 외곽선에서 6px 아래  (ASS Shadow 6)
+    text ink      y 1392 - 1482 (91 px)
+    band window   y 1376 - 1476
+    outline       7 px above and below the ink  (ASS Outline 7)
+    lime shadow   6 px below the outline        (ASS Shadow 6)
 
-창은 잉크 위 16px 에서 시작해 잉크 위 84px 에서 끝난다 - 글자 아래 끝
-여남은 픽셀(8%쯤)이 노랑으로 되돌아오는 것은 실제로 그렇게 구워지는
-그림이다. 미리보기도 그대로 흉내낸다. 16 · 84 는 ASS 글자 크기 130 기준의
-캔버스 픽셀이라, 브라우저 글자 크기(폰트 배율이 이미 곱해져 있다)를 도로
-나눠 캔버스 자로 환산해야 맞는다. 잉크 위끝은 actualBoundingBox 가 이 폰트
-에서 못 미더워서(느낌표를 26px 내려 잡는다) 한 번 그려서 재고 기억해 둔다.
+The window starts 16 px above the ink top and ends 84 px below it - the bottom 8 or so pixels of the letters falling back to
+yellow is really how it renders. The preview imitates that. 16 and 84 are canvas pixels at ASS size 130, so the browser
+font size (font factor already applied) has to be divided back into canvas units. The ink top from actualBoundingBox is
+unreliable for this font (it puts the exclamation mark 26 px low), so it is measured by drawing once and cached.
 
-**색은 프레임에서 재 확인했다.** 외곽선 #192A38 (= #1C2C38), 그림자 #D8F16E
-(= #DAFD73), 채움 위 #FBD65A -> 아래 #FB5D4B. 잉크 위끝에서 잰 색 #FFBE4E 는
-띠 창이 잉크보다 16px 위에서 시작해 f=0.16 지점부터 보이기 때문이고,
-미리보기도 같은 자리에서 같은 색이 된다.
+**Colours re-checked on frames.** Outline #192A38 (= #1C2C38), shadow #D8F16E (= #DAFD73), fill top #FBD65A -> bottom
+#FB5D4B. The #FFBE4E measured at the ink top is because the band window starts 16 px above the ink, so it is visible from
+f=0.16; the preview gets the same colour at the same spot.
 
-**대시보드 타임라인을 처음으로 실제로 구웠다 (2026-09-04).**
+**Rendered the dashboard timeline for real for the first time (2026-09-04).**
 
-지금까지 `edited/고구마_ko.mp4`는 `timeline.py`의 손으로 적은 컷에서 나온
-것이었다. 대시보드에서 고친 것은 어디에도 반영되지 않았다. 이번에 대시보드
-렌더 작업(`jobs/20260904_024433_고구마렌더.json`)을 `import_project.py`로
-파이프라인에 넣고 전체를 다시 구웠다.
+Until now `edited/고구마_ko.mp4` came from hand-written cuts in `timeline.py`; nothing edited in the dashboard reached it.
+This time the dashboard render job (`jobs/20260904_024433_고구마렌더.json`) went through `import_project.py` into the
+pipeline and everything was re-rendered.
 
-    python import_project.py <작업파일>   # -> pieces_override.json + CSV
+    python import_project.py <job file>   # -> pieces_override.json + CSV
     python build_edit.py                  # -> edit_nocap.mkv
     python apply_captions.py              # -> 고구마_ko.mp4
     python apply_captions_en.py           # -> 고구마_en.mp4
 
-바뀐 것:
-- 컷 두 개가 대시보드 값으로 옮겨졌다. 4.93-53.05 -> **4.850-52.775**,
-  59.86-62.80 -> **59.827-62.995**. 완성본 51.30초 -> **51.09초**
-- 자막 13장 -> **18장**. 사용자가 대시보드에서 붙인 짧은 반응(아아아 · 아 ·
-  아 · 왜 안 나와? · 앗! 응? · 앗? 아잇? · 아!)이 들어갔고, "아 이런!" ·
-  "이런!"이 "아 이런 씨!" · "이런 씨!"로 바뀌면서 이음매(47.93초)에 딱 붙었다
-- `seg_durs.json`은 지우고 구웠다. 남겨 두면 timeline이 **지난 렌더의 길이**로
-  완성본 시각을 계산해서 자막이 어긋난다
+Changes:
+- Both cuts moved to the dashboard values. 4.93-53.05 -> **4.850-52.775**, 59.86-62.80 -> **59.827-62.995**. Final 51.30 s ->
+  **51.09 s**
+- Captions 13 -> **18**. The short reactions the user added in the dashboard (아아아 · 아 · 아 · 왜 안 나와? · 앗! 응? · 앗?
+  아잇? · 아!) went in, and "아 이런!" / "이런!" became "아 이런 씨!" / "이런 씨!", snapping exactly to the seam (47.93 s)
+- `seg_durs.json` was deleted before rendering. If left, timeline computes final times from **the previous render's
+  lengths** and captions drift
 
-**영어 자막 CSV를 다시 썼다.** `고구마_en_subtitles.csv`는 13장짜리 옛 타임
-라인에 맞춰져 있어서, 새로 붙은 자막이 없고 뒤쪽이 0.2초씩 밀려 있었다. 시각과
-화자는 ko CSV를 그대로 따르고 글자만 옮겼다 (전에 쓰던 문장은 그대로 뒀다).
-상단 캡션은 `build_ass.TITLE` 하나뿐이라 영어판에도 "고구마"가 그대로 뜬다 -
-영어 제목이 필요하면 build_ass.py를 언어별로 갈라야 한다.
+**Rewrote the English caption CSV.** `고구마_en_subtitles.csv` matched the old 13-caption timeline: the new captions were
+missing and the tail was 0.2 s late. Times and speakers now follow the ko CSV exactly and only the text was translated
+(earlier sentences were kept). The top caption is the single constant `build_ass.TITLE`, so the English version still
+shows "고구마" - an English title needs build_ass.py split per language.
 
-**확인한 것** (완성본 픽셀 · 오디오 기준)
-- 51.12초 / 1080x1920 / 60fps / AAC 48k, 자막 18장 전부 제자리
-- 발끈 자막이 전과 같다: 외곽선 y1385-1489, 채움 1392부터,
-  #FFBE50 -> #FF7046, 연두 그림자. 대시보드 미리보기와 같은 그림이다
-- 0.2초 넘는 무음은 둘뿐이고 둘 다 내용이다 (44.60-45.10 재채기 뜸들이는
-  자리, 50.86-51.08 마지막 외침 뒤 꼬리). 이음매 47.93초는 40ms만 눌린다
-- 완성본을 다시 전사해 자막과 맞춰 봤다. "들리지 않는다"고 나온 넷은 전부
-  말이 아닌 소리(아아아 · 앗 · 슈우우 · 아악)라 전사기가 안 받아쓴 것이다.
-  **자막 없이 지나가는 소리는 없다**
+**Checked** (final pixels and audio)
+- 51.12 s / 1080x1920 / 60 fps / AAC 48k, all 18 captions in place
+- Outburst caption unchanged: outline y1385-1489, fill from 1392, #FFBE50 -> #FF7046, lime shadow. Same picture as the
+  dashboard preview
+- Only two silences over 0.2 s, both content (44.60-45.10 the build-up before a sneeze, 50.86-51.08 the tail after the last
+  shout). The seam at 47.93 s loses only 40 ms
+- The final was re-transcribed and compared with the captions. The four "not heard" were all non-speech sounds (아아아 · 앗 ·
+  슈우우 · 아악) the transcriber does not write down. **No sound passes without a caption**
 
-**첫 자막을 고치고 자막만 다시 구웠다 (2026-09-04).**
+**Fixed the first caption and re-rendered captions only (2026-09-04).**
 
-렌더 뒤 완성본을 다시 전사해 보니 첫 자막만 어긋나 있었다.
+Re-transcribing the final after the render showed only the first caption was off.
 
-- 글자가 "어 뭐야!"인데 실제로는 **"이게 뭐야?"**로 들린다
-- 길이가 0.31초(0.263-0.569)뿐이었다. 이 클립은 예전에 start가 NaN으로
-  망가졌다 열 때 되살아난 것이라 길이가 기본값으로 잡혀 있었다
+- The text was "어 뭐야!" but it is heard as **"이게 뭐야?"**
+- It lasted only 0.31 s (0.263-0.569). This clip had once been broken with start = NaN and restored on open, so its length
+  was the default
 
-대시보드에서 0.05-0.80 / "이게 뭐야?"로 고쳐 저장하고, 컷은 그대로라
-`import_project.py` -> `apply_captions.py` (+ en)만 다시 돌렸다. build_edit는
-건너뛴다 - 컷이 안 바뀌면 edit_nocap.mkv를 다시 구울 이유가 없다.
-다시 전사해 대조하니 이제 자막과 들리는 말이 다 맞는다.
+Fixed in the dashboard to 0.05-0.80 / "이게 뭐야?" and saved; the cuts were unchanged, so only `import_project.py` ->
+`apply_captions.py` (+ en) were re-run. build_edit is skipped - with unchanged cuts there is no reason to rebuild
+edit_nocap.mkv. Re-transcribed and compared: captions and speech now all match.
 
-**카드 썸네일이 발끈 자막을 두 번 그리고 있었다.** 발끈을 두 겹(외곽선 겹 +
-채움 겹)으로 바꾼 뒤 `captureThumb`이 `.sub-text`를 통째로 읽어서 같은 말이
-나란히 두 번 찍혔고, 외곽선 · 글자색은 부모가 아니라 겹에 붙어 있어 하나도
-안 걸렸다. 겹이 있으면 `.emph-fill`(글자 · 색)과 `.emph-back`(외곽선)에서
-읽는다.
+**Card thumbnails drew outburst captions twice.** After outbursts became two layers (outline + fill), `captureThumb` read
+`.sub-text` as a whole, so the same words appeared twice side by side, and outline and colour were on the layers, not the
+parent, so neither was applied. With layers it now reads `.emph-fill` (text, colour) and `.emph-back` (outline).
 
-썸네일이 빈 채로 저장되는 경우가 둘 있다 - 알아 두면 헷갈리지 않는다.
-`#stage`가 안 보이면(다른 탭이거나 미리보기가 접혀 있으면) 크기가 0이라
-그냥 포기하고, 그때 Store가 **예전 그림을 그대로 둔다**. 그래서 고친 코드로
-저장해도 카드가 안 바뀐 것처럼 보인다.
+Two cases save an empty thumbnail - worth knowing to avoid confusion. If `#stage` is not visible (another tab, or the preview
+folded), its size is 0 and capture gives up, and Store **keeps the previous image**. So saving with fixed code can look as
+if the card did not change.
 
-**자막 클립 이름이 글자를 안 따라오고 있었다.** 타임라인과 인스펙터는 자막을
-글자로 보여 주지만 로그는 `c.name`을 쓴다. 복제해서 만든 자막은 이름이 원본
-그대로라 "클립 이동: 어 소리 커!"가 여섯 줄 나왔다 - 어느 자막을 옮겼는지
-알 수가 없다. 인스펙터의 자막 내용 칸과 CSV 맞추기가 이제 이름도 같이 옮긴다
-(전체 자막 탭은 원래 하고 있었다). 고구마 프로젝트의 어긋난 여덟 개는 고쳐 뒀다.
+**Caption clip names did not follow their text.** The timeline and inspector show captions by text, but the log uses
+`c.name`. Duplicated captions kept the original's name, so "clip moved: 어 소리 커!" appeared six times - no way to tell which
+caption moved. The inspector's caption text field and CSV matching now update the name too (the all-captions tab already
+did). The eight mismatched names in the 고구마 project were fixed.
 
-**렌더링을 대시보드가 직접 한다 (2026-09-04).**
+**The dashboard renders by itself (2026-09-04).**
 
-사용자 편집의 "렌더링"은 지금까지 `jobs/` 폴더에 작업 파일 하나를 떨어뜨리는
-것이 전부였다. 실제로 굽는 것은 사람(또는 클로드)이 파이프라인 세 줄을 손으로
-돌려야 했다. 이제 서버가 그 자리에서 돌린다.
+"Render" in user edit used to only drop a job file into `jobs/`; someone (a person or Claude) had to run three pipeline
+commands by hand. Now the server runs them.
 
-    POST /api/render          컷 반영 -> 영상 굽기 -> 자막 굽기
-    GET  /api/render/status   진행 · 로그
+    POST /api/render          apply cuts -> render video -> burn captions
+    GET  /api/render/status   progress and log
 
-- **영상은 컷이 바뀌었을 때만 다시 굽는다.** 서버가 import 앞뒤로
-  `pieces_override.json`을 견줘 보고, 같으면 `edit_nocap.mkv`를 그대로 쓴다.
-  자막만 고친 렌더가 몇 분에서 십몇 초가 된다 (실제로 15초)
-- **컷이 바뀌면 `seg_durs.json`을 먼저 지운다.** 지난 렌더에서 잰 길이가
-  남아 있으면 timeline이 그 값으로 완성본 시각을 계산해 자막이 통째로 밀린다
-- 폴더는 프로젝트에 딸린 값이다 (`render.dir`). 작업 폴더 기준 상대 경로로
-  적는다 - `edit/고구마`. 작업 폴더 밖이나 파이프라인 스크립트가 없는
-  폴더는 거절한다 (이 서버가 아무 스크립트나 돌리는 창구가 되면 안 된다)
-- 굽는 중에는 겹쳐 돌리지 않는다. 같은 폴더에 둘이 들어가면 중간 파일을
-  서로 덮어쓴다
+- **Video is re-rendered only when cuts change.** The server compares `pieces_override.json` before and after import and
+  reuses `edit_nocap.mkv` when equal. A caption-only render drops from minutes to about ten seconds (15 s measured)
+- **When cuts change, `seg_durs.json` is deleted first.** Lengths measured in the previous render would make timeline compute
+  final times from them and shift every caption
+- The folder belongs to the project (`render.dir`), written relative to the work folder - `edit/고구마`. Folders outside the
+  work folder or without pipeline scripts are refused (the server must not become a way to run arbitrary scripts)
+- Renders never overlap. Two in the same folder overwrite each other's intermediate files
 
-**클로드는 옮길 자막이 있을 때만 부른다.** 자막이 무슨 말로 적혀 있는지는
-글자판으로 가른다 (한글 · 가나 · 한자 · 로마자). 사전도 모델도 필요 없다.
+**Claude is called only when captions need translating.** The language of a caption is decided by script (Hangul, kana,
+Han, Latin). No dictionary or model needed.
 
-- 한 언어가 자막의 **80% 이상**을 차지해야 "이 자막은 X다"라고 본다.
-  그만큼 모이지 않으면 어느 쪽이 원본인지 정할 수 없으므로 판단하지 않고
-  통째로 넘긴다
-- 고른 언어로 이미 적혀 있으면 **바로 굽는다**. 다른 것이 섞여 있으면
-  그 자막만 클로드에게 넘어간다 - 통째로 넘기면 모델이 멀쩡한 컷을 다시 잡는다
-- **이미 옮겨 둔 번역이 있으면 그대로 쓴다.** 번역은 프로젝트가 아니라
-  파이프라인 폴더에 CSV 로 남는다. 그 CSV 를 지금 자막과 견줘, 같으면
-  클로드를 부르지 않고 바로 굽는다. 컷이 바뀌면 자막 시각도 따라 바뀌므로
-  어긋나고, 그때는 다시 넘긴다 - 낡은 번역으로 구우면 자막이 통째로 밀린다.
-  자막 장수가 달라져도 마찬가지다 (`GET /api/translations`)
-- **시각만으로는 부족했다.** 시각만 견주면 컷은 그대로 두고 자막 글자만 고친
-  경우를 못 잡는다 (제목을 "감자"로 바꿔도 영어 번역이 재사용됐다 - 그대로
-  구우면 화면에는 옛 제목이 남는다). 이제 번역 CSV 에 **`src` 칸**을 두고
-  거기에 옮기기 전의 원문을 그대로 적는다. 칸은 `start, end, speaker, text,
-  src`이고, `src`가 지금 자막과 글자까지 같아야 재사용한다. `src`가 없는
-  CSV 는 맞는지 알 수 없는 것으로 보고 다시 넘긴다 (안전한 쪽으로 틀린다)
-- 고구마(자막 19장 전부 한국어, 언어 ko · en)는 en 번역 CSV 가 이미 있어서
-  버튼 한 번에 두 언어가 다 나온다. 자막을 하나라도 고치면 en 이 다시
-  클로드로 간다
-- **상단 캡션도 센다.** 예전에는 `build_ass.TITLE`이 그리는 상수라 번역
-  대상이 아니었지만, 이제 자막 CSV 에 화자 `제목`으로 들어가 다른 자막과
-  같은 길로 번역된다
+- A caption set counts as language X only if X makes up **80% or more** of it. Below that the original cannot be
+  determined, so nothing is decided and everything is handed over
+- If captions are already in the chosen language they are **rendered directly**. If others are mixed in, only those go to
+  Claude - handing over everything makes the model re-cut a good edit
+- **Existing translations are reused.** Translations live as CSV in the pipeline folder, not in the project. If that CSV
+  matches the current captions, Claude is not called and it renders directly. When cuts change, caption times change too and
+  no longer match, so it is handed over again - rendering an old translation shifts every caption. Same if the caption
+  count differs (`GET /api/translations`)
+- **Times alone were not enough.** Comparing only times misses edits to caption text with unchanged cuts (changing the title
+  to "감자" still reused the English translation - the old title stays on screen). Translation CSVs now have a **`src`
+  column** holding the original text before translation. Columns are `start, end, speaker, text, src`, and a CSV is reused
+  only if `src` matches the current captions character for character. A CSV without `src` is treated as unverifiable and
+  handed over again (err on the safe side)
+- 고구마 (19 captions, all Korean, languages ko and en) already has an en translation CSV, so one click produces both
+  languages. Changing any caption sends en to Claude again
+- **The top caption counts too.** It used to be the constant drawn by `build_ass.TITLE` and was not translated; it now goes
+  into the caption CSV with speaker `제목` and is translated like any other caption
 
-**인스펙터에 렌더링 · 언어 설정.** 아무것도 안 골랐을 때 "타임라인에서 클립을
-선택하세요" 한 줄만 있던 자리다. 렌더는 편집이 끝나고 누르는 것이라 아무것도
-안 골라 둔 때가 대부분인데 그때 정작 아무것도 없었다. 폴더 · 자막 언어 ·
-기준 언어 · 렌더링 버튼이 오고, 그 아래에 어느 언어가 바로 구워지고 어느
-언어가 클로드로 가는지, 굽는 동안은 단계와 로그가 뜬다.
+**Render and language settings in the inspector.** With nothing selected it used to say only "select a clip on the
+timeline". Rendering happens after editing, usually with nothing selected, and then nothing was there. Now: folder, caption
+languages, base language and the render button, with which languages render directly and which go to Claude, and steps and
+log while rendering.
 
-**굽는 곳과 내보낼 곳을 따로 고른다.** 예전에는 폴더가 하나였고 결과물이 어디로
-가는지는 `apply_captions.py` 안에 박혀 있었다.
+**Render folder and output folder are chosen separately.** There used to be one folder, and where the result went was
+hard-coded in `apply_captions.py`.
 
-| 칸 | 무엇인가 |
+| Field | What |
 |---|---|
-| 굽는 곳 | 굽는 스크립트가 있는 폴더 (`import_project.py` · `build_edit.py` · `apply_captions.py`) |
-| 내보낼 곳 | 다 구운 영상이 저장될 폴더. 비우면 스크립트에 적힌 자리 |
+| Render folder | folder holding the render scripts (`import_project.py`, `build_edit.py`, `apply_captions.py`) |
+| Output folder | where the finished video goes. Empty = the location in the script |
 
-- 옆의 **찾기**로 고른다. 브라우저의 파일 고르기 창은 진짜 경로를 안 내주므로
-  (파일 이름만 준다) 폴더 목록은 서버가 읽어서 보여 준다 (`GET /api/dirs`).
-  작업 폴더 밖은 아예 보이지 않고, 굽는 스크립트가 든 폴더에는 표가 붙는다
-- 내보낼 곳은 환경 변수 `DASH_OUT_DIR`로 넘어간다. `apply_captions*.py`가 이
-  값이 있으면 거기에 저장하고 없으면 자기 안에 적힌 자리로 간다 - 대시보드
-  없이 손으로 돌려도 그대로 동작해야 하기 때문이다. 없는 폴더는 서버가 만든다
-- 스크립트가 찍는 `updated: <경로>`를 서버가 주워서 결과 파일 경로를 화면에
-  보여 준다. 어디에 나왔는지 로그를 뒤지지 않아도 된다
-- 인스펙터에 설명 문단은 두지 않는다. 칸 이름(굽는 곳 · 내보낼 곳 · 자막 ·
-  기준)과 결과 줄만으로 무엇인지 알 수 있고, 문단이 늘어나면 정작 고치러 온
-  칸이 아래로 밀린다
-- **고를 클립이 없을 때는 탭이 "내보내기" 하나다.** 그 판은 클립 인스펙터가
-  아닌데 "클립 / 자막 전체"라고 적혀 있으면 지금 무엇을 보고 있는지 알 수 없다
-  (자막 전체 탭은 클립을 고르면 다시 나온다)
+- Chosen with **browse**. The browser file picker does not reveal real paths (names only), so the server lists folders
+  (`GET /api/dirs`). Nothing outside the work folder is shown, and folders with render scripts are tagged
+- The output folder is passed as the environment variable `DASH_OUT_DIR`. `apply_captions*.py` saves there if set, otherwise
+  to its built-in location - it must still work when run by hand without the dashboard. Missing folders are created
+- The server picks up the `updated: <path>` line the script prints and shows the result path, so nobody has to dig through
+  the log
+- No explanatory paragraphs in the inspector. Field names (render folder, output folder, captions, base) and the result line
+  say enough; more paragraphs push the field you came to change further down
+- **With no clip selected, the only tab is "export".** That panel is not a clip inspector, and labelling it "clip / all
+  captions" made it unclear what was on screen (the all-captions tab returns when a clip is selected)
 
-**진행률은 지난 렌더에서 잰 시간으로 낸다.** 단계가 셋뿐이라 "1/3 · 2/3"만
-보여 주면 몇 분짜리 인코딩 동안 막대가 그 자리에 붙어 있다. 그래서 서버가
-단계마다 몇 초 걸렸는지 파이프라인 폴더의 `.render_times.json`에 남기고,
-다음 렌더의 진행률이 그 무게를 쓴다 (지난 값과 반씩 섞어서, 한 번 유난히
-느렸다고 다음이 통째로 어긋나지 않게).
+**Progress uses times measured in the previous render.** With only three steps, "1/3, 2/3" left the bar stuck during a
+minutes-long encode. The server records how long each step took in `.render_times.json` in the pipeline folder, and the next
+render's progress uses those weights (averaged half and half with the previous value, so one unusually slow run does not
+throw off the next).
 
-- **모르는 단계는 지어내지 않는다.** 처음 도는 단계가 남아 있으면 남은 시간을
-  말하지 않고 막대에 줄무늬를 넣어 "어림"이라고 알린다. 초를 지어내면
-  (1초짜리 단계로 치면) 몇 분짜리 인코딩이 시작하자마자 100%가 된다
-- **건너뛴 단계는 배우지 않는다.** 컷이 그대로라 영상 굽기를 건너뛴 렌더는
-  0초로 기록되는데, 그걸 배워 두면 다음에 정말로 영상을 구울 때 막대가
-  몇 분 동안 멈춰 있게 된다
-- 굽는 동안은 99%에서 멈춘다. 다 됐는데 안 끝나는 것처럼 보이면 안 된다
-- 실제로 재 보니 예상 32초 · 실제 33초였다 (66→73→79→85→92→98→100)
-- 인스펙터를 안 보고 있어도 알 수 있게 타임라인의 렌더링 버튼이 깜빡인다
+- **Unknown steps are not invented.** If a step has never run, no remaining time is shown and the bar is striped to say
+  "estimate". Invented seconds (treating it as a 1 s step) would hit 100% as soon as a minutes-long encode starts
+- **Skipped steps are not learned.** A render that skipped the video step (cuts unchanged) records 0 s; learning that would
+  freeze the bar for minutes the next time the video really renders
+- It holds at 99% while finishing - it must not look done but stuck
+- Measured: estimate 32 s, actual 33 s (66 -> 73 -> 79 -> 85 -> 92 -> 98 -> 100)
+- The timeline's render button blinks so progress is visible without looking at the inspector
 
-**타임라인 빈 자리도 타임라인이다.** 트랙이 몇 개 안 되면 위아래로 빈 자리가
-넓게 남는데(가운데 배치) 거기서는 눌러도 아무 일이 없었다. 이제 누르면
-재생선이 그 자리로 가고 선택이 풀린다. 끌면 여러 클립을 고르는 것도 같다 -
-`.tl-lane`이 아니라 안쪽 상자 전체가 듣는다 (`.tl-inner`에 `min-height:100%`).
+**Empty timeline space is timeline too.** With few tracks there was wide empty space above and below (centred), and clicking
+there did nothing. Now a click moves the playhead there and clears the selection, and dragging box-selects clips - the
+whole inner box listens, not just `.tl-lane` (`min-height:100%` on `.tl-inner`).
 
-전에 넣은 것:
-- 로컬 서버 (`server.py`) — 작업을 `jobs/`에 파일로 떨어뜨리고, `/api/file`로
-  원본 영상을 경로로 내준다 (미리보기가 살아난다)
-- 사용자 편집: 자막 추가(T), 복제(Ctrl+D), 복사/붙여넣기(Ctrl+C/V),
-  되돌리기(Ctrl+Z / Ctrl+Shift+Z), 전체 선택(Ctrl+A)
-- 미리보기가 완성본과 같아 보이게 — 프리셋 배경 + 영상 띠 + 상단 캡션 + 자막
-- 재생선이 클립 위로 오도록 z순서 수정
+Added earlier:
+- Local server (`server.py`) - drops jobs into `jobs/` as files and serves source videos by path via `/api/file` (the
+  preview comes alive)
+- User edit: add caption (T), duplicate (Ctrl+D), copy / paste (Ctrl+C/V), undo (Ctrl+Z / Ctrl+Shift+Z), select all (Ctrl+A)
+- The preview looks like the final - preset background + video band + top caption + captions
+- z-order fixed so the playhead is above clips
 
-### 파이프라인 <-> 대시보드 왕복
-- `export_project.py` — 편집 결과를 대시보드 프로젝트 JSON + 요약 md로
-- `import_project.py` — 대시보드에서 고친 컷/자막을 파이프라인으로 되돌린다
-  (`pieces_override.json`이 있으면 timeline이 파형 대신 그 값을 쓴다)
+### Pipeline <-> dashboard round trip
+- `export_project.py` - edit result -> dashboard project JSON + summary md
+- `import_project.py` - cuts / captions edited in the dashboard -> back into the pipeline
+  (if `pieces_override.json` exists, timeline uses it instead of the waveform)
 
     python import_project.py && python build_edit.py && python apply_captions.py
 
-## 첫 롱폼 편집 — 네모에게 비틱 (2026-09-05)
+## First longform edit - 네모에게 비틱 (2026-09-05)
 
-대시보드 "스타일 적용"으로 들어온 작업. 원본 `E:/Edit/OBS/네모에게비틱.mp4`
-2분 46초 -> 완성본 1분 37초 (본편 89.55초 + 아웃트로 7.47초), ko · en 두 편.
-작업 폴더 `edit/네모비틱/`.
+A job from the dashboard's "style apply". Source `E:/Edit/OBS/네모에게비틱.mp4`, 2 min 46 s -> final 1 min 37 s (main 89.55 s
++ outro 7.47 s), ko and en. Work folder `edit/네모비틱/`.
 
-**원본이 처음부터 끝까지 한 화면이다** (모델 + 배경 + 오른쪽 위 채팅). 컷으로
-그림이 바뀌지 않으므로 **화면을 잡는 방식이 컷 노릇을 한다** - 롱폼 스타일의
-"분당 10~14번 장면이 바뀐다"를 크롭 · 확대로 만들었다.
+**The source is one shot from start to end** (model + background + chat top right). Cuts do not change the picture, so
+**framing does the job of cuts** - the longform style's "10-14 scene changes per minute" was built from crops and zooms.
 
-| 잡는 법 | 무엇 |
+| Framing | What |
 |---|---|
-| wide | 1920x1080 원본 그대로 (지시: 최대 축소는 원본 크기) |
-| mid | 1.35배 |
-| close | 1.70배 (지시: 얼굴은 전부 나와야 한다 - 얼굴 상자 x 860-1350, y 430-900 을 품는 크기만 쓴다) |
-| chat | 오른쪽 위 채팅(x 1580-1919, y 0-310)만 떼어 2.4배로 키워 `LongBG.jpg`(1.1배) 위에 얹는다 |
+| wide | the 1920x1080 source as is (instruction: maximum zoom-out is the source size) |
+| mid | 1.35x |
+| close | 1.70x (instruction: the whole face must show - only sizes containing the face box x 860-1350, y 430-900) |
+| chat | only the top-right chat (x 1580-1919, y 0-310), enlarged 2.4x on `LongBG.jpg` (1.1x) |
 
-채팅 크롭은 **말이 그 채팅과 맞물리는 자리에만** 넣었다. 화면만 바꾸는
-장치가 아니라 대화의 한쪽이기 때문이다.
+Chat crops were placed **only where speech engages with that chat**, because the chat is one side of the conversation, not
+just a picture change.
 
-- 96.3-98.3s "왜너만 왜너만 왜너만" — 그가 "당장 그만하라고?" 할 때
-- 110.3-112.0s "그거 비지니스야 ㅋ" — 그가 그 채팅을 읽는 자리
-- 162.1-163.8s "키보드 질투나" — 키보드 자랑 직전
+- 96.3-98.3 s "왜너만 왜너만 왜너만" - when he says "당장 그만하라고?"
+- 110.3-112.0 s "그거 비지니스야 ㅋ" - where he reads that chat
+- 162.1-163.8 s "키보드 질투나" - just before showing off the keyboard
 
-**뺀 것** (지시): 후원 멘트(32-38초), 날파리 이야기(25-28초). 그 밖에 말이
-없는 구간은 전부 잘랐다. 원본의 54%를 남겼다 - 참고본의 11~19%보다 훨씬
-높은데, 원본이 이미 잘라 온 토막이라 그렇다.
+**Removed** (instruction): the donation speech (32-38 s) and the fly story (25-28 s). Everything else without speech was
+cut. 54% of the source was kept - much higher than the references' 11-19%, because the source was already a trimmed excerpt.
 
-**말이 뭉개진 데는 안 썼다.** 7.6-12.3초는 두 번 전사해도 서로 다르게
-들린다("네모쿤 밑으로" / "네모콘 밑에로"). 지어내 적느니 통째로 뺐다.
+**Mumbled speech was not used.** 7.6-12.3 s sounded different in two transcriptions ("네모쿤 밑으로" / "네모콘 밑에로").
+Rather than make something up, it was cut entirely.
 
-**자막 크기를 구워서 맞췄다.** PIL 로 "잉크 105px 이 되는 크기"를 구해
-105 를 넣었더니 libass 는 훨씬 작게 그렸다 - 둘은 같은 크기 값을 다르게
-그린다(폭에 0.7286 을 곱해야 하는 것과 같은 까닭). 재는 방법도 두 번
-헛짚었다: 흰 채움으로 재면 배경의 흰옷 · 하늘색에 걸려 문턱값에 따라
-89 / 121 / 73px 로 널을 뛴다. **하늘색 번짐(#03E9FB)은 이 화면에서 자막에만
-있는 색**이라 그걸로 재니 흔들리지 않았다. 최종 FS 150 · MarginV 68 로
-참고본과 2px 안에 맞는다 (번짐 높이 110 대 112, 아래끝 0.9315 대 0.9333).
+**Caption size was set by rendering.** Computing the size that gives 105 px of ink with PIL and entering 105 made libass draw
+much smaller - the two draw the same size value differently (the same reason widths need the 0.7286 factor). Measuring went
+wrong twice: measured on the white fill, the white clothes and sky blue in the background interfered and it jumped between
+89 / 121 / 73 px depending on threshold. **The sky-blue glow (#03E9FB) appears only in captions on this screen**, so
+measuring that was stable. Final FS 150 and MarginV 68 match the reference within 2 px (glow height 110 vs 112, bottom edge
+0.9315 vs 0.9333).
 
-**영어는 줄여 적었다.** 곧이곧대로 옮기니 여덟 줄이 한 줄에 안 들어가
-"You a / Nemo?" 처럼 낱말 하나만 남는 줄이 생겼다. 참고본은 늘 한 줄이므로
-쪼개지지 않을 만큼 줄였다. `사람을 긁으면 안 되지` -> `Don't poke the bear`
-(긁다를 scratch 로 옮기면 뜻은 맞고 말맛이 사라진다).
+**English was shortened.** Literal translations left eight lines too long for one line and produced lines with a single
+word, like "You a / Nemo?". The reference always uses one line, so lines were shortened until they did not split.
+`사람을 긁으면 안 되지` -> `Don't poke the bear` (translating 긁다 as scratch keeps the meaning and loses the flavour).
 
-**라우드니스는 참고본을 흉내내지 않았다.** 참고본 두 편이 -19.5 와 -14.2 로
-갈렸고 한 편은 피크가 +0.9dBFS 로 잘려 있었다 - 맞추는 절차가 없었다는
-뜻이다. 스타일 JSON 의 권고대로 -16 을 걸어 -17.0 LUFS · 트루피크 -0.9dBFS
-로 나왔다.
+**Loudness did not imitate the references.** The two references were -19.5 and -14.2, and one was clipped at +0.9 dBFS
+peak - there was no levelling process. Following the style JSON's -16 gave -17.0 LUFS, true peak -0.9 dBFS.
 
-## 로그를 프로젝트별로 나눴다 (2026-09-05)
+## Log split per project (2026-09-05)
 
-로그가 한 덩어리라 프로젝트를 옮겨도 앞의 것이 그대로 남아 있었다. 이제
-줄마다 그때 열려 있던 프로젝트를 적어 두고(`pid`) 그 프로젝트의 줄만 보여
-준다. 프로젝트에 저장되므로 다시 열면 지난번 기록이 그대로 보인다
-(`project.json`에 끝의 500줄).
+The log was one blob, so switching projects kept the previous entries. Each line now records the project open at the time
+(`pid`) and only that project's lines are shown. It is saved in the project, so reopening shows the previous history (last
+500 lines in `project.json`).
 
-- 꼬리표가 `server` · `app` · `fonts`인 줄은 프로젝트를 가리지 않는다.
-  "서버가 없어 작업이 클립보드로 간다"는 어느 편집에서나 알아야 하는 말이다
-- 아래의 개수표도 지금 프로젝트 기준이고, **비우기**는 지금 프로젝트의
-  줄만 지운다
-- 줄마다 화면에 찍는 시:분:초(`t`)와 별개로 진짜 시각(`ts`)을 들고 있다.
-  없으면 지난 세션 기록과 이번 줄이 뒤섞여 보인다 (처음에 그랬다)
+- Lines tagged `server`, `app` or `fonts` show in every project. "No server, jobs go to the clipboard" matters in any edit
+- The counters below are per project too, and **clear** removes only the current project's lines
+- Each line carries a real timestamp (`ts`) besides the h:m:s shown (`t`). Without it, previous-session lines mixed with
+  this session's (they did at first)
 
-## 스타일을 프로젝트 밖으로 뺐다 (2026-09-05)
+## Styles moved out of projects (2026-09-05)
 
-**스타일이 하나만 뜨던 것을 고쳤다.** `styles/` 폴더에 파일이 넷 있는데
-화면에는 방금 등록한 하나만 떴다. 스타일이 프로젝트 상태(`ai.styles`) 안에
-저장되고 있어서, 프로젝트마다 목록이 따로 놀았기 때문이다 — 고구마는 0개,
-테스트는 1개. 스타일의 쓰임새가 "한 편에서 분석해 다음 편집에 그대로 쓰는
-것"이라 이건 앞뒤가 안 맞는다.
+**Fixed only one style showing.** `styles/` had four files but the screen showed only the one just registered. Styles were
+saved inside project state (`ai.styles`), so each project had its own list - 고구마 had 0, the test project 1. Styles exist
+to be "analysed in one episode and reused in the next", so that made no sense.
 
-이제 스타일은 **대시보드 전체의 것**이고 `dashboard/styles/` 폴더에 산다.
-프로젝트는 어느 것을 골랐는지 **이름만** 기억한다 (`ai.styleSel`).
+Styles now belong to **the whole dashboard** and live in `dashboard/styles/`. A project remembers **only the name** of its
+choice (`ai.styleSel`).
 
-- 서버에 `GET /api/styles` · `POST /api/style/save` · `POST /api/style/delete`
-- 페이지가 열릴 때, 그리고 서버가 늦게 붙으면 그때 다시 읽는다
-- 지우기는 모든 프로젝트에서 사라지므로 한 번 묻는다
-- 옛 저장본에 프로젝트 안 스타일이 남아 있으면 처음 열 때 창고로 옮긴다
+- Server: `GET /api/styles`, `POST /api/style/save`, `POST /api/style/delete`
+- Re-read when the page opens, and again if the server connects late
+- Deleting removes a style from every project, so it asks once
+- Styles left inside projects from old saves are moved to the store on first open
 
-**옮기기 규칙에서 한 번 헛디뎠다.** 처음엔 "이름이 창고에 없으면 올린다"로
-했더니, 지우기를 눌러도 헌 목록에 남아 있던 그 스타일이 곧바로 다시 올라가
-**지우기가 없던 일이 됐다.** 올릴 대상은 "창고에서 온 적이 없는 것"
-(`file`이 없는 것)이라야 한다.
+**The migration rule went wrong once.** At first it was "upload if the name is not in the store", so pressing delete made the
+style, still in the old list, come straight back - **delete undid itself.** The candidates must be "never came from the
+store" (no `file`).
 
-같이 고친 것: 목록이 저절로 첫 번째로 떨어질 때 고른 이름을 안 적어서
-프로젝트가 선택을 잊어버렸다. 이제 `styleSel`과 프로젝트 카드에 뜨는
-`project.style`을 같이 맞춘다.
+Also fixed: when the list fell back to the first entry by itself, the chosen name was not recorded and the project forgot
+its choice. `styleSel` and `project.style` (shown on the card) are now kept in step.
 
-## 롱폼 스타일 분석 (2026-09-04)
+## Longform style analysis (2026-09-04)
 
-대시보드 "스타일 분석"으로 들어온 작업. 원본 10개 -> 완성본 2편
-(`E:/Edit/pair/Longform`). 결과는 `dashboard/styles/담유이_일반롱폼.json`.
+A job from the dashboard's "style analyse". 10 sources -> 2 finals (`E:/Edit/pair/Longform`). Result:
+`dashboard/styles/담유이_일반롱폼.json`.
 
-**롱폼은 쇼츠의 긴 판이 아니다.** 화면 방향 · 프레임률 · 배경 · 크롭 ·
-오버레이 처리가 전부 다르다. 같은 것은 자막(폰트 · 색이 그대로다)과
-"무음을 남기지 않는다"는 태도뿐이다.
+**Longform is not a long short.** Orientation, frame rate, background, crop and overlay handling all differ. Only the captions
+(same font and colours) and the attitude "leave no silence" are shared.
 
-| | 쇼츠 | 롱폼 |
+| | Shorts | Longform |
 |---|---|---|
-| 화면 | 1080x1920 · 24fps | 1920x1080 · 60fps |
-| 배경 | DamuiPreset.mov 위에 영상 띠 | 방송 화면 그대로 |
-| 크롭 | 인물만 잘라낸다 | 없다 |
-| 채팅 · 후원 | 지운다 | 남긴다 |
-| 자막 폰트 · 색 | CookieRunOTF Black, 흰 채움 + 진한 외곽선 + 하늘색 번짐 | **같다** |
-| 자막 크기 | 130 (캔버스 높이의 0.068) | 105 (0.097) |
-| 자막 자리 | 아래에서 0.795 | 아래에서 0.925 (잉크 밑변) |
+| Screen | 1080x1920, 24 fps | 1920x1080, 60 fps |
+| Background | video band on DamuiPreset.mov | stream screen as is |
+| Crop | person only | none |
+| Chat / donations | removed | kept |
+| Caption font / colour | CookieRunOTF Black, white fill + dark outline + sky-blue glow | **same** |
+| Caption size | 130 (0.068 of canvas height) | 105 (0.097) |
+| Caption position | 0.795 from the bottom | 0.925 from the bottom (ink baseline) |
 
-- **고르는 방식은 솎아내기다.** 완성본의 각 순간을 원본에 되짚어 보면 원본
-  시각이 늘 앞으로만 간다. 뒤 장면을 앞으로 당겨 쓰지 않는다. 그래서 원본을
-  89%까지 버려도 이야기가 어긋나지 않는다 (남긴 비율 11% · 19%)
-- **한 토막이 1~2초**로 짧다 (중앙값 1.5s). 이음매는 전부 하드컷이고
-  디졸브가 한 곳도 없다
-- **무음이 아예 없다.** -60dB 아래로 0.3초 이상 조용한 곳이 두 편 모두 0곳.
-  말 사이를 다 잘라내도 깔린 소리는 끊기지 않는다
-- **아웃트로는 `DamuiEOVPreset3.mov` 하나만 쓴다** (7.47초, 맨 끝에 하드컷).
-  `유이 사람 아니야.mov`는 옛 `DamuiEOVPreset2.mov`로 끝나는데 이건 규칙으로
-  삼지 않는다 (사용자 지시). 인트로는 없다
-- 자막은 **쇼츠와 같은 폰트 · 같은 색**이다. `CookieRunOTF Black`,
-  흰 채움 + 진한 외곽선 + 하늘색 번짐. 크기(잉크 105px = 화면의 0.097,
-  글자 크기 105쯤)와 자리(밑변 0.925)만 다르다. 강조는 빨강
-  그라데이션(#C30000 -> #820000)에 노란 외곽선으로, 쇼츠의 발끈
-  (노랑->주황빨강 + 진남색 외곽선)과 색이 다르다
+- **Selection is thinning.** Tracing each moment of a final back to the source, source time only ever moves forward. Later
+  scenes are never pulled earlier. That is why 89% of the source can be thrown away without breaking the story (kept 11% and
+  19%)
+- **Segments are short, 1-2 s** (median 1.5 s). Every join is a hard cut, not a single dissolve
+- **No silence at all.** Zero spots below -60 dB for 0.3 s or longer in both. Even with every gap between words cut out, the
+  bed sound never breaks
+- **The outro is always `DamuiEOVPreset3.mov`** (7.47 s, hard cut at the very end). `유이 사람 아니야.mov` ends with the old
+  `DamuiEOVPreset2.mov`, which is not taken as a rule (user instruction). No intro
+- Captions use **the same font and colours as shorts**: `CookieRunOTF Black`, white fill + dark outline + sky-blue glow. Only
+  size (105 px of ink = 0.097 of the screen, font size about 105) and position (baseline 0.925) differ. Emphasis is a red
+  gradient (#C30000 -> #820000) with a yellow outline, different from the shorts outburst (yellow -> orange-red + dark navy
+  outline)
 
-**표본 둘이 서로 어긋난 것 셋** — 규칙으로 굳히지 않고 관찰로만 적어 뒀다.
+**Three points where the two samples disagree** - recorded as observations, not rules.
 
-| 항목 | 유이 사람 아니야 | 곧 눈알 장아찌 |
+| Item | 유이 사람 아니야 | 곧 눈알 장아찌 |
 |---|---|---|
-| 자막이 떠 있는 시간 | 98% | 69% |
-| 날짜 딱지 | 첫 4.75초 (노란 상자 · 빨간 글자) | 없음 |
-| 라우드니스 | -19.5 LUFS / 피크 -3.7 | -14.2 LUFS / **피크 +0.9 (클리핑)** |
+| Time with a caption on screen | 98% | 69% |
+| Date tag | first 4.75 s (yellow box, red text) | none |
+| Loudness | -19.5 LUFS / peak -3.7 | -14.2 LUFS / **peak +0.9 (clipping)** |
 
-마지막 줄은 스타일이 아니라 고칠 것에 가깝다. 새로 만들 때는 -16 LUFS ·
-트루피크 -1dBTP 를 권한다.
+The last row is closer to a defect than a style. New edits should use -16 LUFS and true peak -1 dBTP.
 
-**자막 크기를 두 번 잘못 쟀다.** 처음엔 자막 위에 겹친 흰 영수증 상자를
-글자로 세어 137px, 다음엔 잉크가 있는 가로줄을 이어 묶다가 배경의 옅은
-흰색까지 한 덩어리로 삼켜 180px. 두 번 다 "두 편의 자막 크기가 다르다"는
-틀린 결론이 나왔다. **같은 자리를 1:1로 잘라 나란히 놓고 보니 두 편의
-글자가 같은 크기였다.** 다음에 잴 때는 가로줄별 픽셀 수를 그래프로 찍어
-자막 덩어리가 어디서 시작하는지 눈으로 먼저 볼 것.
+**Caption size was mismeasured twice.** First a white receipt box overlapping the caption was counted as text (137 px), then
+joining rows containing ink swallowed faint white in the background into one blob (180 px). Both led to the wrong conclusion
+that the two videos used different sizes. **Cropping the same spot 1:1 side by side showed the same size.** Next time, plot
+pixel counts per row first and see where the caption blob starts.
 
-**폰트는 가로세로 비로는 안 갈렸다.** 후보 다섯이 ±5% 안에 몰린다. 흰 채움만
-떼어내 후보로 그린 같은 줄과 겹쳐 보면(IoU) 갈린다 — 쿠키런 Black 0.709 /
-쿠키런 Bold 0.598 / 주아 0.344 / 맑은고딕 0.331. 세 줄 모두 Black이 1등.
+**Aspect ratio did not separate the fonts.** Five candidates fell within ±5%. Overlaying the isolated white fill with the same
+line rendered in each candidate (IoU) did - CookieRun Black 0.709 / CookieRun Bold 0.598 / Jua 0.344 / Malgun Gothic 0.331.
+Black won on all three lines.
 
-**재는 방법** (다시 할 때 쓸 것, `scratchpad/`에 스크립트가 있다):
-화면을 32x14 회색 지문으로 줄여 원본 전체와 맞춰 어느 토막인지 찾고,
-자막은 "흰 채움 픽셀 가운데 반지름 5픽셀 안에 아주 어두운 픽셀이 있는 것"만
-글자로 세어 배경의 흰색 · 하늘색을 걸러낸다.
+**Measuring method** (for next time; scripts in `scratchpad/`): shrink frames to a 32x14 grey fingerprint and match against the
+whole source to find the segment; count caption pixels only as "white fill pixels with a very dark pixel within a 5 px radius"
+to filter out white and sky blue in the background.
 
-## 네모비틱 롱폼 - 두 번째 고침 (2026-09-05)
+## 네모비틱 longform - second fix (2026-09-05)
 
-첫 판을 보고 사용자가 여덟 가지를 지적했다. 그중 여섯이 **경계를 낱말
-시각으로 잡은 탓** 하나에서 나왔다.
+After the first version the user raised eight points. Six came from one cause: **boundaries set from word times.**
 
-**컷 경계를 파형으로 다시 잡았다** (`audio.py` 를 고구마에서 가져왔다).
-Whisper 낱말 시각을 그대로 쓴 결과가 이랬다:
+**Cut boundaries were re-set from the waveform** (`audio.py` borrowed from 고구마). Using Whisper word times directly gave:
 
-| | 낱말 시각 | 파형 |
+| | Word time | Waveform |
 |---|---|---|
-| 첫 장면 시작 | 0.00 | 0.66 (0.66초 빈 자리) |
-| "네모쿤" 시작 | 39.44 | 39.98 |
-| "너희는 멤버들" 시작 | 144.14 | 144.86 (0.72초 빈 자리) |
-| "손편지 없잖아" 끝 | 118.66 | 119.19 (0.53초 잘림) |
-| "전화번호 없잖아?" 끝 | 132.72 | 133.30 |
+| First scene start | 0.00 | 0.66 (0.66 s of nothing) |
+| "네모쿤" start | 39.44 | 39.98 |
+| "너희는 멤버들" start | 144.14 | 144.86 (0.72 s of nothing) |
+| "손편지 없잖아" end | 118.66 | 119.19 (0.53 s cut off) |
+| "전화번호 없잖아?" end | 132.72 | 133.30 |
 
-머리마다 0.6~0.7초씩 말이 시작되기 전 빈 자리가 붙고, 꼬리는 거꾸로
-0.4~0.6초씩 말을 잘라먹고 있었다. 사용자가 지적한 "컷 넘어가고 여백 후
-말이 나온다"와 "자막은 전부 나오는데 말소리가 잘린다"가 같은 원인이다.
-**Whisper 낱말 시각은 시작도 끝도 실제보다 이르다.**
+Every head carried 0.6-0.7 s of nothing before speech, and every tail cut off 0.4-0.6 s of speech. The user's "after a cut
+there is a gap before speech" and "all captions appear but the speech is clipped" had the same cause. **Whisper word times
+are early at both start and end.**
 
-`audio.pieces` 를 그대로 쓰면 안 됐다. 그것은 제 나름대로 경계를 다시
-잡는데, 이미 잡아 둔 경계를 도로 앞당겨 "좋아해요"(101.82까지)를 101.59
-에서 끊었다. 경계는 건드리지 않고 **가운데 죽은 시간만** 걷어내는
-`timeline._thin` 을 따로 뒀다.
+`audio.pieces` could not be used as is: it re-sets boundaries its own way and pulled an existing boundary earlier, cutting
+"좋아해요" (to 101.82) at 101.59. A separate `timeline._thin` removes **only the dead time in the middle** without touching
+boundaries.
 
-**장면 안에서는 배율을 바꾸지 않는다.** 예전 판은 한 문장 도중에 close ->
-mid 로 갈아탔다. 컷 없이 배율만 바뀌니 화면이 꿀렁거렸다 ("정신없음").
-이제 `SCENES` 가 배율의 단위이고, 이웃한 장면의 배율이 같으면 `check()` 가
-assert 로 막는다 - 컷을 넘었는데 그림이 그대로면 컷이 아니라 끊긴 것처럼
-보인다.
+**No scale change inside a scene.** The old version switched close -> mid in the middle of a sentence. Scale changing without
+a cut made the picture wobble ("chaotic"). `SCENES` is now the unit of scale, and `check()` asserts that neighbouring scenes
+differ - a cut whose picture does not change looks like a glitch, not a cut.
 
-**확대를 줄이고 자막을 내렸다.** 입 아래가 원본 y 845, 턱끝이 890 이고
-자막 잉크가 910-1032 에 앉는다. 그래서 wide 1.00 / mid 1.20 / close 1.36
-배가 한계다. 예전 close 는 1.70배였고, 그 배율에서 "웃어" 장면의 입이
-자막 뒤로 들어갔다. `ORIGIN_Y` 는 937 -> 959 (지시: 약간 더 내려),
-강조 그라데이션 띠(`EMPH_Y0/Y1`)도 같이 내렸다.
+**Less zoom, lower captions.** Below the mouth is source y 845, the chin 890, and caption ink sits at 910-1032. So wide 1.00 /
+mid 1.20 / close 1.36 are the limits. The old close was 1.70x, and at that scale the mouth went behind the caption in the "웃어"
+scene. `ORIGIN_Y` 937 -> 959 (instruction: a little lower), and the emphasis gradient band (`EMPH_Y0/Y1`) moved with it.
 
-**장면마다 소리 크기를 맞췄다.** 말소리가 가장 작은 "당장 그만하라고?"
-(RMS 0.049) 와 가장 큰 "야 나한테는..."(0.158) 이 10.1dB 차이였다. 목표
-(0.115)에 못 미치는 장면만 최대 6dB 올린다. 다 같은 크기로 눌러 버리면
-말의 세기가 사라지므로 큰 장면은 건드리지 않는다.
+**Loudness matched per scene.** The quietest speech, "당장 그만하라고?" (RMS 0.049), and the loudest, "야 나한테는..." (0.158),
+were 10.1 dB apart. Only scenes below the target (0.115) are raised, by up to 6 dB. Squashing all to one level would lose the
+dynamics of speech, so loud scenes are left alone.
 
-**반복은 코드가 센다.** `웃어 (x5)` 한 줄로 합쳤다가 지적받았다 (쇼츠에서
-한 번 받은 지적이다). 이제 `LINES` 에는 반복되는 그대로 적고
-`mark_repeats` 가 회차를 붙인다 - 손으로 적지 않으니 빠질 수가 없다.
-파형을 재 보니 0.38초 간격으로 여섯 번이라 (x6) 까지 간다.
+**Repeats are counted by code.** Merging into one line `웃어 (x5)` drew a complaint (already received once on shorts). `LINES`
+now lists repeats as they are and `mark_repeats` numbers them - nothing written by hand, so nothing can be missed. The
+waveform shows six repeats 0.38 s apart, so it goes to (x6).
 
-**유희 -> 유이.** 담유이 본인 이름을 Whisper 가 잘못 들은 것이다 (152.54의
-"유이가"는 제대로 알아들었다). 영어도 "Yuhui-senpai" -> "Yui-senpai".
+**유희 -> 유이.** Whisper misheard Damyui's own name (at 152.54 "유이가" was heard correctly). English: "Yuhui-senpai" ->
+"Yui-senpai".
 
-**완성본 재전사가 네 군데를 잡았다** (`verify_final.py`). 원본 기준 검증은
-전부 통과한 뒤였다:
+**Re-transcribing the final caught four spots** (`verify_final.py`), after every source-based check had passed:
 
-- `다시` - 잘라낸 낱말의 꼬리가 12.72까지 갔다. 파형 덩어리는 12.61부터라
-  갈라지지 않아 손으로 12.74에 못박았다
-- `거야` - 84.20까지 살려야 들린다. 83.88에서 끊었더니 통째로 날아갔다
-- `없잖아` -> `없어` - 늘어지는 "아"가 148.65까지 간다. 148.10까지 늘렸다
-- `다 좋아하는 거 봐` -> 들리는 것은 "어어어어..." 뿐. 통째 전사와 잘라
-  전사가 딴판이라 (가운데 1.07초가 무음이다) 장면째 뺐다
+- `다시` - the tail of a cut word ran to 12.72. The waveform blob starts at 12.61 and does not split, so it was pinned at 12.74
+  by hand
+- `거야` - must be kept to 84.20 to be heard. Cutting at 83.88 lost it entirely
+- `없잖아` -> `없어` - the drawn-out "아" runs to 148.65. Extended to 148.10
+- `다 좋아하는 거 봐` -> only "어어어어..." is audible. Whole-file and sliced transcriptions disagreed completely (the middle
+  1.07 s is silent), so the scene was removed
 
-**`export_project.py` 가 없었다.** 사용자가 "무조건 사용자 편집에 전부
-적용하라고 했는데 왜 적용 안 해?"라고 지적한 것이 이것이다. 네모비틱에는
-이 파일이 아예 없어서 두 판을 굽는 동안 대시보드에는 아무것도 올라가지
-않았다.
+**`export_project.py` did not exist for this episode.** This is what the user meant by "I said apply everything to user edit,
+why isn't it applied?". 네모비틱 had no such file, so two renders went by with nothing reaching the dashboard.
 
-**그리고 파일만 떨어뜨린 것도 적용이 아니었다.** 처음엔 파이프라인 폴더에
-`네모비틱_project.json` 을 하나 만들고 "불러오기로 여세요"로 끝냈다. 사용자가
-스타일 적용을 걸었던 프로젝트 카드(`projects/pmtn3puhja7yt`, 이름 "네모에게
-비틱")는 **컷 0 · 자막 0 인 채로 그대로 있었다.** 이제 저장소에 직접 써
-넣는다 - 이름 · 만든 날짜 · 로그 · 프롬프트 · 드랍한 파일은 그대로 두고
-타임라인만 채우고, 완성본에서 뜬 한 장을 `thumb.jpg` 로 굽는다.
+**Dropping a file was not "applying" either.** At first a `네모비틱_project.json` was created in the pipeline folder with
+"open it with import". The project card the user had run style apply on (`projects/pmtn3puhja7yt`, "네모에게 비틱") **stayed at
+0 cuts, 0 captions.** Now the export writes straight into the store - name, creation date, log, prompt and dropped files are
+kept, only the timeline is filled, and a frame from the final is rendered into `thumb.jpg`.
 
-써 넣으면서 세 가지를 틀렸고, 그 김에 대시보드 쪽 두 가지를 고쳤다.
+Three mistakes were made while writing it, and two dashboard bugs were fixed along the way.
 
-| 틀린 것 | 증상 | 맞는 것 |
+| Mistake | Symptom | Correct |
 |---|---|---|
-| `clip.crop` 을 픽셀로 적었다 | x,y 가 0.999 로 w,h 가 0.001 로 잘려 미리보기의 영상이 통째로 사라졌다 (자막만 떴다) | **0~1 비율**이다 |
-| `track.muted: true` 로 "소리 없음"을 적었다 | `activeClips` 가 그 트랙을 통째로 건너뛰어 인용 카드와 배경이 안 나왔다 | 트랙을 끄는 스위치다. 소리 없음은 클립 `volume: 0` |
-| 카드를 소스 영상 클립으로 내보냈다 | 렌더는 90.20초 한 장을 붙박는데 미리보기는 3초 동안 영상이 흘러 딴 채팅이 떴다 | 그 장을 PNG 로 떠서(`cards/`) **그림 클립**으로 |
+| `clip.crop` written in pixels | x, y clamped to 0.999 and w, h to 0.001, the preview video vanished (only captions showed) | it is a **0-1 fraction** |
+| "no sound" written as `track.muted: true` | `activeClips` skipped the whole track, the quote cards and background vanished | that switches the track off; no sound is clip `volume: 0` |
+| cards exported as source video clips | the render pins the frame at 90.20 s, but the preview played 3 s of video and showed other chat | grab that frame as PNG (`cards/`) and use an **image clip** |
 
-- **미리보기 상자 비율이 캔버스를 따라가지 않았다** (`editor.js syncRatio`).
-  콤보박스 기본값이 9:16 이라 롱폼을 열면 세로 상자에 가로 영상이 들어갔다.
-  이제 프로젝트의 캔버스를 따라가고, 손으로 고르면 그 값이 이긴다
-- **정지 그림을 미리보기가 못 그렸다.** 서버는 `.jpg` 를 403 으로 막았고
-  (`MEDIA_EXT`), 미리보기는 `<video>` 만 만들었다. 이제 그림도 내주고
-  `<img>` 로 그린다 - 카드 배경(LongBG)과 인용 카드가 이것 없이는 안 나온다
+- **The preview box aspect did not follow the canvas** (`editor.js syncRatio`). The dropdown defaulted to 9:16, so longform
+  opened with landscape video in a portrait box. It now follows the project canvas, and a manual choice wins
+- **The preview could not draw still images.** The server blocked `.jpg` with 403 (`MEDIA_EXT`) and the preview only created
+  `<video>`. Images are now served and drawn with `<img>` - the card background (LongBG) and quote cards need it
 
-**대시보드가 그 프로젝트를 열어 두고 있으면 내보내기가 덮어쓰인다.**
-브라우저는 localStorage 의 상태를 "폴더의 사본보다 항상 최신"으로 치고
-(`app.js boot`) 열 때마다 저장한다. 내보내기가 다섯 번 조용히 되돌려진
-까닭이다. 탭을 닫거나 다른 프로젝트로 옮긴 뒤에 내보낼 것.
+**If the dashboard has the project open, the export gets overwritten.** The browser treats its localStorage state as "always
+newer than the folder copy" (`app.js boot`) and saves on every open. That is why the export was silently reverted five times.
+Close the tab or switch projects before exporting.
 
 ## 봉누도 불참 (2026-09-05, 담유이 1인 일반 쇼츠)
 
-82.7초를 **41.45초**로 자르고 마지막에 **1.1배속** — 완성본 **37.68초**.
-`edit/봉누도불참/`, 완성본 `edited/봉누도불참_ko.mp4`,
-프로젝트 `projects/pmtoeopic7soe`.
+82.7 s cut to **41.45 s**, then **1.1x speed** at the end - final **37.68 s**. `edit/봉누도불참/`, final
+`edited/봉누도불참_ko.mp4`, project `projects/pmtoeopic7soe`.
 
-**이 소스는 앞선 것들과 소리가 딴판이었다.** -41.7 LUFS 로 25dB 조용하고,
-말 밑에 배경음악이 처음부터 끝까지 깔려 있다. 그대로 돌렸더니 파형 검출이
-말 덩어리를 32개밖에 못 잡았다 (실제로는 112개다). 100~250Hz 대역 에너지가
-**무음 구간에서 오히려 말할 때보다 높아서**, 전대역 RMS로는 음악이 늘 문턱을
-넘는다. 그래서 레벨만 따로 잰다:
+**This source sounded nothing like the earlier ones.** At -41.7 LUFS it is 25 dB quieter, with background music under the
+speech from start to end. Run as is, waveform detection found only 32 speech runs (there are 112). Energy at 100-250 Hz is
+**higher in silences than during speech**, so with full-band RMS the music always crosses the threshold. So the level is
+measured separately:
 
-- `src_level.wav` — 700~3000Hz 만 남기고 34dB 올린 트랙. `audio.py` 가
-  이것이 있으면 여기서 레벨을 잰다. 문턱도 다시 쟀다 (THR_HI 0.050 /
-  THR_LO 0.022 — 무음 p90 0.023~0.032, 말 p50 0.034~0.077)
-- `src_audio.wav` — 전대역에 24dB. 전사와 probe 용이다
-- 완성본은 `apply_captions.py` 에서 loudnorm 으로 -16 LUFS (앞선 완성본들과 같다)
+- `src_level.wav` - only 700-3000 Hz, raised 34 dB. `audio.py` measures levels from it if present. Thresholds re-measured
+  (THR_HI 0.050 / THR_LO 0.022 - silence p90 0.023-0.032, speech p50 0.034-0.077)
+- `src_audio.wav` - full band + 24 dB, for transcription and probe
+- The final is brought to -16 LUFS with loudnorm in `apply_captions.py` (same as earlier finals)
 
-**낱말 안의 폐쇄음이 MERGE(0.20초)보다 길 수 있다.** "맞겠다"의 폐쇄음이
-0.21 · 0.24초라 파이프라인이 그 틈을 쉬는 자리로 읽고 낱말을 두 조각으로
-잘랐다 — 완성본에서 "막"만 들렸다. `audio.pieces(join=, merge=)` 와
-`timeline.JOIN_BY_GROUP` 으로 그 그룹만 기준을 올린다. `verify_gaps` 도
-같은 값을 보고 일부러 남긴 틈은 안 센다.
+**A stop closure inside a word can be longer than MERGE (0.20 s).** The closures in "맞겠다" are 0.21 and 0.24 s, so the
+pipeline read them as pauses and split the word - only "막" was audible in the final. `audio.pieces(join=, merge=)` and
+`timeline.JOIN_BY_GROUP` raise the threshold for that group only. `verify_gaps` uses the same values and ignores gaps left on
+purpose.
 
-**크롭을 다시 쟀다.** 2인 합방이 아니라 혼자 화면을 채우는 클로즈업이고
-채팅 말풍선이 x 1580 부터 뜬다. `x 548-1572, y 0-1080` (1024x1080 = 0.948,
-스타일이 정한 비율 그대로) → 1080x1140 으로 키워 y=407 에 얹는다.
+**Crop re-measured.** It is a solo close-up filling the screen, not a two-person stream, and the chat balloon appears from
+x 1580. `x 548-1572, y 0-1080` (1024x1080 = 0.948, the style's ratio) -> scaled to 1080x1140 and placed at y=407.
 
-**주석 자막을 새로 만들었다** (작업 지시: 일반 폰트보다 작게, 배민 주아체,
-얼굴을 가리지 말 것). `build_ass.py` 의 `Note` 스타일, CSV 에 화자 `주석`
-으로 들어간다. 낱말이 **처음 나올 때만** 띄운다.
+**New annotation captions** (job instruction: smaller than the normal font, 배민 주아, must not cover the face). The `Note` style
+in `build_ass.py`, CSV speaker `주석`. Shown only **the first time** a word appears.
 
-피드백으로 차림이 한 번 바뀌었다 — 처음에는 화면 위쪽에 반투명 검은
-판(BorderStyle 3, MarginV 500)이었는데, **자막 바로 위 · 바탕색 없이 상단
-캡션과 같은 차림**으로 고쳤다 (BorderStyle 1, 외곽 2 / 그림자 3, 아래 정렬
-MarginV 518). 자리는 잉크로 잡는다 — 검은 화면에 자막만 구워 재 보면
-자막 잉크 1420-1527, 주석 잉크 1342-1395 로 25px 뜨고 얼굴 아래끝(1282)
-위로는 안 올라간다. 설명이 붙는 낱말은 자막에서 앞에 `*` 을 달아 어느
-말에 대한 것인지 보이게 했다 (`*봉누도는`, `*소빙하기가`). 봉누도 · 아담 ·
-소빙하기 · 이사 빙하기 넷이고, RP 는 빼 달라는 지시가 있었다.
+Feedback changed the look once - first a translucent black plate near the top (BorderStyle 3, MarginV 500), then **right above
+the caption, no background, same look as the top caption** (BorderStyle 1, outline 2 / shadow 3, bottom-aligned MarginV 518).
+Placement is by ink - rendering only the captions on black: caption ink 1420-1527, annotation ink 1342-1395, 25 px above, and
+never above the bottom of the face (1282). Words that get an explanation carry a leading `*` in the caption so it is clear
+which word it refers to (`*봉누도는`, `*소빙하기가`). Four: 봉누도, 아담, 소빙하기, 이사 빙하기; RP was removed on instruction.
 
-검사 다섯이 통과한다. 한때 `verify_cuts` 가 그룹 7 끝(68.93)을 물고
-늘어졌는데 — 68.95 까지는 "필요하겠다"가 온전하고 68.96 부터 "라고"가
-묻어 나온다 — 사용자가 "라고 판단을 했습니다"를 되살리면서 그 경계 자체가
-없어졌다.
+All five checks pass. For a while `verify_cuts` kept flagging the end of group 7 (68.93) - "필요하겠다" is intact up to 68.95 and
+"라고" bleeds in from 68.96 - until the user restored "라고 판단을 했습니다" and that boundary disappeared.
 
-**완성본 재전사가 세 번 일을 했다.** 소스 검사만으로는 셋 다 못 잡았다:
-"맞겠다"→"막", "필요하겠다"→"필요하겠", 자막 없이 들리는 "그래서".
+**Re-transcribing the final paid off three times.** Source checks caught none of these: "맞겠다" -> "막", "필요하겠다" ->
+"필요하겠", and "그래서" audible without a caption.
 
-주의: **wide window 전사는 없는 말을 지어낸다.** 이번에 "지만"(잘라낸
-"모르겠지만"의 꼬리인 줄 알았다)과 "진짜"가 그랬는데, 좁은 창으로 다시
-들으니 둘 다 없었다. 반대로 "겹칠 거기 때문에"는 좁은 창 셋이 일치했고
-완성본 재전사도 같게 들었다 — 전체 전사 쪽이 놓친 것이었다.
+Note: **wide-window transcription invents words.** This time "지만" (thought to be the tail of the cut "모르겠지만") and "진짜";
+re-listening with a narrow window, neither was there. Conversely "겹칠 거기 때문에" agreed in three narrow windows and in the
+final re-transcription - the whole-file transcript had missed it.
 
-열어 뒀던 것 하나는 답을 받았다 — **"아담"은 담유이의 팬네임**이라
-주석을 달았다. 아직 확실하지 않은 것: **"RP도 살짝" 뒤에 "진짜"가 있는지**
-(완성본 전사만 두 번 들었고 소스 전사는 한 번도 못 들었다).
+One open question was answered - **"아담" is Damyui's fan name**, so it got an annotation. Still unsure: **whether "진짜" follows
+"RP도 살짝"** (heard twice only in the final's transcription, never in the source's).
 
-### 피드백 한 바퀴 (2026-09-06)
+### One feedback round (2026-09-06)
 
-대시보드가 돌려준 것 두 가지를 그대로 파이프라인에 넣었다:
+Two things returned by the dashboard went straight into the pipeline:
 
-- **되살리기** — 사용자가 전체 자막 창에서 지워진 낱말을 누르면
-  `restore.json` 에 `[[68.9, 69.86]]` 로 떨어진다. `timeline.py` 가 이걸
-  읽어 가장 가까운 그룹을 늘린다 (`RESTORE_JOIN 1.50`, 위스퍼 시각이
-  이르므로 `RESTORE_LAG 0.25` 만큼 뒤로 민다). "라고 판단을 했습니다"가
-  돌아왔고 총 길이가 40.2 → 41.45초가 됐다
-- **프롬프트 창의 지시 넷** — 표기 고침(이사빙하기 → 이사 빙하기,
-  엑스 → X(구 트위터)), RP 주석 빼기 · 아담 주석 넣기, 주석 차림 바꾸기,
-  그리고 **마지막에 1.1배속**
+- **Restore** - when the user clicks a removed word in the all-captions view, it lands in `restore.json` as `[[68.9, 69.86]]`.
+  `timeline.py` reads it and extends the nearest group (`RESTORE_JOIN 1.50`; Whisper times are early, so pushed later by
+  `RESTORE_LAG 0.25`). "라고 판단을 했습니다" came back and the length went 40.2 -> 41.45 s
+- **Four instructions in the prompt box** - spelling (이사빙하기 -> 이사 빙하기, 엑스 -> X(구 트위터)), drop the RP note and add
+  an 아담 note, change the annotation look, and **1.1x speed at the end**
 
-**배속은 자막을 다 구운 뒤에 한 번에 건다.** `apply_captions.py` 가
-`subtitles=...,setpts=PTS/1.1,fps=60` + `atempo=1.1` 로 그림 · 소리 ·
-자막을 함께 당긴다. 먼저 배속하면 CSV 도 파이프라인도 전부 배속 기준으로
-다시 써야 한다. 대신 **완성본을 가리키는 값은 전부 `timeline.SPEED` 로
-나눠야 한다** — `verify_final` 의 CSV 대조, `export_project` 의 review
-`captions` 와 낱말 `out`(피드백 화면이 여기로 영상을 감는다), 카드에 뜨는
-`meta.duration`. 안 나누면 끝에서 3.8초 어긋난다.
+**Speed is applied once, after the captions are burned.** `apply_captions.py` pulls picture, sound and captions together with
+`subtitles=...,setpts=PTS/1.1,fps=60` + `atempo=1.1`. Speeding up first would mean rewriting the CSV and the whole pipeline in
+sped-up time. Instead **every value pointing into the final must be divided by `timeline.SPEED`** - the CSV comparison in
+`verify_final`, the review `captions` and word `out` in `export_project` (the feedback view seeks there), and `meta.duration`
+on the card. Otherwise it drifts 3.8 s by the end.
 
-배속 뒤 완성본 재전사도 통과했다. 남은 표시 셋은 전부 알던 헛방이다 —
-"X(구 트위터)"(일부러 바꾼 표기), "봉누도"(위스퍼가 공노도 · 농란도로 듣는다),
-"RP"(한글만 세는 대조라 알피가 안 맞는다). "지만"은 다시 한 번 좁은 창으로
-확인했다 — 이음매 0.42초는 무음이다.
+The final re-transcription after the speed-up passed too. The remaining three flags are known false alarms - "X(구 트위터)"
+(spelling changed on purpose), "봉누도" (Whisper hears 공노도 or 농란도), "RP" (the comparison counts Hangul only, so 알피 does
+not match). "지만" was checked once more with a narrow window - the 0.42 s seam is silent.
 
-### 대시보드가 내보낸 편집을 덮어쓰던 것 (고침)
+### The dashboard overwrote exported edits (fixed)
 
-`export_project.py` 로 프로젝트를 내보낸 뒤 대시보드에서 그 프로젝트를 열면
-**방금 내보낸 편집이 통째로 사라졌다.** 화면에도 표가 안 났다 — 열기가
-`stash()` 로 화면의 옛 상태(자막 0 · 60초)를 파일 위에 먼저 쓰고, 그렇게
-망가진 파일을 도로 읽었기 때문이다. 세 겹으로 막았다:
+After exporting a project with `export_project.py`, opening it in the dashboard **wiped the edit just exported.** Nothing showed
+on screen either - open called `stash()`, which wrote the old screen state (0 captions, 60 s) over the file first, and then read
+back the broken file. Three layers of defence:
 
-- `stash()` 는 **브라우저에서 손댄 것이 없으면**(`P.dirty`) 저장하지 않는다
-- 자동 저장은 **파일 쪽이 더 새것이면 건너뛴다**(`diskNewer`). 사용자가 직접
-  시킨 저장(`저장` 단추 · 이름 바꾸기 · 불러오기 · 비우기)만 `force: true`
-- 견주는 값은 **디스크에 마지막으로 읽고 쓴 시각**(`P.diskAt`)이다. 화면의
-  `savedAt` 은 브라우저 자동 저장이 탭 닫을 때마다 새로 찍어서, 그걸로
-  견주면 늘 "화면이 더 새것"이 되어 검사가 무력해진다. 이걸 놓쳐서 앞의 두
-  겹을 넣고도 계속 덮였다
+- `stash()` does not save **unless something was changed in the browser** (`P.dirty`)
+- Autosave **skips when the file is newer** (`diskNewer`). Only saves the user explicitly asked for (save button, rename,
+  import, clear) use `force: true`
+- The value compared is **the time the disk was last read or written** (`P.diskAt`). The on-screen `savedAt` is re-stamped by
+  the browser autosave every time a tab closes, so comparing it always made "the screen newer" and disabled the check. Missing
+  this kept the overwrites going even with the first two layers in place
 
-### 전체 자막에서 빼기 (2026-09-06)
+### Dropping from the all-captions view (2026-09-06)
 
-되살리기의 반대를 붙였다. **전체 자막에서 남아 있는 말을 누르면 다음 렌더에서
-빠진다.** 지금까지는 지워진 말을 되살리는 쪽만 됐다.
+The opposite of restore. **Clicking a remaining word in the all-captions view removes it in the next render.** Until now only
+restoring removed words worked.
 
-- `feedback.js` — 낱말이 네 꼴이 된다: `keep` · `dropped`(주황, 사용자가 뺌) ·
-  `cut`(붉은색, 클로드가 뺌) · `restored`(초록). 누르는 것 하나로 양쪽이 다
-  된다. 남은 말을 뺄 때는 그 자리로 데려다 준다 - 무엇을 빼는지 듣고 정한다
-- `server.py` — `_write_ranges` 가 `restore.json` 과 `drop.json` 을 같이 쓴다
-- `timeline.py` — `_with_drop`. 그룹 머리/꼬리에 걸리면 **그룹을 줄이고**
-  (경계를 audio.pieces 가 조용한 자리로 다시 민다), 가운데면 그 그룹의 TRIM 에
-  넣고, 통째로 덮으면 그룹을 없앤다. 되살리기 다음에 돌린다
+- `feedback.js` - words take four states: `keep`, `dropped` (orange, removed by the user), `cut` (red, removed by Claude) and
+  `restored` (green). One click works both ways. Dropping a remaining word first takes you to that spot - listen, then decide
+- `server.py` - `_write_ranges` writes `restore.json` and `drop.json` together
+- `timeline.py` - `_with_drop`. At a group's head or tail it **shrinks the group** (audio.pieces moves the boundary to a quiet
+  spot), in the middle it goes into that group's TRIM, and if it covers the whole group the group is removed. Runs after
+  restore
 
-**같이 잡은 것: 되살린 말이 다음 저장에서 도로 사라지던 문제.** 되살리기는
-`timeline.py` 의 GROUPS 를 고치는 게 아니라 `restore.json` 에만 남는데, 렌더
-뒤에는 그 말이 `keep=true` 가 되어 되살릴 목록에서 빠지고, 서버가 "되살릴 것
-없음"으로 읽어 `restore.json` 을 지웠다. 이제 `export_project.py` 가 이미
-반영한 되살리기를 낱말에 `restore` 표로 달아 보내고, 목록은 `keep` 이 아니라
-그 표를 보고 만든다.
+**Also caught: restored words disappeared again on the next save.** Restoring does not change GROUPS in `timeline.py`; it lives
+only in `restore.json`. After a render the word becomes `keep=true` and drops out of the restore list, the server reads
+"nothing to restore" and deletes `restore.json`. Now `export_project.py` tags already-applied restores on the words with
+`restore`, and the list is built from that tag, not from `keep`.
 
-### 영어판 (2026-09-06)
+### English version (2026-09-06)
 
-`make_csv_en.py` · `rebuild_from_csv_en.py` · `apply_captions_en.py`.
-`edited/봉누도불참_en.mp4`.
+`make_csv_en.py`, `rebuild_from_csv_en.py`, `apply_captions_en.py`. `edited/봉누도불참_en.mp4`.
 
-- 시각은 **한국어와 같은 함수**(`make_csv.build`)로 낸다. 여기서 따로 세면
-  두 판의 자막이 다른 자리에 뜬다 - 글자만 다르고 나머지는 똑같아야 한다
-- 상단 캡션 **"Sitting It Out"**. 불참은 못 간 것이 아니라 안 가기로 정한
-  것이라 Absence 보다 이쪽이 결이 맞는다 (BM JUA 190px 에서 828px, 한계 960)
-- 이름은 안 옮긴다 - 봉누도 → Bongnudo, 아담 → Adam. 소빙하기 · 이사
-  빙하기는 한국어에서도 만든 말이라 곧이곧대로 옮기고 주석에서 푼다
-- **프리셋에 구워진 하단 이름표까지 바꾼다.** DamuiPreset.mov 에 "담유이"가
-  구워져 있어서 그냥 두면 자막만 바꾼 영상이 된다. 그 자리(잉크 x 412-666,
-  y 1728-1825)를 검정 도형으로 덮고 같은 모양(흰 채움 #FDFDFD, 파란 외곽
-  #00A8FD)으로 Damyui 를 다시 그린다. 새 프리셋을 만드는 것보다 빠르고
-  원본 영상은 건드리지 않는다 (고구마에서 쓴 방법 그대로다)
-- 영어는 한국어보다 훨씬 넓다. 모든 줄을 `textwidth` 로 재서 1020px 안에
-  넣었다 - 넘기면 낱말 경계에서 쪼개져 한 낱말짜리 줄이 생긴다
-- **상단 캡션 자리가 두 판에서 다르다** (`TITLE_MV_EN = 197`, 한국어는 229).
-  영어에는 내림 획(p · g · y)이 있어서 같은 자리에 두면 글자 꼬리가 영상
-  띠(위끝 407)를 물고 내려온다 - "Skipping"이 22px 겹쳤다. 검은 화면에
-  자막만 구워 잉크를 재서 아래끝을 397 에 맞췄다 (한국어와 같은 여백 10px)
-- **주석이 두 판에서 다를 수 있다.** '아담'은 한국 시청자에게는 아는
-  이름이라 설명을 뺐지만 영어권에는 아무 단서가 없어 넣었다
-  (`make_csv_en.EN_EXTRA_NOTES`). 자막의 `*` 도 영어판에만 붙는다
+- Times come from **the same function as Korean** (`make_csv.build`). Counting separately would put the two versions' captions in
+  different places - only the text may differ
+- Top caption **"Sitting It Out"**. 불참 here is choosing not to go rather than being unable to, so this fits better than
+  Absence (828 px at BM JUA 190 px, limit 960)
+- Names are not translated - 봉누도 -> Bongnudo, 아담 -> Adam. 소빙하기 and 이사 빙하기 are coinages in Korean too, so they are
+  translated literally and explained in the notes
+- **The name plate baked into the preset is replaced as well.** DamuiPreset.mov has "담유이" baked in, so leaving it would give
+  a video where only the captions changed. That spot (ink x 412-666, y 1728-1825) is covered with a black shape and Damyui is
+  redrawn in the same look (white fill #FDFDFD, blue outline #00A8FD). Faster than a new preset and the source video is
+  untouched (same method as 고구마)
+- English is much wider than Korean. Every line was measured with `textwidth` to fit within 1020 px - over that it splits at a
+  word boundary and leaves one-word lines
+- **The top caption sits differently in the two versions** (`TITLE_MV_EN = 197`, Korean 229). English has descenders (p, g, y),
+  so at the same position the tails bit into the video band (top 407) - "Skipping" overlapped by 22 px. Rendering only the
+  captions on black and measuring the ink, the bottom was set to 397 (same 10 px margin as Korean)
+- **Notes can differ between versions.** '아담' is a known name to Korean viewers, so its note was dropped there, but English
+  viewers have no clue, so it was added (`make_csv_en.EN_EXTRA_NOTES`). The `*` in captions appears only in English
 
-### 피드백 프롬프트가 읽히기 전에 지워지던 것 (고침)
+### Feedback prompts were wiped before being read (fixed)
 
-사용자가 피드백 탭 프롬프트 칸에 적은 지시가 **하나도 반영되지 않았다.**
-적은 것은 `review.prompt` 로 저장되는데, `export_project.py` 가 review 블록을
-통째로 새로 만들면서 그때마다 지워졌다 - 읽히기도 전에 사라진 것이다.
+**None** of the instructions the user wrote in the feedback prompt box were applied. They are saved as `review.prompt`, but
+`export_project.py` rebuilt the review block from scratch each time and wiped them - gone before anyone read them.
 
-- `server.py` 가 저장할 때마다 작업 폴더에 **`feedback_prompt.txt`** 로
-  떨군다 (restore.json · drop.json 과 같은 자리). 비우면 파일도 지운다
-- `export_project.py` 는 지우기 전에 한 번 더 갈무리한다
+- `server.py` drops them into the work folder as **`feedback_prompt.txt`** on every save (next to restore.json and drop.json).
+  Emptying the box deletes the file
+- `export_project.py` stashes it once more before wiping
 
-**같은 함정이 빼기에도 있었다.** 뺀 말은 다음 판에서 `keep=false` 가 되어
-"뺄 목록"에 안 잡히고, 그러면 `drop.json` 이 비면서 뺐던 말이 도로 들어온다.
-되살리기와 똑같이 `export_project.py` 가 이미 반영한 빼기를 낱말에 `drop`
-표로 달아 보내고, 목록은 `keep` 이 아니라 그 표를 본다. 화면에서도 붉은
-`cut`(클로드가 뺌)과 주황 `dropped`(사용자가 뺌)이 갈린다.
+**The same trap existed for drops.** A dropped word becomes `keep=false` in the next version and is no longer picked up as "to
+drop", so `drop.json` empties and the dropped words come back. As with restore, `export_project.py` tags already-applied drops
+on the words with `drop`, and the list uses that tag, not `keep`. The screen now distinguishes red `cut` (Claude) from orange
+`dropped` (user).
 
-**브라우저에 남은 옛 상태가 아직 위험하다.** localStorage 에 옛 review 가
-들어 있으면 저장 한 번에 파일이 그걸로 덮인다. `diskNewer` 가 자동 저장은
-막지만 사용자가 직접 누른 저장(force)은 못 막는다. 이번에도 그것 때문에
-`drop.json` 이 두 번 날아갔고, `localStorage` 를 비우고 다시 열어야 풀렸다.
-**대시보드에서 다시 편집한 결과를 보려면 페이지를 새로 고치고 프로젝트를
-다시 열 것.**
+**Old state left in the browser is still dangerous.** If localStorage holds an old review, one save overwrites the file with it.
+`diskNewer` stops autosave but not a save the user pressed (force). `drop.json` was lost twice this way and it only cleared after
+emptying `localStorage` and reopening. **To see results of a new dashboard edit, reload the page and reopen the project.**
 
-## 맘터귀칼가챠 (2026-09-06, 담유이 일반 롱폼 - 첫 다중 소스 편집)
+## 맘터귀칼가챠 (2026-09-06, 담유이 일반 롱폼 - first multi-source edit)
 
-`jobs/`에 쌓인 "스타일 적용" 요청(대시보드 AI 편집 탭에서 온 것)을 처음으로
-끝까지 돌린 편이다. 대상이 소스 5개(`맘터귀칼가챠0~4.mp4`, 각각 18.8 · 11.6 ·
-8.55 · 32.7 · 32.9초)라 **먼저 방송 순서대로 이어붙여 하나의 소스로 만들고**
-(`src_full.mp4`), 그 위에서 컷·자막을 잡았다 - 나머지 파이프라인은 소스가
-하나라고 가정하고 있어 다섯 개를 따로 다루면 경계마다 특별 취급이 필요해진다.
+The first "style apply" request queued in `jobs/` (from the dashboard AI edit tab) that was run all the way through. The target
+was five sources (`맘터귀칼가챠0~4.mp4`: 18.8, 11.6, 8.55, 32.7 and 32.9 s), so they were **first joined in stream order into one
+source** (`src_full.mp4`) and cuts and captions were set on that - the rest of the pipeline assumes one source, and handling five
+separately would need special cases at every boundary.
 
-**스타일은 네모비틱과 같은 "담유이 일반 롱폼"이지만 컷의 성격이 다르다.**
-그 스타일 JSON은 90분짜리 VOD에서 11~19%만 남기는 것을 관찰해 적어 둔
-것인데, 이 소스는 애초에 가챠 순간만 추려낸 104.6초짜리 하이라이트라 같은
-비율로 자르면 안 된다. 무음 검출(-34dB, 3초 이상)로 말 사이 긴 빈 자리만
-걷어내 73%(76.08초)를 남겼다.
+**Same style as 네모비틱 ("담유이 일반 롱폼"), but the cuts are of a different nature.** That style JSON records keeping 11-19% of a
+90-minute VOD, but this source is already a 104.6 s highlight of the gacha moments, so the same ratio would be wrong. Silence
+detection (-34 dB, 3 s or longer) removed only long gaps between speech, keeping 73% (76.08 s).
 
-**4번 소스(상자를 열어 사진을 보여주는 대목)는 전혀 자르지 않았다.** 지시
-("사진에 조금 더 중점을 맞춰줘")를 "덜 잘라라"로 읽었다 - 안에 있는 16.8초짜리
-무음(79.45-96.25)이 바로 상자를 여는 그 자리라, 다른 대목이었으면 잘라냈을
-길이가 여기서는 이 영상의 핵심 장면이다. 화면도 원본 그대로 썼다(크롭 없음) -
-브라우저 검색 결과·가챠 상자 사진이 이미 화면 대부분을 차지해서 확대하면
-보여줘야 할 것이 잘려나간다.
+**Source 4 (opening the box and showing the photo) was not cut at all.** The instruction ("focus a bit more on the photos") was
+read as "cut less" - the 16.8 s of silence inside it (79.45-96.25) is exactly where the box is opened; anywhere else that length
+would have been cut, but here it is the core scene. The picture was used as is (no crop) - the browser search results and the
+gacha box photo already fill most of the screen, and zooming would cut off what must be shown.
 
-전사 오류 두 개를 교정했다: "기우"→"기유"(지시로 나온 캐릭터 이름), "담린이
-남진"→"담린이 남긴"(Whisper 오청, "담린이"는 시청자 애칭으로 보인다). 담유이가
-만든 말장난 "탄지러워"(탄지로+반가워)는 영어에서 "Tanji-yay!"로 새로 지어
-말장난 자리를 지켰다.
+Two transcription errors fixed: "기우" -> "기유" (a character name given in the instructions), "담린이 남진" -> "담린이 남긴"
+(Whisper mishearing; "담린이" looked like a viewer nickname). Damyui's pun "탄지러워" (탄지로 + 반가워) was given a new English pun
+"Tanji-yay!" to keep the wordplay. *(Both readings were wrong - see the second and third feedback rounds below.)*
 
-`verify_final.py`로 완성본을 다시 전사해 대조했다. "탄지러워"는 Whisper가
-실제 낱말 "탄지로"로 도로 들어 전부 차이로 잡히는데 - 이건 대조 도구가 사전에
-없는 말장난을 못 알아듣는 것이지 편집이 잘못된 게 아니다(참고: 봉누도의
-"지만" 오탐과 같은 종류). 다만 "오케이"(29.60-30.48)와 세 번째
-"짜자잔"(67.11-68.51)은 대조에서 안 들린다고 나왔는데, 배경음에 묻힌 것인지
-실제로 비어 있는지 volumedetect 만으로는 못 갈랐다 - 확인이 더 필요하면
-사용자에게 들어봐 달라고 해야 한다.
+The final was re-transcribed with `verify_final.py`. Whisper hears "탄지러워" back as the real word "탄지로", so it all shows as
+differences - the comparison tool cannot understand a pun missing from its dictionary, not an editing error (same kind as the
+"지만" false alarm in 봉누도). But "오케이" (29.60-30.48) and the third "짜자잔" (67.11-68.51) came out inaudible in the comparison,
+and volumedetect alone could not tell whether they were buried in background sound or really empty - confirming that would need
+the user to listen.
 
-`export_project.py`는 소스가 여럿이라 네모비틱 판(SHOTS·CARDS·crop·
-per-scene gain 전제)을 그대로 못 썼다. `timeline.KEEP`(구간 목록)만 있는
-가벼운 판으로 새로 짰다 - 크롭도 카드도 없는 편집이라 단순화가 맞았다.
-대시보드 프로젝트는 이름이 아니라 **드랍된 대상 파일 이름 5개**로 찾았다
-(`가챠` 프로젝트, `pmtp7csakr2mm`).
+With several sources, the 네모비틱 version of `export_project.py` (which assumed SHOTS, CARDS, crop and per-scene gain) could not be
+used. A light version with only `timeline.KEEP` (range list) was written - with no crop and no cards, simple was right. The
+dashboard project was found not by name but by **the five dropped target file names** (project `가챠`, `pmtp7csakr2mm`).
 
-## 맘터귀칼가챠 - 피드백 반영 (2026-09-06)
+## 맘터귀칼가챠 - feedback applied (2026-09-06)
 
-대시보드 피드백 탭에서 온 것: drop.json 1건(14.20-17.14 "그냥 죽여줘 (x2)")
-과 글로 쓴 지시 다섯 가지.
+From the dashboard feedback tab: one drop.json entry (14.20-17.14 "그냥 죽여줘 (x2)") and five written instructions.
 
-**"컷 편집이 엉망이야" 가 맞았다.** 1차 편집은 컷 자리를 전사(낱말 시각)로만
-정했다. 그래서 낱말이 아닌 소리를 못 봤다. 경계마다 앞뒤 0.5초 RMS 를 다시
-재니 세 군데가 잘못돼 있었다:
+**"The cut editing is a mess" was right.** The first edit set cut points only from the transcript (word times), so it could not
+see sounds that are not words. Re-measuring RMS 0.5 s around each boundary showed three wrong spots:
 
-- 48.05 -> 48.25 : "오케이" 꼬리 0.1초가 잘려 있었다
-- 57.80 -> 57.25 : 첫 "탄지러워!"(실제 57.35 시작)를 통째로 잘라먹고 있었다
-- 61.65 -> 이어붙임 : **61.5-64.75 에 3.2초짜리 웃음**이 있는데 한가운데를
-  자르고 있었다. 웃음은 낱말이 아니라 전사에 한 줄도 안 남는다. 이 영상에서
-  가장 큰 리액션인데 1차 편집은 그 자리를 "무음"으로 알고 있었다.
+- 48.05 -> 48.25: 0.1 s of the tail of "오케이" was cut off
+- 57.80 -> 57.25: the first "탄지러워!" (really starting at 57.35) was cut off entirely
+- 61.65 -> joined: **a 3.2 s laugh at 61.5-64.75** was being cut through the middle. A laugh is not a word and leaves no line in the
+  transcript. It is the biggest reaction in the video, and the first edit thought that spot was "silence".
 
-교훈: **컷 자리는 전사가 아니라 소리 크기로 정해야 한다.** 전사는 무엇을
-말했는지 알려줄 뿐 언제 소리가 났는지는 알려주지 않는다. verify_struct.py
-(AI 안 씀)에 이 검사를 넣어 두었다.
+Lesson: **cut points must come from loudness, not the transcript.** The transcript says what was said, not when sound happened.
+This check went into verify_struct.py (no AI).
 
-**"전체 자막을 전부 다 쓴 게 맞느냐"** - 재전사 1회로 답했다. 같은 모델·같은
-오디오에 판정만 무르게(no_speech 0.6->0.15, log_prob -1.0->-2.5, temperature
-층계) 다시 돌렸더니 21문장 그대로, 새로 잡힌 말 0개. 흘린 말은 없었다 - 105초
-소스에 사람 말이 정말 50낱말뿐이다. 1차 편집에서 "지운 자막이 하나도 없던"
-것은 버그가 아니라 소스가 그런 것이었다. 다만 위의 웃음 건이 보여주듯
-"전사에 다 있다"가 "컷이 옳다"는 뜻은 아니다.
+**"Did you use every caption?"** - answered with one re-transcription. Same model, same audio, only looser decisions (no_speech
+0.6 -> 0.15, log_prob -1.0 -> -2.5, temperature ladder): the same 21 sentences, 0 new words. Nothing was missed - the 105 s source
+really has only 50 spoken words. That the first edit "removed no captions at all" was the source, not a bug. But as the laugh
+shows, "everything is in the transcript" does not mean "the cuts are right".
 
-**화면 잡기를 처음으로 장면마다 달리 했다.** 1차 편집은 전부 배율 1.00 이었다
-(브라우저·사진이 이미 화면을 채운다는 판단). 지시는 "리액션은 표정에, 사진은
-사진에 더 집중". timeline.SHOTS 로 나눴다:
+**Framing differed per scene for the first time.** The first edit used scale 1.00 throughout (judging that the browser and photos
+already fill the screen). The instruction was "focus more on the face for reactions and on the photos for photos". Split with
+timeline.SHOTS:
 
-| 구간(원본) | 이름 | crop | 왜 |
+| Range (source) | Name | crop | Why |
 |---|---|---|---|
-| 0-33 | wide | 없음 | 브라우저. 글씨가 작아 확대하면 검색 결과가 잘린다 |
-| 33-71.70 | face | 1600x900 @(0,180) | 위 180px 을 버려 눈(y 580-740)·입(y 760-852)이 화면 가운데 온다 |
-| 71.70-74.50 | wide | 없음 | 사진이 화면 가득 나왔다가 왼쪽으로 줄어드는 동안. 자르면 사진이 잘린다 |
-| 74.50- | photo | 1600x900 @(0,84) | 두 사진(상자·탄지로 카드)을 다 담는 가장 작은 창 |
+| 0-33 | wide | none | browser. The text is small; zooming cuts off search results |
+| 33-71.70 | face | 1600x900 @(0,180) | dropping the top 180 px puts the eyes (y 580-740) and mouth (y 760-852) in the middle |
+| 71.70-74.50 | wide | none | the photo fills the screen and then shrinks to the left. Cropping would cut the photo |
+| 74.50- | photo | 1600x900 @(0,84) | the smallest window holding both photos (box and 탄지로 card) |
 
-두 가지가 배율의 상한을 정했다.
-- **자막이 입을 가리면 안 된다.** 글자 윗변이 y 884 라 입(y ~800)이 그 위에
-  남는 배율이 1.20 이 끝이다.
-- **오버레이는 통째로 살리거나 통째로 버린다.** x=0 에 붙여 왼쪽 방송 정보
-  오버레이를 다 살리고 오른쪽 채팅 풍선을 다 버렸다. 반쯤 잘린 오버레이가
-  제일 보기 싫다.
+Two things set the scale limit.
+- **Captions must not cover the mouth.** The text top is at y 884, so 1.20 is the largest scale that keeps the mouth (y ~800) above it.
+- **Overlays are kept whole or dropped whole.** Pinned at x=0, the left stream info overlay is kept entirely and the right chat
+  balloon dropped entirely. A half-cut overlay looks worst.
 
-**자막 두 줄을 낱말 경계에서 쪼갰다** (지시). 쪼개고 나니 뒤의
-"탄지러워! 탄지러워!" 가 두 번째가 되어 (x2) 가 새로 붙었다 - 반복 표시는
-쪼갤 때마다 다시 세야 한다.
+**Two caption lines were split at word boundaries** (instruction). After splitting, the following "탄지러워! 탄지러워!" became the
+second occurrence and got a new (x2) - repeat marks must be recounted after every split.
 
-**make_csv.build() 버그**: 컷 밖 자막을 시작점으로만 걸러 컷 끝에 딱 걸친
-자막이 길이 0 으로 살아남았다. 한가운데로 판단하고 길이 0.2초 미만은 버리게
-고쳤다. timeline 에도 MIN_PIECE(0.35초)를 넣어 뺀 자리 옆에 남는 자투리를
-같이 버린다 - 0.16초짜리 조각은 화면에 스치는 잔상일 뿐이다.
+**make_csv.build() bug:** captions outside the cuts were filtered by start time only, so a caption touching the end of a cut
+survived with zero length. Now judged by the midpoint, and anything shorter than 0.2 s is dropped. timeline also got MIN_PIECE
+(0.35 s) to drop slivers left next to removed spots - a 0.16 s piece is just a flash on screen.
 
-결과: 컷 7조각(화면까지 나누면 9조각) 77.43초 + 아웃트로 7.47 = 84.90초,
-자막 20장, 원본의 74% 를 남겼다. 재전사 예산(1회)을 원본 쪽에 썼으므로
-이번 판은 verify_final.py(완성본 재전사)를 돌리지 않았다.
+Result: 7 cut pieces (9 counting framing changes) 77.43 s + outro 7.47 = 84.90 s, 20 captions, 74% of the source kept. The
+re-transcription budget (1) was spent on the source, so verify_final.py (final re-transcription) was not run this time.
 
 
-## export_project.py 가 사용자 피드백을 지우고 있었다 (2026-09-06)
+## export_project.py was wiping user feedback (2026-09-06)
 
-`export_project.py` 는 내보낼 때마다 `review` 블록을 통째로 새로 만들어
-갈아끼웠다. 그 안에는 파이프라인이 만드는 값(transcript, captions, kept)만
-있는 게 아니라 **사용자가 쓴 값**도 같이 있다:
+`export_project.py` rebuilt and replaced the whole `review` block on every export. That block holds not only pipeline values
+(transcript, captions, kept) but also **values the user wrote**:
 
-- `review.prompt` - 피드백 칸에 적은 지시
-- `review.notes` - 영상 위에 붙인 핀
+- `review.prompt` - instructions written in the feedback box
+- `review.notes` - pins on the video
 
-둘 다 `""` / `[]` 로 하드코딩돼 있어서 내보낼 때마다 지워졌다. prompt 는
-`server.py` 가 저장할 때 `feedback_prompt.txt` 로 따로 떨궈 두게 해서 이미
-구제해 뒀는데(그 코드 주석에 이 버그가 적혀 있다), **notes 는 그 구제책조차
-없었다** - 지우면 되돌릴 데가 없다.
+Both were hard-coded to `""` / `[]` and wiped on every export. prompt had already been rescued by having `server.py` drop it into
+`feedback_prompt.txt` on save (that code comment records this bug), but **notes had no rescue at all** - once wiped, nothing to
+restore from.
 
-고침:
-- `save_to_store()` 가 지금 `project.json` 에 있는 `review.notes` /
-  `review.prompt` 를 그대로 옮겨 담는다. 파이프라인이 만드는 값만 갈아끼운다
-- 덮어쓰기 전에 `project.json.bak` 을 남긴다
+Fix:
+- `save_to_store()` carries over `review.notes` / `review.prompt` from the current `project.json` and replaces only pipeline values
+- `project.json.bak` is written before overwriting
 
-이번 판에서는 둘 다 비어 있어서 실제로 잃은 것은 없어 보이지만, 앞선
-내보내기들이 지운 것이 있었는지는 확인할 길이 없다 (백업이 그때는 없었다).
+This time both were empty, so nothing seems lost, but whether earlier exports wiped anything cannot be checked (there were no
+backups then).
 
 
-## 맘터귀칼가챠 - 두 번째 피드백 (2026-09-06)
+## 맘터귀칼가챠 - second feedback (2026-09-06)
 
-지적 네 가지가 전부 맞았다. 그 중 둘은 **내가 만든 버그**다.
+All four points were right. Two were **bugs I introduced**.
 
-### "수정한 자막도 반영이 안 되는 거지?"
+### "The captions I edited are not applied either, are they?"
 
-`project.json` 의 로그에 답이 있었다:
+The answer was in the `project.json` log:
 
 ```
-13:22:21  자막 16 수정: 탄지로! 탄지로!   (src: feedback)
+13:22:21  caption 16 edited: 탄지로! 탄지로!   (src: feedback)
 ```
 
-사용자는 13:22 에 대시보드에서 자막을 고쳤는데, 내가 13:17 · 14:25 · 15:24 에
-내보낼 때마다 `review.captions` 를 CSV 에서 다시 만들어 **세 번 덮어썼다.**
-`notes` · `prompt` 와 똑같은 사고인데 자막은 미처 못 봤다.
+The user edited the caption in the dashboard at 13:22, and each of my exports at 13:17, 14:25 and 15:24 rebuilt
+`review.captions` from the CSV and **overwrote it three times.** The same accident as `notes` and `prompt`, but captions were
+overlooked.
 
-고침: `save_to_store()` 가 `by == "user"` 자막을 시작 시각이 가장 가까운 줄로
-옮겨 담고 무엇을 옮겼는지 찍는다. `server.py` 도 저장할 때
-`captions_user.json` 을 작업 폴더에 떨군다 (`feedback_prompt.txt` 와 같은 자리).
+Fix: `save_to_store()` carries `by == "user"` captions over to the line with the nearest start time and prints what it moved.
+`server.py` also drops `captions_user.json` into the work folder on save (next to `feedback_prompt.txt`).
 
-**덤으로 드러난 것**: 나는 첫 피드백에 사용자가 "탄지로"라고 쓴 것을
-받아적은 것으로 넘겨짚고, Whisper 가 들은 "탄지러워"를 담유이의 조어로 읽어
-영어를 "Tanji-yay!" 라는 말장난으로 지어냈다. 그냥 이름이었다. **사용자가
-쓴 낱말을 내 해석으로 덮어쓰면 안 된다.**
+**Also revealed:** I assumed the user's "탄지로" in the first feedback was a transcription of what was heard, read Whisper's
+"탄지러워" as a Damyui coinage, and invented the English pun "Tanji-yay!". It was just the name. **Never overwrite the user's
+wording with my own interpretation.**
 
-### "1:16.14 이후에 대한 타임스탬프도 안 맞아"
+### "The timestamps after 1:16.14 are off too"
 
-세 번째 "짜자잔!" 의 전사 시각이 95.66-97.06 인데 **실제 소리는 96.15-97.90**
-이다. 자막이 0.55초 먼저 떴다. 배경음이 깔린 짧은 감탄사는 Whisper 의 낱말
-시각을 믿을 수 없다. 이 줄만 소리에서 다시 쟀다.
+The third "짜자잔!" was transcribed at 95.66-97.06, but **the actual sound is 96.15-97.90** - the caption appeared 0.55 s early.
+Whisper word times cannot be trusted for short exclamations over background sound. This line alone was re-measured from the sound.
 
-`verify_struct.py` 에 검사를 넣었다: **완성본을 열어 자막 창 안에 실제로
-소리가 있는지 본다.** 창 안이 조용하고 앞뒤 2초에 소리가 있으면 어긋난 것이다.
-재전사 없이 하는 대조라 예산을 안 쓴다.
+A check went into `verify_struct.py`: **open the final and see whether there is sound inside each caption window.** A quiet window
+with sound within 2 s before or after means it is misaligned. It needs no re-transcription and costs no budget.
 
-### "이때 이후로 여백이 너무 많아"
+### "There is too much empty space after this point"
 
-85.00-92.60 (7.6초)을 잘랐다. 소리 -70dB, 장면차 <3 - 아무 일도 안 일어난다.
+85.00-92.60 (7.6 s) was cut. Sound -70 dB, scene difference < 3 - nothing happens.
 
-**하마터면 결말을 지울 뻔했다.** 바로 뒤 92.80-94.50 은 전체화면 탄지로
-카드인데 **장면차가 0.1** 이다 (정지 이미지라서). 움직임만 보고 자르면
-여기가 제일 먼저 잘린다. 움직임이 없다고 내용이 없는 게 아니다 -
-[[cut-points-from-level-not-transcript]] 의 웃음 건과 같은 종류의 함정이다.
+**The ending almost got deleted.** Right after it, 92.80-94.50 is the full-screen 탄지로 card, and its **scene difference is 0.1**
+(a still image). Cutting by motion alone would remove it first. No motion does not mean no content - the same trap as the laugh
+in [[cut-points-from-level-not-transcript]].
 
-### "왜 표정에 집중도 안 되고(한쪽으로 쏠림)"
+### "Why isn't it focused on the face either (it leans to one side)"
 
-`x=0` 에 붙여 자른 탓이다. 왼쪽 방송 정보 오버레이를 통째로 살리려는
-판단이었는데, 담유이는 화면 가운데 있지 않고 장면마다 좌우로 움직인다
-(얼굴 한가운데 x 가 850~1280 사이를 오간다). 그래서 얼굴이 오른쪽으로 밀렸다.
+Because the crop was pinned at `x=0` to keep the left stream info overlay whole. Damyui is not in the centre of the frame and moves
+left and right between scenes (face centre x between 850 and 1280), so the face was pushed right.
 
-장면마다 얼굴 자리를 재서 crop x 를 맞췄다 (162 / 130 / 320 / 410).
-오버레이가 반쯤 잘리는 것은 감수한다 - **오버레이 보전보다 얼굴이 먼저다.**
+The face position was measured per scene and crop x set accordingly (162 / 130 / 320 / 410). A half-cut overlay is accepted -
+**the face comes before preserving overlays.**
 
-### "말소리가 끊기거나 부자연스러운 부분이 있어"
+### "Some speech cuts off or sounds unnatural"
 
-둘 다 손봤다.
+Both were addressed.
 
-- 조각 잇는 자리마다 10ms 페이드. 파형이 0 이 아닌 데서 끊기면 "톡" 소리가 난다
-- **loudnorm 을 두 번 재는 방식으로** 바꿨다. 한 번만 돌리면 게인이 시시각각
-  움직여 조용한 데서 소리가 부풀었다 줄었다 한다. 먼저 통째로 재고 그 값으로
-  `linear=true` 로 다시 건다
+- A 10 ms fade at every piece join. Cutting where the waveform is not at zero makes a click
+- **loudnorm switched to two-pass.** A single pass moves the gain constantly and quiet spots swell and shrink. Measure the whole
+  first, then apply again with those values and `linear=true`
 
-결과: 컷 8조각(화면까지 나누면 10조각) 69.83초 + 아웃트로 7.47 = 77.30초.
+Result: 8 cut pieces (10 counting framing changes) 69.83 s + outro 7.47 = 77.30 s.
 
 
-## 맘터귀칼가챠 - 세 번째 피드백 (2026-09-06)
+## 맘터귀칼가챠 - third feedback (2026-09-06)
 
-같은 지적을 세 판째 받았다. "계속 지적 했는데 왜 안 고치는 거야."
-이번에는 자리를 하나씩 고치지 말고 **컷과 자막 시각을 뽑는 방법 자체**를
-바꿨다.
+The same complaints for the third round: "I keep pointing it out, why don't you fix it?" This time the **method of producing cut
+and caption times** changed instead of fixing spots one by one.
 
-### 원인: 전사의 낱말 시각을 믿고 있었다
+### Cause: trusting transcript word times
 
-이 소스에서 Whisper 의 낱말 시각은 최대 1.4초까지 어긋난다. 소리를
-다시 재서 견주면:
+In this source Whisper word times are off by up to 1.4 s. Compared with re-measured sound:
 
-| 자막 | 전사 | 실제 | 차이 |
+| Caption | Transcript | Actual | Difference |
 |---|---|---|---|
-| 담유이 남친 카이가쿠라고? | 0.00 | 1.34 | 1.34초 빠름 |
-| 오니가 되는 것도 아니고 그냥 죽여 | 4.12 | 5.10 | 0.98초 빠름 |
-| 나는 지금 데스크테리어가 | 20.22 | 21.30 | 1.08초 빠름 |
-| 상자 열었어요 | 52.70 | 53.98 | 1.28초 빠름 |
-| 짜자잔! (x3) | 95.66 | 96.20 | 0.54초 빠름 |
+| 담유이 남친 카이가쿠라고? | 0.00 | 1.34 | 1.34 s early |
+| 오니가 되는 것도 아니고 그냥 죽여 | 4.12 | 5.10 | 0.98 s early |
+| 나는 지금 데스크테리어가 | 20.22 | 21.30 | 1.08 s early |
+| 상자 열었어요 | 52.70 | 53.98 | 1.28 s early |
+| 짜자잔! (x3) | 95.66 | 96.20 | 0.54 s early |
 
-지난 판에는 마지막 한 줄만 소리에서 다시 쟀다. 나머지는 그대로 뒀으니
-"타임스탬프가 안 맞아"가 안 고쳐질 수밖에 없었다.
-`plan_cuts.py` 를 새로 만들어 컷도 자막도 소리 크기(-48dB)에서 뽑는다.
-문턱값은 이 소스를 재서 정했다 - 말 -37~-45dB, 배경 -50~-57dB, 끊긴 자리 -88dB.
+Last round only the final line was re-measured from sound. The rest stayed, so "the timestamps are off" could never be fixed.
+The new `plan_cuts.py` derives both cuts and captions from loudness (-48 dB). Thresholds were measured on this source - speech
+-37 to -45 dB, background -50 to -57 dB, breaks -88 dB.
 
-### 여백: 본편 69.83초 -> 44.36초
+### Gaps: main part 69.83 s -> 44.36 s
 
-세 판 내리 지적받은 자리. 크게 덜어낸 곳:
+Criticised three rounds in a row. Biggest removals:
 
-| 원본 구간 | 길이 | 무엇 |
+| Source range | Length | What |
 |---|---|---|
-| 0.00-1.19 | 1.2초 | 말이 시작되기 전 (맨 앞 여백) |
-| 68.30-71.70 | 3.4초 | 얼굴만 나오고 아무 일도 안 일어난다 |
-| 81.16-92.60 | 11.4초 | 상자 카드가 멈춘 채로 그대로 |
-| 98.00-104.63 | 6.6초 | 마지막 카드를 붙박아 둔 꼬리 |
+| 0.00-1.19 | 1.2 s | before speech starts (leading gap) |
+| 68.30-71.70 | 3.4 s | only the face, nothing happens |
+| 81.16-92.60 | 11.4 s | the box card frozen as is |
+| 98.00-104.63 | 6.6 s | tail with the last card held |
 
-문장 한가운데의 쉼도 컷으로 없앴다 ("나는 [1.0초] 탄지로 나오면 좋겠다",
-"제발 [1.0초] 제발"). 자막은 쪼개지 않고 컷 위를 걸쳐 한 줄로 둔다 -
-`make_csv.build()` 가 시작·가운데·끝 중 하나만 남아 있으면 살리도록 고쳤다
-(가운데만 보면 이런 줄이 통째로 사라진다).
-소리가 없어도 못 자르는 자리는 `plan_cuts.VIS` 로 지켜 둔다:
-71.70-73.30(상자 카드), 92.80-95.20(전체화면 탄지로 카드 - 이 영상의 결말).
+Pauses in the middle of sentences were also cut ("나는 [1.0 s] 탄지로 나오면 좋겠다", "제발 [1.0 s] 제발"). The caption is not
+split but stays one line across the cut - `make_csv.build()` was changed to keep a line if its start, middle or end survives
+(checking only the middle drops such lines entirely).
+Spots that must not be cut even without sound are protected by `plan_cuts.VIS`: 71.70-73.30 (box card) and 92.80-95.20 (the
+full-screen 탄지로 card - the ending of this video).
 
-### 소리: 본편과 아웃트로를 따로 맞춰야 했다
+### Sound: main part and outro had to be levelled separately
 
-사용자: "메인 부분은 조그맣게 들리다가 아웃트로만 크게 나오니까 너무 귀아파."
+User: "the main part is quiet and then only the outro is loud, it hurts my ears."
 
-    본편     I = -40.58 LUFS,  최대 -28.10 dBTP
-    아웃트로  I = -15.85 LUFS,  최대  +0.06 dBTP   <- 24.7dB 차이
+    main    I = -40.58 LUFS,  max -28.10 dBTP
+    outro   I = -15.85 LUFS,  max  +0.06 dBTP   <- 24.7 dB apart
 
-EBU R128 의 통합 라우드니스는 평균보다 10LU 아래를 빼고 잰다(상대 게이트).
-이어 붙인 파일을 재면 **본편이 통째로 게이트에 걸려 빠지고 아웃트로만
-재진다.** 지난 판에 "-16.73 LUFS 라 +0.8dB 만 올리면 된다, 게인이 전 구간
-일정하다"고 확인했던 것이 바로 이것이었다 - 재고 있던 것은 아웃트로였고
-본편은 -40dB 그대로 나갔다. **틀린 자리를 재고 통과시켰다.**
-이제 본편과 아웃트로를 각각 -16 LUFS 로 맞춘 뒤 잇는다. 본편 최대값이
--28dBTP 라 +24.1dB 를 올려도 리미터가 안 물린다. 조각별 라우드니스도
--38.3~-42.1 LUFS 로 이미 고른 편이라 컴프레서는 안 걸었다.
-결과: 본편 -15.9 / 아웃트로 -16.0 LUFS, 말하는 대목마다 -15.0~-17.5 LUFS.
+EBU R128 integrated loudness excludes everything 10 LU below the average (relative gate). Measuring the joined file **gates out
+the entire main part and measures only the outro.** That was exactly last round's "-16.73 LUFS, only +0.8 dB needed, gain constant
+throughout" - it was measuring the outro and the main part shipped at -40 dB. **The wrong thing was measured and passed.**
+Now main and outro are each brought to -16 LUFS and then joined. The main part's maximum is -28 dBTP, so +24.1 dB does not hit the
+limiter. Per-piece loudness was already even (-38.3 to -42.1 LUFS), so no compressor was used.
+Result: main -15.9 / outro -16.0 LUFS, -15.0 to -17.5 LUFS in each spoken passage.
 
-### 자막 낱말: 같은 잘못을 두 판째
+### Caption wording: the same mistake two rounds in a row
 
 "담린이 남진 카이가쿠라고?" -> **"담유이 남친 카이가쿠라고?"**
-Whisper 가 "담린이 남진"으로 들었고, 나는 한술 더 떠 "담린이 남긴"으로
-고쳐 `make_csv.py` 주석에 "전사가 남긴을 남진으로 잘못 들었다"고까지 적어
-놓았다. 담유이(방송인 이름) 남친(남자친구)이 맞다. `[[user-wording-is-canonical]]`
-을 써 놓고 같은 파일에서 또 어겼다.
+Whisper heard "담린이 남진", and I went further and "fixed" it to "담린이 남긴", even writing in a `make_csv.py` comment that "the
+transcript misheard 남긴 as 남진". It is 담유이 (the streamer's name) 남친 (boyfriend). I had written
+`[[user-wording-is-canonical]]` and broke it again in the same file.
 
-### drop.json 의 시각도 전사 기준이다
+### drop.json times are transcript-based too
 
-사용자 지적: "'오니가 되는 것도 아니고 그냥 죽여' 가 '그냥 죽' 까지만 나옴."
-대시보드가 준 drop [14.20, 17.14] 는 전사 구간 그대로라, 실제로는
-13.42-14.36 "카이가쿠는 좀"의 꼬리를 0.16초 잘라내고 있었다.
-`timeline._snap()` 이 뺄 구간의 양 끝을 0.70초 안쪽의 조각 경계로 밀어 준다.
+User: "'오니가 되는 것도 아니고 그냥 죽여' only plays up to '그냥 죽'." The dashboard's drop [14.20, 17.14] was the transcript range
+as is, so it actually cut 0.16 s off the tail of 13.42-14.36 "카이가쿠는 좀".
+`timeline._snap()` moves both ends of a drop range to piece boundaries within 0.70 s inward.
 
-### 검사
+### Checks
 
-`verify_struct.py` 의 컷 경계 문턱값을 `plan_cuts.THR` 에서 가져오게 했다.
-컷을 -48dB 로 뽑아 놓고 검사만 -50dB 로 하면 배경음이 -48~-57dB 인 이
-소스에서는 조용한 자리도 "말을 잘랐다"로 잡힌다. 창도 앞뒤 여유에 맞춰
-0.30초만 본다. 최종 문제 0건.
+`verify_struct.py` now takes its cut-boundary threshold from `plan_cuts.THR`. Cutting at -48 dB and checking at -50 dB flags even
+quiet spots as "speech cut" on this source with -48 to -57 dB background. The window looks only 0.30 s, matching the margins.
+Final problems: 0.
 
-완성본 **51.92초** (본편 44.36 + 아웃트로 7.47), 자막 20장, 컷 15개.
+Final **51.92 s** (main 44.36 + outro 7.47), 20 captions, 15 cuts.
 
-## 재편집 비용을 줄였다 (2026-09-06)
+## Cheaper re-edits (2026-09-06)
 
-사용자: "1차 편집과 피드백이 거의 비슷한 토큰을 먹어 - 실제로 1~2번밖에
-피드백을 못 하는 정도야." 세 가지를 고쳤다.
+User: "the first edit and a feedback round cost almost the same tokens - I can only afford one or two feedback rounds." Three fixes.
 
-### 1. 조각 렌더 캐시 (`piece_cache.py`)
+### 1. Piece render cache (`piece_cache.py`)
 
-자막 낱말 하나를 고쳐도 1920x1080@60fps CRF18 을 세 번(본편 + ko + en)
-통째로 다시 구웠다. 이제 조각마다 따로 굽고 바뀐 것만 다시 굽는다.
+Fixing one caption word re-rendered 1920x1080@60fps CRF18 three times in full (main + ko + en). Now each piece is rendered
+separately and only changed pieces are redone.
 
-    1층 cut_*    원본에서 잘라 crop 을 건 조각
-    2층 burn_*   1층 조각에 그 조각에 걸린 자막만 구운 것
+    layer 1 cut_*    piece cut from the source with crop applied
+    layer 2 burn_*   layer-1 piece with only its own captions burned
 
-이어 붙일 때는 `-c copy` 라 다시 인코딩하지 않는다.
+Joining is `-c copy`, no re-encode.
 
-| | 전부 새로 | 캐시 있음 |
+| | Everything new | With cache |
 |---|---|---|
-| 본편(`build_edit.py`) | 1분 48초 | **3.3초** |
-| 자막 굽기(언어당) | 28조각 중 13 | 자막 1줄 고치면 1~2조각 |
+| Main (`build_edit.py`) | 1 min 48 s | **3.3 s** |
+| Caption burn (per language) | 13 of 28 pieces | 1-2 pieces per fixed caption line |
 
-**함정을 하나 밟았다.** 자막 스타일이 `scx0scy0` 에서 `	(...)` 로
-튀어나오는데, 이 시각은 그 Dialogue 줄이 뜨는 순간 기준이다. 컷을 넘는
-자막을 조각마다 잘라 적으면 **두 번째 토막에서 애니메이션이 다시 재생된다.**
-자막 20줄 중 9줄이 컷을 넘고 있었다. `_settle()` 이 이어지는 토막의
-`	(...)` 와 시작 크기 지정을 걷어내 끝난 상태로 굳힌다. 완성본 프레임으로
-확인했다 (12.68 / 12.76 / 12.84초 글자 크기 같음).
+**One trap.** The caption style pops in from `\fscx0\fscy0` via `\t(...)`, and that timing is relative to when the Dialogue line
+appears. Splitting a caption that spans a cut into per-piece lines **replays the animation in the second part.** 9 of 20 captions
+spanned cuts. `_settle()` strips `\t(...)` and the start scale from continuation parts to freeze them in the finished state.
+Verified on final frames (same text size at 12.68 / 12.76 / 12.84 s).
 
-### 2. 재전사 기본 0회 (`ai_budget.py`)
+### 2. Zero re-transcriptions by default (`ai_budget.py`)
 
-`transcribe.py` · `transcribe2.py` · `verify_final.py` 를 문지기로 막았다.
-허락을 받으면 `ALLOW_AI=1` 을 붙인다. 말이 언제 났는지 · 컷이 말을 잘랐는지 ·
-자막이 소리와 맞는지 · 여백이 어디 있는지는 전부 소리 크기로 답할 수 있다.
+`transcribe.py`, `transcribe2.py` and `verify_final.py` are gated. With permission, add `ALLOW_AI=1`. When speech happened,
+whether a cut clipped speech, whether captions match the audio and where the gaps are can all be answered from loudness.
 
-### 3. 토큰: 비싼 것은 분석이 아니라 출력이었다
+### 3. Tokens: output was expensive, not analysis
 
-파형을 통째로 다시 훑는 데 **0.6초**, 토큰 0이다. 비싼 것은 그 결과를
-대화에 쏟는 것이었다 - 지난 판에 RMS 표를 400줄쯤 찍었다.
-`probe.py` 를 만들어 필요한 자리만 열 줄 안쪽으로 묻는다:
+Re-scanning the whole waveform takes **0.6 s** and zero tokens. What was expensive was pouring the result into the conversation -
+last round printed about 400 lines of RMS table.
+`probe.py` asks for just the spot needed, in under ten lines:
 
-    python probe.py 26 29      원본 26-29초의 소리·컷·화면·자막·전사
-    python probe.py -o 12 14   완성본 시각으로
+    python probe.py 26 29      sound, cuts, picture, captions, transcript for source 26-29 s
+    python probe.py -o 12 14   in final time
 
-파형은 `level.json` 에 넣어 두므로 두 번째부터 0.2초. 규칙은
-`CLAUDE.md` 에 적었다 (재전사 0회 · 재편집 범위 표 · 캐시 · 토큰 규약).
+The waveform is cached in `level.json`, so later calls take 0.2 s. Rules are in `CLAUDE.md` (zero re-transcriptions, re-edit scope
+table, cache, token rules).
 
-## 피드백 레이어에 영역 쪽지와 자취를 넣었다 (2026-09-06)
+## Region notes and traces on the feedback layer (2026-09-06)
 
-지금까지 영상 위 메모는 **점**이었다. 사용자: "내가 원하는 거는 영역이야 -
-영상을 배경으로 해당 영역에 대해 포스트잇 붙이듯이 메모하는 것."
+Notes on the video used to be **points**. User: "what I want is regions - notes stuck onto an area of the video like sticky notes."
 
-**영역 쪽지 (`kind: 'region'`)** — 끌어서 네모를 치면 글이 그림 위에 그대로
-보이는 쪽지가 붙는다. 쪽지는 끌어서 옮길 수 있고, 옮겨도 가리키는 영역은
-그대로다 - 쪽지에서 네모의 **가장 가까운 변**으로 지시 화살표가 따라온다
-(한가운데로 그으면 네모를 가로질러 안이 안 보인다). 쪽지 기본 자리는 그린
-뒤에 높이를 재서 네모 밖으로 밀어낸다 - 글자 수에 따라 높이가 달라져 미리
-계산할 수 없다.
+**Region note (`kind: 'region'`)** - drag a rectangle and a note whose text stays visible over the picture is attached. The note
+can be dragged elsewhere while the region it points to stays put - a pointer arrow follows from the note to the **nearest edge** of
+the rectangle (drawn to the centre it would cross the rectangle and hide its inside). The default note position is pushed outside
+the rectangle after measuring its height - the height depends on the text length and cannot be computed beforehand.
 
-**자취 (`kind: 'curve'`)** — 끌면 마우스가 지나간 길을 그대로 따라 그리고
-끝에 화살촉을 붙인다. 움직임 지시용이다. 예전에는 직선 화살표뿐이었다.
+**Trace (`kind: 'curve'`)** - dragging draws the mouse path as is and adds an arrowhead at the end. For motion instructions. Before
+there was only the straight arrow.
 
-**도형을 픽셀 좌표로 옮겼다.** 선을 퍼센트(`x1="50%"`)로 그리고 있었는데
-`polyline` 의 `points` 는 퍼센트를 못 받는다. `viewBox` 로 좌표계를 만들면
-16:9 를 억지로 늘리는 꼴이라 화살촉이 찌그러진다. 그릴 때마다 무대 크기를
-재서 픽셀로 넣고 `ResizeObserver` 로 다시 그린다.
+**Shapes moved to pixel coordinates.** Lines were drawn in percentages (`x1="50%"`), but `polyline` `points` cannot take percentages.
+A `viewBox` coordinate system would stretch 16:9 and distort the arrowheads. The stage size is measured on every draw, pixels are
+used, and `ResizeObserver` redraws.
 
-**도구 막대를 다시 세웠다** (지시). 비슷한 것끼리 칸막이로 묶는다:
-`선택 | 메모 · 영역 메모 | 선 · 화살표(직선) · 화살표(곡선) | 제거`.
-툴팁은 이름만 적고, 아이콘으로 알 수 없는 둘만 짧게 덧붙였다. 선 아이콘은
-펜 대신 곧은 선으로 바꿔 화살표 둘과 한 무리로 읽히게 했다.
-프롬프트 칸과 메모 목록은 반반으로 나눴다 (예전에는 프롬프트가 세 줄 고정).
+**Toolbar rebuilt** (instruction). Similar tools are grouped with dividers:
+`select | note, region note | line, arrow (straight), arrow (curve) | clear`.
+Tooltips give only names, with a short addition for the two whose icons are unclear. The line icon became a straight line instead of
+a pen so it reads as a group with the two arrows. The prompt box and note list split the height half and half (the prompt used to
+be fixed at three lines).
 
-**`server.py` 가 `feedback_notes.txt` 를 작업 폴더에 떨군다.** 지금까지
-영상 위 피드백은 `project.json` 의 `review.notes` 안에만 있어 파이프라인이
-볼 수 없었다 (프롬프트·사용자 자막과 똑같은 사고다). 좌표를 같이 적는다:
+**`server.py` drops `feedback_notes.txt` into the work folder.** Until now notes on the video lived only in `review.notes` in
+`project.json`, invisible to the pipeline (the same accident as the prompt and user captions). Coordinates are included:
 
-    [0:00.00] (영역 55%,41% ~ 73%,75%) 여기 얼굴이 너무 작다 — 더 크게 잡아줘
-    [0:00.00] (자취 12%,75% -> 82%,75%, 점 41개) 이 경로로 사진이 날아오게 해줘
+    [0:00.00] (region 55%,41% ~ 73%,75%) 여기 얼굴이 너무 작다 — 더 크게 잡아줘
+    [0:00.00] (trace 12%,75% -> 82%,75%, 41 points) 이 경로로 사진이 날아오게 해줘
 
-화면 왼쪽 위가 0%, 오른쪽 아래가 100%. 자리를 모르면 "여기 이 영역"이라는
-쪽지를 받아도 쓸모가 없다.
-
+Top left of the screen is 0%, bottom right 100%. A note saying "this area here" is useless without its position.
 
 ## 마법의 날 (2026-09-07, 담유이 1인 일반 쇼츠)
 
-71.28초를 **31.87초**로. 배속 없음. `edit/마법의날/`, 완성본
-`edited/마법의날_ko.mp4`, 프로젝트 `projects/pmtq0xkm97dua`.
-소스는 `E:\Edit\OBS\마법.mp4`.
+71.28 s to **31.87 s**. No speed change. `edit/마법의날/`, final `edited/마법의날_ko.mp4`, project `projects/pmtq0xkm97dua`.
+Source `E:\Edit\OBS\마법.mp4`.
 
-담유이가 생리통을 투덜거리는 이야기다. 자궁을 "도끼병"으로 의인화해서 —
-혼자 기대해서 집(내막)을 지었다가 안 되니까 다 때려부순다는 — 놀리가
-하나로 굴러간다. 상단 캡션은 '마법의 날'(지시).
+Damyui grumbling about period pain. She personifies the uterus as a self-deluded "도끼병" type - it builds a house (the lining)
+on its own hopes and smashes everything when nothing comes of it - and the joke rolls on as one piece. Top caption '마법의 날'
+(instruction).
 
-### 말한 자리를 덜어낸 것이 아니라, 담유이가 안 한 말을 덜어냈다
+### Not trimming what she said, but removing what she did not say
 
-파형으로 재보니 소리가 난 자리가 40.9초다. 보통은 여기서 말을 골라 덜어내야
-쇼츠 길이가 되는데, 이번에는 **담유이가 하는 말이 아닌 것만 빼는데도** 30초대가
-됐다. 뺀 자리와 근거:
+Measured on the waveform, sound is present for 40.9 s. Usually speech must be trimmed to reach shorts length, but this time
+**removing only what was not Damyui speaking** already reached the 30s. Removed spots and reasons:
 
-- **19.5-23.0초** — 두 번 들어도 "신나는 여행 멋진 친구들"로 일관되게 나오고,
-  그 사이 네 프레임에서 입이 닫혀 있다. 배경음이나 알림으로 보인다
-  (화면에 배너는 없었다)
-- **45.9-56.4초** — 신음 하나뿐이다 ("으", 52.16-53.56). 53.5초 프레임에서
-  입은 벌려 있지만 낱말은 없다
-- **13.6-15.3초**, **64초 뒤** — 숨소리와 추임새("어")
+- **19.5-23.0 s** - heard twice consistently as "신나는 여행 멋진 친구들", and the mouth is closed in four frames in between.
+  Looks like background audio or a notification (no banner on screen)
+- **45.9-56.4 s** - only one groan ("으", 52.16-53.56). In the 53.5 s frame the mouth is open but there are no words
+- **13.6-15.3 s**, **after 64 s** - breathing and fillers ("어")
 
-파형 검출이 이런 소리를 "말"로 넣는다. 그대로 두면 43.3초가 되고 내용이
-없는 자리가 11초다. **파형은 어디서 끊을지를 정하고, 무엇을 남길지는
-정하지 못한다.**
+Waveform detection puts such sounds in as "speech". Left in, it would be 43.3 s with 11 s of no content. **The waveform decides
+where to cut, not what to keep.**
 
-### 전사는 두 번 들은 것만 쓴다
+### Use only transcriptions heard twice
 
-이 소스에서도 좁은 창 probe가 없는 말을 지어냈다 — 49-56초에
-"다음 영상에서 만나요", 7-12초에 "고맙습니다". 둘 다 그 자리에 소리 자체가
-없다. 반대로 넓은 창이 틀리고 좁은 창이 맞힌 것도 있다 — "자궁"(43.54-43.96)은
-넓은 창에서 "자국나마"로 나왔다.
+On this source the narrow-window probe invented speech too - "다음 영상에서 만나요" at 49-56 s and "고맙습니다" at 7-12 s.
+There is no sound at all in either spot. Conversely, the wide window was wrong and the narrow one right in one case - "자궁"
+(43.54-43.96) came out as "자국나마" in the wide window.
 
-**낱말 시각은 이 소스에서 0.2~0.9초 이르다** (앞선 프로젝트는 0.2~0.3이었다).
-"어?"를 29.60에 놓았는데 파형은 30.47부터 소리가 있다. 컷도 자막도 파형이
-정한다.
+**Word times are 0.2-0.9 s early on this source** (0.2-0.3 on earlier projects). "어?" was placed at 29.60, but the waveform has
+sound from 30.47. Cuts and captions are set by the waveform.
 
-짐작이 둘 남아 있다 (주석에 그렇게 적어 두었다): **"껀덕지도 안 줬네"**는
-전사가 "안 좋네"로 들은 것을 앞 문장("껀덕지도 안 주는데")과 짝을 맞춰
-고친 것이고, **"자궁 년아"의 "년아"**는 전사가 "넘어" · "나마"로 들은 자리다.
+Two guesses remain (marked as such in comments): **"껀덕지도 안 줬네"** is the transcript's "안 좋네" changed to pair with the
+previous sentence ("껀덕지도 안 주는데"), and **"년아" in "자궁 년아"** is where the transcript heard "넘어" or "나마".
 
-### 자막 등장 애니메이션을 쇼츠로 가져왔다 (지시)
+### Caption entrance animation brought to shorts (instruction)
 
-롱폼(맘터귀칼가챠)에서 쓰던 값 그대로 — 0 → 107%가 80ms, 거기서 100%로
-돌아오는 데 67ms. 사라질 때는 애니메이션이 없다.
+The same values as the longform (맘터귀칼가챠) - 0 -> 107% in 80 ms, back to 100% in 67 ms. No exit animation.
 
-**자리를 `\an2`(밑변 기준)에서 `\an5`(상자 한가운데)로 바꿔야 한다.**
-an2로 두면 libass가 밑변을 붙박고 위로만 자라서 참고본처럼 가운데서 퍼지는
-결이 안 난다. 값은 검은 화면에 자막만 구워 재서 맞췄다:
+**The anchor must change from `\an2` (baseline) to `\an5` (box centre).** With an2 libass pins the baseline and grows only upward,
+so it does not spread from the centre like the reference. Values were matched by rendering only the captions on black:
 
-    an2 · MarginV 393       잉크 y 1417-1524
-    an5 · \pos(540,1470)    잉크 y 1425-1532   (8px 처진다)
-    -> ORIGIN_Y = 1462, 굽고 다시 재 보니 1419-1526. 2px 차이다
+    an2 · MarginV 393       ink y 1417-1524
+    an5 · \pos(540,1470)    ink y 1425-1532   (8 px lower)
+    -> ORIGIN_Y = 1462; rendered and re-measured: 1419-1526, 2 px off
 
-발끈 자막도 같은 애니메이션을 탄다. 커지는 0.13초 동안은 글자가 작아
-그라데이션 띠(`\clip`)와 어긋나는데, 구워서 프레임으로 보니 눈에 안 걸린다.
+Outburst captions use the same animation. During the 0.13 s growth the letters are small and misaligned with the gradient band
+(`\clip`), but in rendered frames it does not catch the eye.
 
-쇼츠 파이프라인은 자막을 한 번에 굽는다(`edit_nocap.mkv` + `subtitles=`)라
-롱폼의 `_settle()` 같은 장치가 필요 없다 — 조각으로 나눠 굽지 않으므로
-`\t(...)`의 기준이 이음매에서 밀리지 않는다.
+The shorts pipeline burns captions in one pass (`edit_nocap.mkv` + `subtitles=`), so it needs nothing like the longform
+`_settle()` - not rendering in pieces, the `\t(...)` reference never shifts at a seam.
 
-### 발끈 자막은 소리 크기로 골랐다
+### Outburst captions chosen by loudness
 
-지시가 "발끈 하는 자막, 일반 자막 2가지를 적절히 섞어서 쓸 것"이었다. 스타일은
-"한 영상에 한두 번, 연속으로 쓰면 세기가 죽는다"라고 정해 둔다. 둘로 끊었고,
-**고를 때 느낌이 아니라 src_level.wav의 p85를 재서** 정했다:
+The instruction was "mix outburst captions and normal captions appropriately". The style says "once or twice per video; in a row
+they lose their force". Two were chosen, **by measuring p85 of src_level.wav, not by feel**:
 
-    아니 없다고          0.284   <- 영상에서 가장 크다
+    아니 없다고          0.284   <- loudest in the video
     이런 개 미친        0.261
     다 때려부숴 슈밤    0.250
     껀덕지도 안 주는데  0.241
-    망할 자궁 새끼      0.139   <- 욕이지만 중얼거리는 줄이다
+    망할 자궁 새끼      0.139   <- a swear, but muttered
 
-욕이 들어간 줄이 발끈일 것 같았는데 재 보니 아니었다. 고른 둘은 둘 다
-**담유이가 직접 항변하는 줄**이다 (자궁 흉내를 내는 "다 때려부숴 슈밤"은
-소리는 크지만 발끈이 아니라 성대 흉내라 뺐다). 완성본에서 8.5초와 27.4초라
-19초 뜬다.
+The line with the swear seemed like an outburst, but measured it was not. Both chosen lines are **Damyui protesting directly**
+("다 때려부숴 슈밤", imitating the uterus, is loud but is voice acting rather than an outburst, so it was left out). In the final
+they are at 8.5 s and 27.4 s, 19 s apart. *(The user overruled this - see the first feedback below.)*
 
-### 크롭
+### Crop
 
     x 318-1342 (1024x1080 = 0.948), y 0-1080  ->  1080x1140, y=407
 
-인물 실루엣은 x 380-1240에 들고 그 한가운데는 810, 얼굴 한가운데는 장면에
-따라 790-900을 오간다. 830을 크롭 한가운데로 잡아 둘을 절충했다.
-채팅 말풍선은 x 1575부터라 233px 뜬다 (봉누도불참은 1580, 거의 같다).
+The silhouette sits in x 380-1240 with its centre at 810; the face centre moves between 790 and 900 per scene. 830 was taken as
+the crop centre as a compromise. The chat balloon starts at x 1575, 233 px away (봉누도불참: 1580, almost the same).
 
-소리는 **-44.8 LUFS**로 봉누도불참(-41.7)보다 3dB 더 조용하다. 27dB 올리고
-마지막에 -16 LUFS로 맞췄다 (재 보니 -15.7). 문턱은 봉누도불참 값을 그대로
-썼다 — 무음 p90 0.015~0.038, 말 p50 0.048~0.202로 분포가 거의 같다.
+Sound is **-44.8 LUFS**, 3 dB quieter than 봉누도불참 (-41.7). Raised 27 dB and set to -16 LUFS at the end (measured -15.7).
+봉누도불참's thresholds were reused - silence p90 0.015-0.038, speech p50 0.048-0.202, nearly the same distribution.
 
-### 파이프라인에서 고친 것 둘
+### Two pipeline fixes
 
-- **`piece_cache.py`의 머리글-열쇠 수정은 롱폼에만 있다.** 쇼츠는 조각
-  캐시를 안 쓰므로 그 파일을 가져오지 않았다
-- **`build_ass.py`가 import할 때 전사를 반드시 요구했다.** 이 모듈은
-  `rebuild_from_csv.py`가 머리글과 자막 차림만 가져가려고 import하는 자리기도
-  한데, 그때도 `word_level_large.json`이 없으면 터졌다. 없으면 빈 목록으로
-  지나가게 했다
+- **The header-key fix in `piece_cache.py` exists only in longform.** Shorts do not use the piece cache, so that file was not
+  brought over
+- **`build_ass.py` required a transcript on import.** `rebuild_from_csv.py` also imports this module just for the header and
+  caption styles, and it crashed then too if `word_level_large.json` was missing. It now passes with an empty list
 
-### 검사
+### Checks
 
-`verify_cuts` 0건, `verify_gaps` 0건, `verify_sync` 26장 중 0장 수상.
-`verify_timing`은 8장을 표시했는데 전부 "붙을 음절 시작이 없다"다 —
-말을 쉬지 않고 이어가는 자리에서 자막만 바뀔 때 나오는 표시다.
+`verify_cuts` 0, `verify_gaps` 0, `verify_sync` 0 suspicious of 26. `verify_timing` flagged 8, all "no syllable start to snap
+to" - shown when only the caption changes while speech runs on without a pause.
 
-**완성본 재전사(`verify_final`)는 안 돌렸다.** 봉누도불참에서 소스 검사만으로는
-못 잡는 것 셋을 잡았던 검사다. 필요하면 허락을 받고 돌릴 수 있다.
+**The final re-transcription (`verify_final`) was not run.** In 봉누도불참 it caught three things source checks missed. It can be
+run with permission if needed.
 
 
-### 마법의 날 - 첫 피드백 (2026-09-07)
+### 마법의 날 - first feedback (2026-09-07)
 
-지시 둘이었다.
+Two instructions.
 
 ```
-내가 원하는 대로 / 안됐네 / 다 때려부셔 슈밤  -> 발끈
-그리고 발끈 부분 자막 디자인 재확인 할 것
+내가 원하는 대로 / 안됐네 / 다 때려부셔 슈밤  -> outburst
+and re-check the outburst caption design
 ```
 
-여기에 사용자가 자막 넉 줄을 직접 고쳐 두었다 (`captions_user.json`).
+The user had also edited four caption lines directly (`captions_user.json`).
 
-#### 자막 넉 줄 중 셋이 내가 낸 오타였다
+#### Three of the four were my typos
 
 ```
 꺼덕지도 안 주는데   ->  껀덕지도 안 주는데
 다 때려부숬 슈밤     ->  다 때려부셔 슈밤
 이번엔? 이잔아       ->  이번엔? 이잖아
-꺼덕지도 안 줌네     ->  껀덕지도 안 주는데   (오타 + 짐작이 틀렸다)
+꺼덕지도 안 줌네     ->  껀덕지도 안 주는데   (typo + wrong guess)
 ```
 
-**까닭:** `make_csv.py` 를 heredoc 안에서 파이썬으로 쓰면서 한글을 전부
-`\uXXXX` 로 적었다. 손으로 계산한 코드포인트가 네 군데 틀렸고 — 껀(U+AEF0)을
-꺼(U+AEBC)로, 숴(U+C220)를 숬(U+C22C)로 — **바로 그대로 구워져 나갔다.**
-파일에 그렇게 적혀 있으니 내가 다시 읽어도 안 보인다. 콘솔이 한글을 깨뜨려
-찍는 환경이라 눈으로도 못 걸렀다.
+**Why:** `make_csv.py` was written in Python inside a heredoc with all Korean as `\uXXXX`. Four hand-computed code points were
+wrong - 껀 (U+AEF0) as 꺼 (U+AEBC), 숴 (U+C220) as 숬 (U+C22C) - and **were rendered straight into the video.** Written that way
+in the file, I could not see them on re-reading either, and the console garbles Korean, so they could not be caught by eye.
 
-**앞으로 한글이 들어가는 파일은 Write/Edit 도구로 쓴다.** heredoc + `\uXXXX`
-는 쓰지 않는다. 굳이 heredoc 을 쓸 일이 있으면 만든 뒤 그 파일을 다시 읽어
-한글만 따로 찍어 본다. → [[no-unicode-escapes-for-korean]]
+**From now on, files containing Korean are written with the Write / Edit tools.** No heredoc + `\uXXXX`. If a heredoc is
+unavoidable, re-read the file afterwards and print just the Korean. -> [[no-unicode-escapes-for-korean]]
 
-네 번째("안 줬네")는 오타에 더해 **짐작이 틀린 것**이었다. 전사가 "안 좋네"로
-들은 자리를 앞 문장과 짝을 맞춰 "안 줬네"로 적었는데, 사용자가 **"껀덕지도
-안 주는데"** 로 고쳤다 — 같은 말을 두 번 한 것이 맞았다. 두 자리 사이에
-자막 여덟 장이 끼어 있어 잇달아 되풀이한 것이 아니므로 `(x2)` 는 안 붙인다.
+The fourth ("안 줬네") was a typo plus **a wrong guess**. The transcript's "안 좋네" had been written "안 줬네" to pair with the
+previous sentence, but the user corrected it to **"껀덕지도 안 주는데"** - she really said the same thing twice. There are eight
+captions between the two, so it is not a consecutive repeat and gets no `(x2)`.
 
-#### 발끈 자막 디자인 - 글자 아랫동아리가 노랑으로 떠 있었다
+#### Outburst design - the lower part of the letters floated in yellow
 
-사용자가 예시 그림 셋을 같이 줬다. 검은 화면에 구워 재 보니 진짜 문제가
-있었다:
+The user gave three example images. Rendering on black showed a real problem:
 
 ```
-잉크 y 1416-1527        <- \an5 로 옮긴 뒤의 실제 자리
-띠(clip) y 1407-1507    <- \an2 시절에 정한 값 그대로였다
+ink y 1416-1527         <- actual position after moving to \an5
+band (clip) y 1407-1507 <- still the value from the \an2 days
 ```
 
-**글자 아래 20px 이 띠 밖으로 나갔다.** 거기는 스타일의 PrimaryColour(노랑)가
-그대로 보이고 그 밑에 연두 그림자가 겹친다 — 재 보니 y 1511 에서
-(228, 222, 97) 이었다. 주황빨강이어야 할 자리다. 등장 애니메이션을 넣으면서
-자리를 옮겼는데 **띠 범위를 같이 안 옮긴 것**이다.
+**The bottom 20 px of the letters were outside the band.** There the style's PrimaryColour (yellow) shows through, with the lime
+shadow under it - measured (228, 222, 97) at y 1511, where it should be orange-red. The position moved with the entrance animation
+but **the band range did not move with it.**
 
-고친 것 셋:
+Three fixes:
 
-- `EMPH_Y0/Y1` 을 잰 값(1414-1530)으로. MarginV 산술이 아니라 잉크를 잰다
-- 스타일의 `PrimaryColour` 를 아래 색(#FB5D4B)으로. 띠가 못 덮는 화소가
-  생겨도 노랑이 아니라 빨강으로 떨어진다
-- **위 색을 노랑(#FBD65A)에서 살구빛 분홍(#F7A094)으로.** 예시 그림의 글자는
-  위가 연한 살구빛 분홍이고 아래로 가면서 주황빨강이 된다 — 노랑이 안 보인다.
-  **이 값은 잰 것이 아니라 그림을 눈으로 보고 고른 것이다 (짐작).** 예시를
-  파일로 받으면 픽셀을 재서 고칠 것
+- `EMPH_Y0/Y1` set to measured values (1414-1530). Measure the ink, not MarginV arithmetic
+- The style's `PrimaryColour` set to the bottom colour (#FB5D4B), so any pixel the band misses falls back to red, not yellow
+- **Top colour from yellow (#FBD65A) to apricot pink (#F7A094).** In the examples the letters are pale apricot pink at the top
+  turning orange-red downward - no yellow visible. **This value was picked by eye from the images, not measured (guess).** If the
+  examples arrive as files, measure the pixels and correct it
 
-옛것과 새것을 나란히 구워 견줬고, 새것이 예시와 맞는다.
+Old and new were rendered side by side; the new one matches the examples.
 
-#### 발끈이 둘에서 다섯으로
+#### Outbursts went from two to five
 
-1차 편집에서 "다 때려부셔 슈밤"을 뺀 내 근거는 **"자궁 흉내를 내는 줄이라
-성대모사지 항변이 아니다"** 였다. 사용자가 그 판단을 뒤집었다. 스타일의
-"한 영상에 한두 번"보다 사용자 지시가 앞선다.
+My first-edit reason for excluding "다 때려부셔 슈밤" was **"it imitates the uterus - voice acting, not protest"**. The user
+overruled that. User instructions come before the style's "once or twice per video".
 
-셋이 잇달아 붙어 있어서(완성본 14.6-17.6초) 한 문장이 통째로 발끈으로
-읽힌다 — 세 번 따로 튀는 것이 아니라 한 덩어리다. 소리 크기로도 "다 때려부셔
-슈밤"이 0.250 으로 넷째로 크다.
+The three are consecutive (final 14.6-17.6 s), so the whole sentence reads as one outburst - one block, not three separate pops.
+By loudness "다 때려부셔 슈밤" is fourth loudest at 0.250 too.
 
-컷은 안 건드렸으므로 `edit_nocap.mkv` 를 그대로 쓰고 자막만 다시 구웠다.
-`verify_sync` 26장 중 0장 수상, `verify_cuts`/`verify_gaps` 0건.
+Cuts were untouched, so `edit_nocap.mkv` was reused and only captions re-rendered. `verify_sync` 0 suspicious of 26,
+`verify_cuts` / `verify_gaps` 0.
 
 
-### 마법의 날 - 소리에서 필터를 걷어냈다 (2026-09-07)
+### 마법의 날 - filters removed from the audio (2026-09-07)
 
-사용자: "영상 소리가 좀 달라진 거 같아 혹시 뭐 bgm 제거 하려고 건드린 거 있니?"
-→ "생각보다 차이가 너무 심해서 그래" → "필터 안 낀 게 훨씬 낫다.
-**앞으로도 내가 요청하기 전에는 필터 끼지 마.**"
+User: "the sound seems a bit different, did you touch something to remove the BGM?" -> "the difference is bigger than I thought"
+-> "no filter is much better. **From now on, no filters until I ask.**"
 
-봉누도불참의 소리 사슬을 **소스가 바뀌었는데도 그대로 물려받은 것**이 원인이다.
-셋 다 재 보니 쓸데없이 소리를 건드리고 있었다:
+The cause was **inheriting 봉누도불참's audio chain although the source had changed.** Measured, all three were touching the sound
+for nothing:
 
 ```
-afftdn=nr=12       말하는 중에  1-3kHz -3.1dB / 3-6kHz -8.4dB / 6-8kHz -11.4dB
-highpass=f=70      목소리 대역 0.0dB, 30-70Hz 만 -4.5dB
-alimiter=0.92      27dB 만 올리면 최고 -0.4dB 라 안 넘친다. 끼우면 최고가
-                   0.0dB 로 붙고 평균이 0.7dB 오른다 - 막는 게 아니라 눌러서 키운다
+afftdn=nr=12       during speech  1-3 kHz -3.1 dB / 3-6 kHz -8.4 dB / 6-8 kHz -11.4 dB
+highpass=f=70      voice band 0.0 dB, only 30-70 Hz -4.5 dB
+alimiter=0.92      raising 27 dB peaks at -0.4 dB, no overs. With it the peak sticks at
+                   0.0 dB and the average rises 0.7 dB - it squashes and boosts rather than protects
 ```
 
-`afftdn` 이 깎는 3-8kHz 는 치찰음과 공기감이 사는 자리다. 잡음만 지우는 게
-아니라 목소리를 같이 지운다. 봉누도불참은 저음 잡음과 배경음악이 깔려 있어
-필요했지만 이 소스는 아니다 - 1차 편집에서 이미 쟀다 (저음 대역이 말할 때
-오히려 4.0배 커진다. 배경음악이 있으면 반대로 나온다).
+The 3-8 kHz that `afftdn` cuts is where sibilance and air live. It removes voice along with noise. 봉누도불참 had low-frequency
+noise and background music and needed it; this source does not - already measured in the first edit (the low band gets 4.0x louder
+during speech; with background music it is the reverse).
 
-**지금 사슬**
+**Current chain**
 
 ```
-build_edit.py     volume=27dB                     (순수 이득 하나)
-apply_captions.py volume=<재서 정한 값>dB          (loudnorm 아님)
+build_edit.py     volume=27dB                    (one plain gain)
+apply_captions.py volume=<measured value>dB      (not loudnorm)
 ```
 
-**loudnorm 도 뺐다.** 크기를 맞추면서 다이내믹을 같이 누르는데 그것도 소리를
-건드리는 것이다. `apply_captions.py` 가 ebur128 로 이어 붙인 소리를 재서
-`min(-16 - I, -1.5 - TP)` 만큼 한 번에 올린다. 이번 판은 -14.9 LUFS /
-최고 -0.4dBTP 라 -1.1dB 내렸고 완성본이 -16.1 LUFS / -1.5 dBTP 로 나왔다.
+**loudnorm was removed too.** It compresses dynamics while levelling, which also touches the sound. `apply_captions.py` measures
+the joined audio with ebur128 and raises it once by `min(-16 - I, -1.5 - TP)`. This version was -14.9 LUFS / peak -0.4 dBTP, so
+it was lowered 1.1 dB and the final came out at -16.1 LUFS / -1.5 dBTP.
 
-**ebur128 파싱 함정:** 프레임마다 `I:` 를 찍으므로 통째로 정규식을 걸면 첫
-프레임 값(-70 LUFS)이 잡힌다. 반드시 `Summary` 뒤에서만 읽는다. 한 판을
-그렇게 헛돌렸다.
+**ebur128 parsing trap:** it prints `I:` every frame, so a regex over the whole output catches the first frame's value (-70 LUFS).
+Read only after `Summary`. One round was wasted that way.
 
-컷 검출용 `src_level.wav` 의 대역 제한(700-3000Hz)은 그대로 둔다 - 그건
-**재는 데만** 쓰는 트랙이고 완성본에 안 들어간다.
+The band limit (700-3000 Hz) of `src_level.wav` for cut detection stays - that track is **only for measuring** and never reaches
+the final.
 
-견주기용으로 `_afftdn_version.py` 를 만들어 뒀다. 이미 구운 완성본에서 그림을
-`-c:v copy` 로 가져오고 소리만 다시 만들어 끼우므로 20초면 끝나고, A/B 가
-순수하게 소리 차이만 남는다. 사슬을 또 바꿔 견줄 일이 있으면 그 파일의
-`GAIN` 한 줄만 고치면 된다.
+`_afftdn_version.py` was kept for comparisons. It takes the picture from an already rendered final with `-c:v copy` and rebuilds
+only the audio, so it finishes in 20 s and the A/B differs purely in sound. To compare another chain, change the single `GAIN`
+line.
 
 
-### 마법의 날 - 자막을 8% 키웠다 (2026-09-07)
+### 마법의 날 - captions 8% larger (2026-09-07)
 
-참고본과 나란히 놓고 보니 글자가 8% 작았다. `FS_DAMYUI` 130 -> 140.
-지금까지 쓰던 130 은 스타일 파일의 `sizeNorm 0.068 x 1920 = 130.6` 에서 나온
-값인데, 정작 그 스타일을 뜬 참고본은 140 쯤이다 - **스타일 파일 쪽이 덜
-정확하다.** 채움 높이가 96 -> 102 가 되어 참고본(104)과 거의 같아졌다.
+Side by side with the reference, the text was 8% smaller. `FS_DAMYUI` 130 -> 140.
+The 130 came from the style file's `sizeNorm 0.068 x 1920 = 130.6`, but the reference that style was taken from is about 140 -
+**the style file is the less accurate one.** Fill height went 96 -> 102, almost equal to the reference (104).
 
-**글자 크기를 바꾸면 같이 재야 하는 것 셋:**
+**Three things to re-measure when changing font size:**
 
-- `ORIGIN_Y` 1462 -> 1460. an5 는 상자 한가운데를 붙박으므로 키우면 잉크가
-  위아래로 같이 자란다. 자막 띠의 **아래끝**을 그대로 두는 편이 낫다 -
-  아래는 화면 끝이 가깝고 위는 얼굴 쪽으로 비어 있다 (1526 에 맞췄다)
-- `EMPH_Y0/Y1` 1420-1515 -> 1414-1516. 발끈 그라데이션은 채움 높이의
-  **비율**로 색이 바뀌므로 채움 범위를 다시 재야 한다
-- **줄 폭.** 두 줄이 1020px 한계를 넘어 나눴다:
+- `ORIGIN_Y` 1462 -> 1460. an5 pins the box centre, so growing the text grows the ink both ways. Better to keep the caption
+  band's **bottom** fixed - the screen edge is close below, and above it is open towards the face (set to 1526)
+- `EMPH_Y0/Y1` 1420-1515 -> 1414-1516. The outburst gradient changes colour by **fraction** of the fill height, so the fill range
+  must be re-measured
+- **Line width.** Two lines exceeded the 1020 px limit and were split:
 
-      상태 안 좋을 때만 시작해  1081px  ->  "상태 안 좋을 때만" / "시작해"
-      아 슈밤 이번 안 해주냐?   1033px  ->  "아 슈밤" / "이번 안 해주냐?"
+      상태 안 좋을 때만 시작해  1081 px  ->  "상태 안 좋을 때만" / "시작해"
+      아 슈밤 이번 안 해주냐?   1033 px  ->  "아 슈밤" / "이번 안 해주냐?"
 
-  자막이 26 -> 28 장이 됐다.
+  Captions went from 26 to 28.
 
-컷은 안 건드렸으므로 `edit_nocap.mkv` 를 그대로 쓰고 자막만 다시 구웠다.
-검사 통과 (verify_sync 28장 중 0장 수상).
+Cuts untouched, so `edit_nocap.mkv` was reused and only captions re-rendered. Checks pass (verify_sync 0 suspicious of 28).
 
 
-### 스타일 파일을 실측값으로 고쳤다 (2026-09-07)
+### Style files corrected to measured values (2026-09-07)
 
-`dashboard/styles/` 의 쇼츠 스타일 셋에 틀린 값이 들어 있었다. 전부
-`아야와 현실 합방.mov` 12.5초를 다시 재서 고쳤다 - **그 파일이
-measuredFrom 에 적혀 있고 디스크에 그대로 있다.**
+The three shorts styles in `dashboard/styles/` held wrong values. All were corrected by re-measuring 12.5 s of
+`아야와 현실 합방.mov` - **that file is recorded in measuredFrom and is still on disk.** *(Later rule, 2026-10-02: presets no
+longer record sources.)*
 
-| | 전 | 후 |
+| | Before | After |
 |---|---|---|
 | host sizeNorm | 0.068 (=130.6) | **0.0729 (=140)** |
-| 발끈 채움 위 | #FBD65A 노랑 | **#DAFD73 연두** |
-| 발끈 외곽선 | #1C2C38 | **#0C262A** |
-| 발끈 그림자 | #DAFD73 | **#DAFA78** |
-| 외곽선 굵기 | (없음) | **3** |
-| 어두운 층 밀기 | (없음) | **11** |
-| 연두 층 밀기 | (없음) | **15** |
+| outburst fill top | #FBD65A yellow | **#DAFD73 lime** |
+| outburst outline | #1C2C38 | **#0C262A** |
+| outburst shadow | #DAFD73 | **#DAFA78** |
+| outline width | (none) | **3** |
+| dark layer offset | (none) | **11** |
+| lime layer offset | (none) | **15** |
 
-`fillStops`(잰 12개 정거장) · `fillRange`(위 42% 에만) · `depth`(네 방향
-두께) · `howToReproduce`(ASS 층 세 겹) 를 새로 넣었다.
+New fields: `fillStops` (12 measured stops), `fillRange` (top 42% only), `depth` (thickness in four directions) and
+`howToReproduce` (three ASS layers).
 
-**틀린 기록이 나를 헛돌게 했다.** `fillNote` 에 "연두는 채움 맨 위가 아니라
-아래 가장자리에 깔리는 그림자다"라고 적혀 있었는데 사실이 아니다 - 연두가
-채움의 맨 위 색이다. 같은 파일의 `fillMid`("위에서 아래로 연두 -> 호박색 ->
-주황빨강")가 맞았고, 두 기록이 어긋나 있는데 내가 틀린 쪽을 믿었다.
-지금은 왜 틀렸는지까지 적어 두었다.
+**A wrong record sent me in circles.** `fillNote` said "the lime is not the top of the fill but a shadow lying along the bottom
+edge", which is false - lime is the top colour of the fill. `fillMid` in the same file ("top to bottom lime -> amber -> orange-red")
+was right; the two records disagreed and I believed the wrong one. The file now also says why it was wrong.
 
-**옮긴 범위:** 발끈 차림은 화자와 무관한 자막 차림이라 다인쇼츠 · 영도쇼츠에
-그대로 옮겼다. 크기는 1인 쇼츠에서 잰 값이라 다인쇼츠에만 옮기고 **짐작이라고
-표시**했고, 영도쇼츠는 화면 구성이 달라(크롭 없음, 자막이 영상 띠 아래)
-안 고치고 "재고 정할 것"이라고 표시만 했다. 다인쇼츠의 게스트 크기(0.07)도
-폰트가 Bold 로 달라 그대로 두고 표시만 했다. 롱폼은 발끈 색이 아예 다르다
-(빨강) - 제 나름의 실측값이라 안 건드렸다.
+**Scope of the change:** the outburst look does not depend on the speaker, so it was copied to 다인쇼츠 and 영도쇼츠 as is. Size was
+measured on a solo short, so it was copied only to 다인쇼츠 and **marked as a guess**; 영도쇼츠 has a different layout (no crop,
+captions below the video band), so it was not changed, only marked "measure before deciding". The 다인쇼츠 guest size (0.07) uses a
+different font (Bold), so it was left and marked. Longform uses a different outburst colour entirely (red) - its own measured
+values, left alone.
 
-**아직 못 가른 것:** 참고본 한 줄 폭이 917px 인데 같은 글자를 140 으로
-구우면 880px 이다 (4.2% 좁다). 자간 3.4 를 주거나 ScaleX 104 로 하면 둘 다
-917 에 맞는데 어느 쪽인지 못 갈랐다. 높이는 140 에서 맞으므로 크기는 140 이
-맞다. `openQuestion` 에 적어 두었다.
+**Still undecided:** a reference line is 917 px wide, but the same text rendered at 140 is 880 px (4.2% narrower). Letter spacing
+3.4 or ScaleX 104 both give 917, and it is not settled which. Height matches at 140, so the size is right. Recorded in
+`openQuestion`.
 
-### 다음 생 - 1차 편집 (2026-09-07)
+### 다음 생 - first edit (2026-09-07)
 
-`다음생.mp4` 112초 -> **38.7초**, 자막 34장(발끈 2), 컷 11개.
-완성본 `edited/다음생_ko.mp4`, 대시보드 `projects/pmtqynkwa5tuo`.
+`다음생.mp4` 112 s -> **38.7 s**, 34 captions (2 outbursts), 11 cuts.
+Final `edited/다음생_ko.mp4`, dashboard `projects/pmtqynkwa5tuo`.
 
-채팅이 "그래도 다음생에 유이로 태어나줄거죠?"라고 묻자 담유이가
-"저는 돌멩이로 태어나고 싶은데요"로 받는다. 그냥 돌멩이는 안 되고
-**실내에 있는 부잣집 화단의 돌멩이**여야 한다는 조건이 붙고, 까닭까지
-가면 하나가 닫힌다. 그 뒤에 갑자기 게임에서 죽으며 비명 - "지지 /
-나 안돼 / 무리 무리 무리"로 끝난다.
+A chat asks "그래도 다음생에 유이로 태어나줄거죠?" and Damyui answers "저는 돌멩이로 태어나고 싶은데요". Not just any stone - it has to
+be **a stone in an indoor flower bed of a rich house**, and with the reason it closes as one bit. Then she suddenly dies in a game
+and screams - ending on "지지 / 나 안돼 / 무리 무리 무리".
 
-**값을 하나도 물려받지 않았다. 이 소스는 앞 프로젝트와 아예 다르다.**
+**No values inherited. This source is completely different from the previous project.**
 
 | | 마법의 날 | 다음 생 |
 |---|---|---|
-| 통합 크기 | -44.8 LUFS | **-15.8 LUFS** |
-| 이득 | +27dB | **0dB** |
+| Integrated loudness | -44.8 LUFS | **-15.8 LUFS** |
+| Gain | +27 dB | **0 dB** |
 | THR_HI / THR_LO | 0.050 / 0.022 | **0.022 / 0.010** |
-| 크롭 | x 318-1342 | **x 393-1417** |
+| Crop | x 318-1342 | **x 393-1417** |
 
-27dB 를 그대로 물려받았으면 통째로 터졌다. 문턱도 소스마다 무음·말의
-분포가 달라 다시 쟀다 (무음 p90 0.0105 · 말 p50 0.0319).
+Inheriting +27 dB would have clipped everything. Thresholds were re-measured too, because the silence / speech distributions differ
+per source (silence p90 0.0105, speech p50 0.0319).
 
-**파형이 두 번 틀렸고 둘 다 잡았다.**
+**The waveform was wrong twice, and both were caught.**
 
-1. 74.7-76.5 는 레벨이 0.013 으로 평평한 웅웅거림인데 THR_LO(0.010)를
-   겨우 넘어 파형이 한 덩어리로 물고 있었다. 말의 끝("싶습니다")은 74.9 의
-   봉우리고 진짜 말은 76.80 부터 다시 난다. 1.4초를 잘라냈다
-2. "실내에 있는 부잣집"의 **"집"이 통째로 사라져 "부잣"에서 끝났다.**
-   "잣"과 "집" 사이 폐쇄음이 0.14초라 JOIN(0.12)보다 길어서 "집"이
-   0.11초짜리 따로 떨어진 조각이 되고, MIN_PIECE(0.20)에 걸려 버려졌다.
-   `JOIN_BY_GROUP[2] = 0.16` 으로 붙였다.
-   **verify_cuts 는 이걸 못 잡는다** - 컷이 진짜 틈에 떨어졌기 때문이다.
-   조각 경계 뒤 0.35초 안에 소리가 있는지 따로 훑어서 찾았다
+1. 74.7-76.5 is a flat hum at level 0.013, just above THR_LO (0.010), so the waveform held it as one blob. The end of speech
+   ("싶습니다") is the peak at 74.9 and real speech resumes at 76.80. 1.4 s were cut
+2. In "실내에 있는 부잣집", **"집" vanished entirely and it ended at "부잣".** The closure between "잣" and "집" is 0.14 s, longer than
+   JOIN (0.12), so "집" became a separate 0.11 s piece and was discarded by MIN_PIECE (0.20). Joined with `JOIN_BY_GROUP[2] = 0.16`.
+   **verify_cuts cannot catch this** - the cut fell in a real gap. Found by separately scanning for sound within 0.35 s after each
+   piece boundary
 
-**후원 알림 78.30-86.10초를 통째로 뺐다.** 원본 x 70-470 · y 100-393 이라
-크롭 왼끝(393)과 77px 겹쳐 크롭으로는 못 피한다. 스타일이 후원은 소리·화면
-둘 다 빼라고 정해 두었고, 앞 덩어리가 78.86 에 끝나므로 78.3 에서 끊어도
-말이 안 잘린다.
+**The donation alert at 78.30-86.10 s was removed entirely.** It sits at source x 70-470, y 100-393, overlapping the left crop edge
+(393) by 77 px, so cropping cannot avoid it. The style says donations go, sound and picture, and the previous blob ends at 78.86,
+so cutting at 78.3 clips no speech.
 
-**비명에 9dB 을 얹었다** (지시: "1:32 ~ 1:35 부분은 소리 좀 키워서 넣어줘").
-재 보니 그 자리가 -25.3 LUFS 로 말(-14.4)보다 10.9dB 작았다 - 사용자가
-작다고 느낀 것이 맞았다. `timeline.GAIN_DB` 를 새로 두고 `build_edit` 이
-조각을 구울 때 얹는다. 완성본에서 -17.5 LUFS 로 말보다 1.7dB 아래다.
+**+9 dB on the scream** (instruction: "make 1:32 - 1:35 louder"). Measured at -25.3 LUFS, 10.9 dB below the speech (-14.4) - the user
+was right that it felt quiet. New `timeline.GAIN_DB`, applied by `build_edit` when rendering the piece. -17.5 LUFS in the final,
+1.7 dB below speech.
 
-**전사에서 넷을 고쳤다.** "유희로"->"유이로"는 짐작이 아니라 4초 채팅
-말풍선을 읽어서 확인했다. "쥐지"->"지지"(GG)와 "쥰내"는 사용자가 헷갈릴
-낱말로 짚어 준 것이다 - 지지는 맞았고 **쥰내는 못 찾았다** (90초를 다시
-들으니 "배 죽나 봐"였다). "부자칩"->"부잣집"은 문맥상 확실하지만 확인은
-안 했다 (짐작).
+**Four transcript fixes.** "유희로" -> "유이로" was confirmed by reading the chat balloon at 4 s, not guessed. "쥐지" -> "지지" (GG)
+and "쥰내" were words the user flagged as confusing - 지지 was right and **쥰내 was not found** (re-listening at 90 s gave "배 죽나
+봐"). "부자칩" -> "부잣집" is certain from context but not verified (guess).
 
-### 다음 생 - 첫 피드백 (2026-09-08)
+### 다음 생 - first feedback (2026-09-08)
 
-자막만 다시 구웠다. **컷은 안 건드렸다** (38.74초 그대로, `edit_nocap.mkv` 재사용).
+Only captions re-rendered. **Cuts untouched** (38.74 s, `edit_nocap.mkv` reused).
 
-**고친 자막 글자 다섯** (`captions_user.json`):
+**Five caption text fixes** (`captions_user.json`):
 
-| 1차 | 고침 |
+| First edit | Fixed |
 |---|---|
 | 또 실외에 있는건 안돼 | **근데** 또 실외에 있는건 안돼 |
 | 아 나 배 죽나 봐 | **아 나 배 쥰내 아파** |
 | 지지 / 지지 지지 / 잠깐만 지지 | **GG / GG GG / 잠깐만 GG** |
 
-**"배 죽나 봐"는 내가 틀린 것이다.** 그 2.6초만 잘라 힌트 있이·없이 두 번
-다시 들었고 둘 다 같게 나와서 맞다고 봤다. **같은 모델에 같은 소리를 두 번
-넣으면 같은 실수를 두 번 한다 - 그건 확인이 아니다.** 작업 지시에 "헷갈릴
-만한 단어들: ... 쥰내"가 있었는데 못 찾고 "전사 어디에도 없다"고 보고했다.
-짚어 준 낱말이 안 보이면 없는 게 아니라 못 찾은 것이다.
+**"배 죽나 봐" was my mistake.** I cut just those 2.6 s and re-listened twice, with and without a hint, got the same result both
+times and took it as correct. **Feeding the same sound to the same model twice makes the same mistake twice - that is not
+verification.** The job listed "confusing words: ... 쥰내", I did not find it and reported "not anywhere in the transcript". If a
+flagged word cannot be seen, it was not found - not absent.
 
-"GG" 도 마찬가지다. 지시의 "GG(지지)"에서 괄호는 **발음**을 알려 준 것인데
-나는 표기로 읽고 "지지"라고 적었다.
+Same with "GG". In the instruction "GG(지지)" the parentheses gave the **pronunciation**, but I read it as the spelling and wrote "지지".
 
-**자막 열 줄의 시각을 사용자가 손으로 맞췄다** ("자막 길이 수정", 완성본
-시각). `make_csv.USER_TIMES` 에 그대로 넣었고 `span()`·`snap()` 이 낸 값보다
-앞선다. 이웃 줄 경계는 안 건드렸다 - 겹치면 앞줄 끝을 당기고 0.5초 안쪽으로
-벌어지면 메우는 기존 규칙이 그대로 처리한다.
-하나는 받은 값이 **25.37~25.44 (0.07초, 네 프레임)** 이라 26.44 의 오타로
-보고 그렇게 뒀다 (짐작 - 사용자에게 알렸다).
+**The user hand-timed ten caption lines** ("caption length fix", final time). They went into `make_csv.USER_TIMES` as is and take
+precedence over `span()` / `snap()`. Neighbour boundaries were left alone - the existing rules (pull back the previous end on overlap,
+fill gaps under 0.5 s) handle them.
+One value received was **25.37-25.44 (0.07 s, four frames)**, treated as a typo for 26.44 (guess - the user was told).
 
-**"나 안돼 나 안돼"의 발끈을 뺐다** (지시). 발끈은 이제 하나뿐이다.
-"근데 또 실외에 있는건 안돼"는 1158px 로 한계(1020)를 넘어 **두 장으로
-나뉘어 뜬다** ("근데 또 실외에" / "있는건 안돼"). 발끈 그라데이션 띠가
-140 기준 픽셀 고정이라 글자를 줄이면 어긋나서, 줄이는 대신 나눴다.
+**The outburst on "나 안돼 나 안돼" was removed** (instruction). Only one outburst remains.
+"근데 또 실외에 있는건 안돼" is 1158 px, over the 1020 limit, so it **shows as two captions** ("근데 또 실외에" / "있는건 안돼"). The
+outburst gradient band is fixed in pixels for size 140, so shrinking the text would misalign it; it was split instead.
 
-### 모캡 밀림 - 1차 편집 (2026-09-09)
+### 모캡 밀림 - first edit (2026-09-09)
 
-`모캡밀림.mp4` 69초 -> **31.3초**, 자막 28장(발끈 2), 컷 16개.
-완성본 `edited/모캡밀림_ko.mp4`, 대시보드 `projects/pmtth2gr62trh`.
-작업 지시에 프롬프트가 비어 있어 "이전과 동일하게" 진행했다.
+`모캡밀림.mp4` 69 s -> **31.3 s**, 28 captions (2 outbursts), 16 cuts.
+Final `edited/모캡밀림_ko.mp4`, dashboard `projects/pmtth2gr62trh`. The job prompt was empty, so it followed "same as before".
 
-담유이가 삐진 이야기다. 표정화 스튜디오를 자기가 제일 먼저 쓸 줄 알았는데
-진행 상황도 못 듣고 있었고, "먼저 불러주시기로" 했으면서 안 불러 줬다는 것.
-끝은 "속상 속상하다는 것이야".
+Damyui sulking. She thought she would be the first to use the facial expression studio, but she had not even heard how it was going,
+and although they "were going to call her first", they did not. Ends on "속상 속상하다는 것이야".
 
-말이 난 자리가 32.7초라 거의 다 담았다. 들어낸 것은 "안녕하세요"(채팅 인사)와
-소리 하나뿐이다.
+Speech covers 32.7 s, so almost all of it went in. Only "안녕하세요" (greeting the chat) and one sound were removed.
 
-**소리 값은 또 달랐다** - 세 소스가 전부 다르다:
+**The audio values differed again** - all three sources differ:
 
 | | 마법의 날 | 다음 생 | 모캡 밀림 |
 |---|---|---|---|
-| 통합 | -44.8 LUFS | -15.8 | **-18.4** |
-| 이득 | +27dB | 0dB | **0dB** |
+| Integrated | -44.8 LUFS | -15.8 | **-18.4** |
+| Gain | +27 dB | 0 dB | **0 dB** |
 | THR_HI/LO | 0.050/0.022 | 0.022/0.010 | **0.016/0.006** |
-| 말/무음 갈림 | 11.8배 | 16.9배 | **56.8배** |
+| Speech / silence separation | 11.8x | 16.9x | **56.8x** |
 
-**완성본이 -18.7 LUFS 로 앞 영상들(-16.6)보다 2.1dB 작다.** 소스 최고점이
-이미 -0.9 dBFS 라 고정 이득으로는 올릴 자리가 없다. 재 보니 그 봉우리는
-"나는"의 첫 파열음 하나이고 **-1dB 를 넘는 표본이 35,040 개 중 1개**(0.5ms)다.
-리미터 하나면 2dB 를 더 올릴 수 있지만 필터 금지 지시가 있어 안 걸고
-사용자에게 알렸다.
+**The final is -18.7 LUFS, 2.1 dB quieter than the earlier videos (-16.6).** The source peak is already -0.9 dBFS, so a fixed gain has
+no room. Measured, that peak is one plosive at the start of "나는", and **1 sample of 35,040 exceeds -1 dB** (0.5 ms). A limiter would
+allow another 2 dB, but filters are forbidden, so it was not applied and the user was told.
 
-**"말이 아닌 소리"를 또 한 번 잡았다.** 24.63-24.82 를 파형은 말로 잡는데
-최고 -17.8dB 로 거의 안 들린다. 그 0.35초만 잘라 들려 보니 "넵" 하나,
-창을 넓히면 아무것도 안 들린다. 빼고 나니 "아직 안 된 줄 알았는데"는
-앞 조각에 온전히 들어 있었다.
+**Another "not speech" sound caught.** The waveform treats 24.63-24.82 as speech, but it peaks at -17.8 dB and is barely audible.
+Transcribing just those 0.35 s gave "넵"; with a wider window, nothing. With it removed, "아직 안 된 줄 알았는데" was fully inside the
+previous piece. *(This was wrong - see the first feedback below.)*
 
-**전사 확인 방법을 바꿨다** (다음 생에서 두 번 같게 틀린 뒤로). 같은 창을
-두 번 넣는 대신 **창 크기를 바꿔 가며** 넣는다 - 앞뒤 문맥이 달라지면 다르게
-듣는다. 그 덕에 둘을 잡았다:
-- "일바다로"(없는 낱말)가 창을 좁히면 **"1번 따로"** 로 나온다 ->
-  **"일빠따로"** 로 읽었다 (여전히 짐작)
-- 마디 첫 낱말("나는" · "내가")이 정말 그 조각에 있는지 확인했다.
-  이 소스는 위스퍼 낱말 시각이 **1.0~1.5초** 이르다 (앞 침묵까지 낱말에
-  끌어다 붙인다). verify_sync 가 남긴 두 건은 그래서 생긴 헛경보다
+**Transcript verification changed** (after 다음 생 made the same mistake twice). Instead of feeding the same window twice, **vary the
+window size** - different context gives a different hearing. That caught two:
+- "일바다로" (not a word) comes out as **"1번 따로"** with a narrower window -> read as **"일빠따로"** (still a guess)
+- Confirmed the first word of each phrase ("나는", "내가") really is in that piece. On this source Whisper word times are **1.0-1.5 s**
+  early (it pulls the preceding silence into the word). The two items verify_sync left are false alarms for that reason
 
-**남은 짐작 둘**: "일빠따로", "표정화 스튜디오"(전사 그대로, 무엇인지 확인 안 함).
-상단 캡션은 프로젝트 이름을 썼는데 대시보드에는 "모캠 밀림", 파일은
-"모캡밀림.mp4" 다 - **모캡(모션캡처)으로 적었다**.
+**Two guesses remain:** "일빠따로" and "표정화 스튜디오" (transcript as is, not verified what it is). The top caption uses the project
+name; the dashboard says "모캠 밀림" and the file "모캡밀림.mp4" - **written as 모캡 (motion capture)**.
 
-### 모캡 밀림 - 두 번째 피드백 (2026-09-09)
+### 모캡 밀림 - second feedback (2026-09-09)
 
-**28.7초로 자른 뒤 1.1배속 -> 26.1초** (지시). 배속은 자막을 구운 **뒤에**
-한 번에 건다 - 그림·소리·자막이 함께 빨라진다.
+**Cut to 28.7 s, then 1.1x -> 26.1 s** (instruction). Speed is applied once **after** captions are burned - picture, sound and captions
+speed up together.
 
-**"먼저" 앞에 "그니까"의 꼬리가 남아 있었다.** 사용자가 뺀 drop 이
-위스퍼의 `먼저@40.90` 에서 끝났는데 **그 시각이 틀렸다.** 봉우리를 세어 보니
+**The tail of "그니까" was left in front of "먼저".** The user's drop ended at Whisper's `먼저@40.90`, and **that time was wrong.**
+Counting peaks:
 
     41.61 먼 · 41.88 저 · 42.11 불러 · 42.81 주시기로 · 43.82 했 · 44.27 는데
 
-로 "먼저 불러주시기로 했는데" 열한 음절이 맞아떨어지고, **40.92-41.44 는
-"그니까"의 늘어진 꼬리**였다. 위스퍼가 0.7초 앞을 가리키고 있었다.
+the eleven syllables of "먼저 불러주시기로 했는데" line up, and **40.92-41.44 is the drawn-out tail of "그니까".** Whisper pointed 0.7 s
+early.
 
-**여기서 내가 사용자와 두 번 어긋났다.** 나는 40.92-41.44 를 "먼"으로 읽고
-"자르면 먼저가 없어진다"고 되물었다. 사용자가 다시 듣고 *"17.72 이후에
-'먼저'가 들려"* 라고 짚어 줬고 그쪽이 맞았다. **위스퍼 낱말 시각을 근거로
-사용자의 귀에 반박하지 말 것** - 음절 봉우리를 세는 것은 공짜다.
-(`SM` 에서 0.020 을 넘는 구간을 뽑아 낱말의 음절 수와 맞춰 보면 된다.)
+**I disagreed with the user twice here.** I read 40.92-41.44 as "먼" and pushed back that "cutting it removes 먼저". The user listened
+again and said *"I hear '먼저' after 17.72"*, and they were right. **Never argue against the user's ears with Whisper word times** -
+counting syllable peaks is free. (Take spans above 0.020 in `SM` and match them to the word's syllable count.)
 
-### 모캡 밀림 - 첫 피드백 (2026-09-09)
+### 모캡 밀림 - first feedback (2026-09-09)
 
-**31.3초 -> 29.4초.** 컷도 자막도 바뀌어 전체를 다시 구웠다.
+**31.3 s -> 29.4 s.** Cuts and captions both changed, so everything was re-rendered.
 
-**뺀 것 둘** (피드백 탭 drop.json): "뭐 한 거 아니야?"(두 번째)와
-"그니까 그니까". 앞엣것은 발끈이었어서 발끈이 하나만 남았다.
-스타일이 정한 30~40초보다 1.4초 짧아졌다 - 사용자가 정한 것이라 그대로 뒀다.
+**Two removals** (feedback tab drop.json): the second "뭐 한 거 아니야?" and "그니까 그니까". The first was an outburst, so only one
+outburst remains. 1.4 s shorter than the style's 30-40 s - the user decided it, so it stays.
 
-**drop 만으로는 꼬랑지가 남는다.** `_with_drop` 이 그룹 머리를 35.03 으로
-잘라도 `audio.pieces` 가 경계를 조용한 자리로 되밀어(HEAD_REACH 0.40)
-34.83-35.18 의 0.35초가 살아남았다. GROUPS 시작을 35.30 으로 올려 막았다.
-**drop 을 적용한 뒤에는 반드시 조각 목록을 눈으로 확인할 것.**
+**A drop alone leaves a tail.** Even with `_with_drop` cutting the group head at 35.03, `audio.pieces` pushed the boundary back to a
+quiet spot (HEAD_REACH 0.40) and 0.35 s of 34.83-35.18 survived. Fixed by raising the GROUPS start to 35.30. **After applying a drop,
+always check the piece list by eye.**
 
-**전사가 또 틀렸고, 이번엔 두 창으로도 못 잡았다.** "표정화 스튜디오"는
-창을 둘로 갈라도 같게 나와서 그대로 뒀는데 정답은 **"프젝아 스튜디오"**
-였다. **아는 사람만 아는 이름은 전사로 못 잡는다** - 창을 나눠도 소용없다.
-"일빠따로"는 소리는 맞았고 표기가 틀렸다 (**"1빠따로"**, 숫자로 적는다).
+**The transcript was wrong again, and two windows did not catch it.** "표정화 스튜디오" came out the same in two separate windows and was
+left, but the answer was **"프젝아 스튜디오"**. **Names only insiders know cannot be caught by transcription** - splitting windows does
+not help. "일빠따로" had the right sound but the wrong spelling (**"1빠따로"**, with a digit).
 
-**말끝 셋이 잘려 있었다** - "쓸 줄 알았[는데]", "아직 안 된 [줄]",
-"알았[는데]". 나는 이것을 **자막 고치라는 말로 잘못 읽고 자막을 줄였다.**
-사용자가 바로잡았다: *"말소리가 안 들리니까 들리게 해야 할 거 아니야.
-단순 자막 수정이면 프롬프트란에 안 썼지."* **피드백이 어느 칸에 적혔는지가
-무엇을 고치라는 것인지 알려 준다** - 자막 글자면 자막 편집기에 적고,
-파이프라인이 움직여야 하면 프롬프트 칸에 적는다.
+**Three sentence endings were cut off** - "쓸 줄 알았[는데]", "아직 안 된 [줄]", "알았[는데]". I **misread this as a caption fix and
+shortened the captions.** The user corrected me: *"The speech can't be heard, so make it audible. If it were just a caption fix I
+wouldn't have written it in the prompt box."* **Which box the feedback was written in tells what to fix** - caption text goes in the
+caption editor; things the pipeline must change go in the prompt box.
 
-원인이 둘이었다:
-1. "는데"(6.69-6.87)가 레벨 0.0070~0.0136 으로 **THR_LO 는 넘는데 THR_HI
-   (0.016)를 못 넘어 히스테리시스가 덩어리를 아예 시작하지 못했다.** 소리가
-   있는데도 SOUNDS 에 안 들어가 통째로 잘렸다 -> THR_HI 0.013 으로 내렸다
-2. "알았"과 "는데" 사이가 0.22초로 MERGE(0.20)보다 길어 조각이 갈리고,
-   남은 0.19초가 MIN_PIECE(0.20)에 걸려 버려졌다 -> `MERGE_BY_GROUP`
-   을 새로 두고 그 그룹만 0.28 로 올렸다
+Two causes:
+1. "는데" (6.69-6.87) has levels of 0.0070-0.0136, **above THR_LO but never above THR_HI (0.016), so the hysteresis never started a
+   blob.** There was sound, but it never entered SOUNDS and was cut entirely -> THR_HI lowered to 0.013
+2. The 0.22 s between "알았" and "는데" exceeded MERGE (0.20), so the piece split and the remaining 0.19 s was discarded by MIN_PIECE
+   (0.20) -> new `MERGE_BY_GROUP`, raised to 0.28 for that group only
 
-**"말이 아니다"라고 잘라낸 24.63-24.82 가 바로 그 "는데"였다.** 1차에서
-0.35초만 따로 잘라 들려 보고 "넵"이 나오길래 말이 아니라고 판단했는데,
-**그렇게 짧은 조각을 떼어 들으면 위스퍼는 아무 말이나 내놓는다.**
+**The 24.63-24.82 cut as "not speech" was exactly that "는데".** In the first edit, transcribing those 0.35 s alone gave "넵" and it
+was judged not to be speech, but **Whisper produces arbitrary words for such short isolated slices.**
 
-**대시보드가 안 보였던 것은 브라우저 쪽이었다.** `js/app.js:201` 이
-"프로젝트 폴더의 사본보다 브라우저 쪽이 항상 최신"이라고 전제하고 지난
-상태를 되살린다. 내가 내보내면 새것은 폴더 쪽인데 화면은 옛 상태를 그린다.
-**"새로고침하세요"로는 안 되고, 프로젝트 매니저에서 그 카드의 `열기`를
-다시 눌러야 폴더에서 읽는다.** 서버·API·파일은 전부 멀쩡했다
-(직접 열어 확인: 영상 31.25초·1080x1920·readyState 4).
+**The dashboard not showing it was the browser's doing.** `js/app.js:201` assumes "the browser is always newer than the copy in the
+project folder" and restores the last state. After my export the folder has the new version but the screen draws the old one.
+**Reloading does not help; it reads from the folder only when the card's `open` is clicked again in the project manager.** Server, API
+and files were all fine (opened directly: video 31.25 s, 1080x1920, readyState 4).
 
-## 남은 것
+## Open items (as of 2026-09-09)
 
-1. **고구마 22초 "왜 아만해?"** — 확정 못 해서 자막 없이 뒀다. 귀로 확인 필요
-   (전사가 셋 다 다르게 듣는다: 왜 아만해 / 왜 암하네 / 왜 안 하냐)
-2. **`import_project.py`가 고구마 폴더에만 있다** — 다른 편집에도 쓰려면
-   공용으로 빼야 한다 (파일명만 바꾸면 되긴 한다)
-3. **마로 · 담아맷돌은 프로젝트 JSON이 없다** — export_project.py를 복사해
-   만들면 카드가 생긴다 (고구마 · 네모비틱은 있다). 편집을 끝내면 반드시
-   내보낼 것 — 안 그러면 대시보드에 아무것도 안 뜬다
-4. **영도 스타일 참고본이 한 편뿐** — 자막 밀도 58%와 영상 띠 위치는 단일
-   표본이라 영도가 더 생기면 다시 확인하는 게 좋다
-5. **게스트 발끈 자막은 관찰이 아니라 결정** — 공개본에서 호스트 사례만 봤다
+1. **고구마 22 s "왜 아만해?"** - undecided, left without a caption. Needs a human ear (three transcriptions disagree: 왜 아만해 / 왜
+   암하네 / 왜 안 하냐)
+2. **`import_project.py` exists only in the 고구마 folder** - must be made shared to use in other edits (only the file name changes)
+3. **마로 and 담아맷돌 have no project JSON** - copying export_project.py creates the cards (고구마 and 네모비틱 have them). Always export
+   when an edit is finished - otherwise nothing shows in the dashboard
+4. **The 영도 style has only one reference** - caption density 58% and the video band position come from a single sample; re-check when
+   more 영도 episodes exist
+5. **Guest outburst captions are a decision, not an observation** - only host cases were seen in published videos
 
-## 작업 방식 메모
+## Working notes
 
-- 편집 한 편에 너무 오래 끌지 말 것. 검증은 몰아서 한 번에 돌리고, 전체
-  재렌더는 타임라인이 바뀔 때만 한다 (자막만 바뀌면 apply_captions로 충분)
-- 전사끼리 어긋나면 **어느 쪽도 그냥 믿지 말고 파형으로 판정한다.** 예전에는
-  "전체 전사 쪽을 믿는다"고 적어 뒀는데 봉누도에서 양쪽 다 틀렸다 — 전체
-  전사는 "겹칠 거기 때문에"를 통째로 놓쳤고, 넓은 창은 "지만"·"진짜"를
-  지어냈다. 짧은 창 여럿이 일치하는지 + 그 자리에 실제로 소리 덩어리가
-  있는지 + 완성본 재전사, 셋을 맞춰 본다
-- 파이썬으로 JS 문자열을 넣을 때 이스케이프가 뭉개진다. 넣은 뒤 반드시
-  `node --check`로 확인할 것 (이번에 두 번 깨뜨렸다)
+- Do not drag one edit out too long. Run verification in one batch, and re-render fully only when the timeline changes (captions only
+  -> apply_captions is enough)
+- When transcriptions disagree, **trust neither; decide by the waveform.** This used to say "trust the whole-file transcription", but in
+  봉누도 both were wrong - the whole-file transcription missed "겹칠 거기 때문에" entirely and the wide window invented "지만" and "진짜".
+  Check three things: agreement of several short windows + an actual sound blob at that spot + the final re-transcription
+- Escapes get mangled when inserting JS strings from Python. Always check with `node --check` afterwards (broke it twice this time)
 
-## 맘터귀칼가챠 - 네 번째 피드백 (2026-09-06)
+## 맘터귀칼가챠 - fourth feedback (2026-09-06)
 
-대시보드에서 온 다섯 가지를 다 반영해 다시 구웠다. 본편 42.24 -> 41.89초,
-완성본 49.46초.
+All five items from the dashboard applied and re-rendered. Main 42.24 -> 41.89 s, final 49.46 s.
 
-**맨 앞 설명 한 줄.** 자막 위에 작게 뜨는 Note 스타일을 새로 만들었다
-(54px, 잉크 y 843-881, 본 자막 잉크 윗변 910 위). CSV 의 화자 칸이 "설명"
-이면 이 스타일로 나가고 등장 애니메이션도 안 붙는다. 문구는 지시대로:
-"*맘스터치 x 귀칼 콜라보 세트를 시킨 유이" / "*Yui ordered the Mom's Touch
-x Demon Slayer collab set (Korea only)". 영어 줄은 54px 에서 1620px 안에
-한 줄로 들어간다.
+**One explanatory line at the start.** A new Note style shown small above the captions (54 px, ink y 843-881, above the caption ink top
+at 910). A CSV speaker of "설명" uses this style with no entrance animation. Text as instructed: "*맘스터치 x 귀칼 콜라보 세트를 시킨
+유이" / "*Yui ordered the Mom's Touch x Demon Slayer collab set (Korea only)". The English line fits on one line within 1620 px at 54 px.
 
-**얼굴을 조각마다 다시 쟀다.** 담유이는 화면 한가운데가 아니라 x=1100
-언저리에 앉아 있다. 지난 판은 장면마다 962 / 850 / 1280 / 1130 으로
-잡았는데, 앞의 둘이 얼굴을 100~250px 오른쪽으로 밀어냈다 - 그게
-"캐릭터가 한쪽으로 치우친다"는 지적이었다. `timeline.FACE_CX` 에 조각별
-측정값(눈매 한가운데)을 적고 crop 의 x 를 거기서 뽑는다. 화면이 바뀌는
-자리는 컷 위뿐이라 장면 안에서 움직이는 것과는 다르다.
+**The face re-measured per piece.** Damyui sits around x=1100, not in the centre. Last round framed scenes at 962 / 850 / 1280 / 1130,
+and the first two pushed the face 100-250 px right - that was the "character leans to one side" complaint. `timeline.FACE_CX` records the
+per-piece measurement (centre between the eyes) and crop x derives from it. The frame changes only at cuts, which is different from
+moving within a scene.
 
-33-40초 장면만은 1.5초 동안 얼굴이 200px 흔들려서(34.8:1130 35.3:1330
-35.9:1200) 1600 창의 오른쪽 끝인 cx 1120 에서 멈춘다. 창을 줄이면 맞출
-수 있지만 그건 배율을 바꾸는 일이라 안 했다 - 확대는 비명 구간만 하라는
-지시였다.
+Only the 33-40 s scene has the face swinging 200 px in 1.5 s (34.8:1130 35.3:1330 35.9:1200), so it stops at cx 1120, the right edge of
+the 1600 window. A smaller window would fit it, but that changes the scale - zoom was instructed only for the scream.
 
-**비명 구간만 1.6배.** 완성본 26.30-30.50(원본 63.48-67.68)을 1200x675 로
-당겼다. 세로 시작 320 은 자막 때문이다: 입 아래끝 원본 y=880 이
-(880-320)x1.6 = 896 이 되어 자막 잉크 윗변 910 위에 남는다. 다른 화면들도
-같은 셈으로 확인했다 (face close 853, face mid 840, wide 880).
+**1.6x only for the scream.** Final 26.30-30.50 (source 63.48-67.68) pulled in to 1200x675. The vertical start 320 is for the captions:
+the bottom of the mouth at source y=880 becomes (880-320)x1.6 = 896, staying above the caption ink top at 910. The other framings were
+checked with the same arithmetic (face close 853, face mid 840, wide 880).
 
-**짜자잔 세 줄.** 자막이 말보다 먼저 사라졌다. 소리는 75.70-77.40 /
-78.90-80.94 / 96.24-97.78 까지 이어진다 - 0.30 / 0.14 / 0.18초씩 늘렸다.
+**Three 짜자잔 lines.** The captions vanished before the speech. Sound runs to 75.70-77.40 / 78.90-80.94 / 96.24-97.78 - extended by
+0.30 / 0.14 / 0.18 s.
 
-**뺄 구간을 미는 자리에 "말과 말 사이"를 넣었다.** 지난 판은 조각 경계만
-후보로 뒀는데, 대시보드가 준 44.38 은 어느 조각 경계에서도 0.70초 밖이라
-그대로 남아 낱말 한가운데(44.12-44.58 "제발")를 갈랐다. 이제 뺄 구간의
-끝은 뒷말이 시작하기 0.15초 전, 시작은 앞말이 끝난 0.22초 뒤로 민다.
-붙이는 간격은 0.25초다 - `plan_cuts` 의 0.95 를 그대로 쓰면 "제발 기유
-나와라 기유"가 한 덩어리가 돼서 44.88 앞의 0.30초 틈이 사라진다.
-44.38 -> 44.73 이 되어 잘린 "제발"이 통째로 빠졌다.
+**"Between words" added to where drop ranges snap.** Last round only piece boundaries were candidates; the dashboard's 44.38 was more
+than 0.70 s from any piece boundary, so it stayed and split a word in the middle (44.12-44.58 "제발"). Now a drop's end moves to 0.15 s
+before the next word starts and its start to 0.22 s after the previous word ends. The joining gap is 0.25 s - with `plan_cuts`' 0.95,
+"제발 기유 나와라 기유" becomes one blob and the 0.30 s gap before 44.88 disappears. 44.38 -> 44.73, and the split "제발" went out entirely.
 
-**말이 빠졌는데 자막만 남는 줄은 뺀다.** 살아남는 길이의 하한을 0.20 ->
-0.50초로 올렸다. "제발 제발"이 0.45초짜리 번쩍임으로 남아 있었다.
+**Lines whose speech is gone but whose caption remains are dropped.** The minimum surviving length rose from 0.20 to 0.50 s. "제발 제발"
+was left as a 0.45 s flash.
 
-캐시 덕에 다시 구운 조각은 컷 6 / 자막 9 였고, 뺄 구간을 고친 뒤의 두
-번째 판은 컷 1 · 자막 1 로 끝났다. `verify_struct` 문제 0건.
+Thanks to the cache, 6 cut pieces and 9 caption pieces were re-rendered; the second version after fixing the drop range needed only 1 cut
+and 1 caption piece. `verify_struct` 0 problems.
 
-## 맘터귀칼가챠 - 다섯 번째 피드백 (2026-09-07)
+## 맘터귀칼가챠 - fifth feedback (2026-09-07)
 
-완성본 48.97초. ko 와 jp 두 개다.
+Final 48.97 s, in ko and jp.
 
-**피드백이 안 넘어오던 길을 먼저 고쳤다.** 사용자가 `렌더 요청`을 눌러도
-아무것도 저장되지 않고 있었다. `render:request` 이벤트를 emit 하고 로그
-한 줄을 찍는 것이 전부였는데, **그 이벤트를 듣는 코드가 아무 데도 없었다.**
-화면에는 "[feedback] 렌더 요청: edit/맘터귀칼가챠"가 떠서 넘어간 것처럼
-보였다. 막힌 데가 셋이었다:
+**First fixed the path feedback was not taking.** Pressing `render request` saved nothing. It emitted a `render:request` event and logged
+a line, and **nothing anywhere listened for that event.** The screen showed "[feedback] render request: edit/맘터귀칼가챠" and looked as
+if it went through. Three blockages:
 
-  렌더 요청 단추   로그만 찍고 저장을 안 함
-  Ctrl+S          isTyping 검사 아래에 있어 글 쓰는 중에는 안 먹음
-  저장 단추        force 없이 불러서, 내가 편집을 내보낸 직후에는
-                  ("파일 쪽이 더 새것") 소리 없이 건너뜀
+  render request button   logged, never saved
+  Ctrl+S                  sat below the isTyping check, so it did nothing while typing
+  save button             called without force, so right after I exported an edit
+                          ("the file is newer") it silently skipped
 
-셋째가 특히 고약하다 - 내가 렌더하고 내보낼 때마다 파일이 새것이 되므로
-그 뒤로는 저장이 영영 안 된다. 세 개를 다 고치고 서버에 붙여 확인했다.
+The third was especially nasty - every render and export of mine makes the file newer, so saving never works again after that. All three
+were fixed and checked against the server.
 
-**일본어판.** 글꼴은 Yu Gothic. CookieRun 에는 한자·가나가 거의 없어서
-(鬼滅の刃 네 글자 중 하나도 없다) 그대로 두면 줄 안에서 글꼴이 갈린다.
-Noto Sans JP 는 가변 글꼴이라 libass 가 가늘게 그리고 Meiryo 는 더 가늘다 -
-셋을 실제로 구워 놓고 굵기가 CookieRun Black 에 가장 가까운 것을 골랐다.
-이름은 소리만 옮기지 않고 한자로 되돌린다 (탄지로 -> 炭治郎, 기유 -> 義勇,
-카이가쿠 -> 獪岳, 귀칼 -> 鬼滅の刃). 담유이는 방송인 이름이라 ダムユイ.
-일본어에는 띄어쓰기가 없어 줄 나눌 자리가 없으므로, 화면을 넘치는 한 줄에만
-숨 쉬는 자리에 빈칸을 하나 넣었다 (넘칠 때만 거기서 갈린다).
+**Japanese version.** Font Yu Gothic. CookieRun has almost no kanji or kana (none of the four in 鬼滅の刃), so leaving it would switch
+fonts within a line. Noto Sans JP is a variable font that libass draws thin, and Meiryo is thinner still - all three were rendered and the
+one closest in weight to CookieRun Black chosen. Names are returned to kanji rather than transliterated (탄지로 -> 炭治郎, 기유 -> 義勇,
+카이가쿠 -> 獪岳, 귀칼 -> 鬼滅の刃). Damyui is a streamer name, so ダムユイ. Japanese has no word spaces and so no line-break points; only
+the line that overflows got one space at a breathing point (it breaks there only when overflowing).
 
-**아웃트로 트랜지션.** 0.45초 겹쳐 넘긴다 (xfade + acrossfade). 아웃트로는
-첫 프레임부터 다른 장면이 꽉 차 있어서 하드컷이 튀었다. 이 자리만 다시
-인코딩하므로 이어 붙이기가 -c copy 가 아니게 됐다 - 완성본 하나에 45초쯤
-더 든다 (전체 1분 20초).
+**Outro transition.** A 0.45 s overlap (xfade + acrossfade). The outro is a full different scene from its first frame, so a hard cut
+jarred. Only that spot is re-encoded, so the join is no longer pure -c copy - about 45 s more per final (1 min 20 s total).
 
-**설명 자막 54 -> 62px.** 잉크가 y 837-887 에 앉아 본 자막 윗변(910)까지
-23px 남는다.
+**Explanatory caption 54 -> 62 px.** Ink sits at y 837-887, leaving 23 px to the caption top (910).
 
-**조각 캐시의 열쇠에 자막 머리글이 빠져 있었다.** 스타일(글꼴·크기·색)은
-머리글에만 있어서, 설명 자막 크기를 바꿔도 "캐시 29"라며 옛 그림이 그대로
-나왔다. 한 판을 그렇게 헛돌리고 나서 `_HEAD` 를 열쇠에 넣었다.
+**The piece cache key lacked the caption header.** Styles (font, size, colour) live only in the header, so changing the explanatory
+caption size still reported "cache 29" and produced the old picture. After one wasted round `_HEAD` went into the key.
 
-en 은 지시대로 다시 만들지 않았다. **그래서 en 완성본만 트랜지션이 없고
-설명 자막이 54px 이다** - 맞추려면 `python apply_captions.py en` 한 줄이면
-된다.
+en was not rebuilt, as instructed. **So only the en final lacks the transition and still has a 54 px explanatory caption** - one line,
+`python apply_captions.py en`, fixes that.
 
-## 자막 두 줄과, 되감기는 저장 (2026-09-07)
+## Two caption lines, and a save that rewound everything (2026-09-07)
 
-사용자가 대시보드에서 자막 두 줄을 직접 고쳤다 (`captions_user.json`):
-`짜자잔! (x2)` -> **`짜자잔~`**, `짜자잔! (x3)` -> **`짜자잔!`**.
-(x2)/(x3) 로 세던 것을 버린 것이다 - 두 번째는 길게 끄는 소리(2.06초)라
-`~`, 세 번째는 새로 지르는 소리라 그냥 `!`. ko 만 다시 구웠다 (지시: jp 제외).
-en/jp 사전에도 같은 말을 넣어 두었으므로 다음에 구울 때 따라온다.
+The user edited two caption lines directly in the dashboard (`captions_user.json`): `짜자잔! (x2)` -> **`짜자잔~`**, `짜자잔! (x3)` ->
+**`짜자잔!`**. The (x2)/(x3) counting was dropped - the second is a drawn-out sound (2.06 s), so `~`, the third a fresh shout, so plain
+`!`. Only ko re-rendered (instruction: not jp). The same words went into the en/jp dictionaries so they follow next time.
 
-**저장 한 번에 프로젝트가 통째로 되감겼다.** 사용자가 열어 둔 탭이 아주
-오래된 것이었다 - 저장된 project.json 을 열어 보니 자막이 `담린이 남긴
-카이가쿠라고?` 였고 kept 의 끝이 `[92.6, 104.63]` 이었다. **피드백3 이전
-상태다.** 브라우저가 그 옛 값을 그대로 실어 보냈고 서버가 그대로 썼다.
+**One save rewound the whole project.** The user's open tab was very old - the saved project.json had the caption `담린이 남긴
+카이가쿠라고?` and kept ended at `[92.6, 104.63]`. **That is the state before feedback 3.** The browser sent those old values and the
+server wrote them as is.
 
-지난 판에 저장 단추를 `force: true` 로 바꾼 것이 이 문제를 드러냈다.
-예전에는 "파일 쪽이 더 새것"이면 건너뛰어서 되감기지 않았지만, 대신
-피드백이 영영 저장되지 않았다. 둘 다 안 되는 상태였던 셈이다.
+Last round's change of the save button to `force: true` exposed this. Before, "the file is newer" made it skip so nothing rewound -
+but feedback never got saved either. Both were broken.
 
-이제 서버가 갈라서 받는다 (`save_project`):
+The server now splits what it accepts (`save_project`):
 
-    파일 쪽이 정본   kept · transcript · captions · video · base · canvas
-    브라우저가 정본  prompt · notes · drop · restore · 고친 자막(by=user)
+    file is canonical      kept · transcript · captions · video · base · canvas
+    browser is canonical   prompt · notes · drop · restore · edited captions (by=user)
 
-브라우저는 파이프라인 값을 만들지 않으므로 그쪽 사본은 늘 같거나 옛것이다.
-고친 자막은 시각이 가장 가까운 줄(1.5초 안)에 얹고, 탭이 오래돼 시각이
-안 맞으면 로그에 적고 `captions_user.json` 으로만 넘긴다 - 이번이 그
-경우였다 (52.74초 / 61.35초는 옛 타임라인의 시각이라 얹을 데가 없었다).
+The browser never creates pipeline values, so its copy is always equal or older. Edited captions are placed on the line with the
+nearest time (within 1.5 s); if the tab is too old and times do not match, it is logged and passed on only through
+`captions_user.json` - which was the case this time (52.74 s / 61.35 s were times on the old timeline with nothing to attach to).
 
-대시보드 완성본 목록에 jp 를 넣었다.
+jp was added to the dashboard's list of finals.
 
 
-## 악성메일단 1차 편집 (2026-09-11, 담유이 일반 롱폼)
+## 악성메일단 first edit (2026-09-11, 담유이 일반 롱폼)
 
-`jobs/20260911_005238_스타일적용.json`. 소스 하나(`E:/Edit/OBS/악성메일단.mp4`,
-320초), 지시는 **"2분 30초 이내"** 와 **"채팅을 유이가 직접 읽는 부분은
-채팅을 포커스로"**. 결과는 **완성본 144.87초 = 2분 24.9초** (본편 137.76 +
-아웃트로 7.47 - 겹침 0.45), 컷 25조각(화면까지 나누면 25), 자막 63장.
+`jobs/20260911_005238_스타일적용.json`. One source (`E:/Edit/OBS/악성메일단.mp4`, 320 s). Instructions: **"under 2 min 30 s"** and **"focus
+on the chat where Yui reads it out"**. Result: **final 144.87 s = 2 min 24.9 s** (main 137.76 + outro 7.47 - overlap 0.45), 25 cut pieces
+(25 counting framing), 63 captions.
 
-### 배경음이 깔린 소스는 통짜 파형으로 컷을 못 잡는다
+### A source with a background bed cannot be cut from the full-band waveform
 
-이 소스는 -60dB 아래로 떨어지는 자리가 없다. 재 보니 **-48dB 문턱이 320초의
-91.8% 를 "소리"로 잡는다** (p5 가 -51.7dB). 앞 프로젝트들의 문턱을 그대로
-가져왔으면 아무것도 못 갈랐을 것이다.
+This source never drops below -60 dB. Measured, **a -48 dB threshold counts 91.8% of the 320 s as "sound"** (p5 is -51.7 dB). Carrying
+over the earlier projects' thresholds would have separated nothing.
 
-그래서 **말소리 대역(700-3000Hz)만 걸러낸 재기용 트랙**(`src_level.wav`)을
-따로 만들어 거기서 뽑았다. 쇼츠에서 쓰던 수법을 롱폼에 처음 들여왔다.
-대역 트랙에서는 확실히 갈린다:
+So **a measuring track filtered to the speech band (700-3000 Hz)** (`src_level.wav`) was made and used - the shorts technique brought to
+longform for the first time. The band track separates clearly:
 
-    말             band p50 -32 ~ -35 dB, p90 -14 ~ -19
-    말 없는 자리    band p50 -50 ~ -51 dB, 최고 -42
+    speech            band p50 -32 to -35 dB, p90 -14 to -19
+    no speech         band p50 -50 to -51 dB, max -42
 
-문턱 -46dB. 이 트랙은 재는 데만 쓰고 완성본에는 안 들어간다.
+Threshold -46 dB. This track is only for measuring and never enters the final.
 
-### 무음 제거로는 2분 30초를 못 맞춘다 - 내용을 솎아내야 한다
+### Removing silence cannot reach 2:30 - content must be thinned
 
-가장 공격적인 문턱(-46dB)으로 빈자리를 다 걷어내도 **222초**가 남는다.
-지시는 150초다. 롱폼 스타일이 원래 "재구성이 아니라 솎아내기"이므로
-말 덩어리를 이야기 단위로 묶어(13개) 어느 대목을 통째로 버릴지 정했다.
-원본의 43%(137.8초)를 남겼다 - 참고본의 11~19%보다는 훨씬 높은데,
-이 소스가 이미 한 주제로 추려진 5분짜리이기 때문이다.
+Even removing every gap at the most aggressive threshold (-46 dB) leaves **222 s**. The target is 150 s. The longform style is "thinning,
+not restructuring", so speech blobs were grouped into story units (13) and whole passages were chosen for removal. 43% of the source
+(137.8 s) was kept - much higher than the references' 11-19%, because this source is already a 5-minute cut on one topic.
 
-버린 것은 되풀이(같은 물음 두 번, "그 사람들은" x2, "한화생명 기다릴게요"
-x2, "너네밖에 없다" x3)와 곁가지(유입 경로 잡담, "뭐 뭐 뭐" 군말, 끝의
-"혜지맨" x4)다.
+Removed: repetition (the same question twice, "그 사람들은" x2, "한화생명 기다릴게요" x2, "너네밖에 없다" x3) and digressions (chatter
+about where viewers came from, "뭐 뭐 뭐" filler, the closing "혜지맨" x4).
 
-### 전사에 없는데 소리가 큰 자리가 네 군데 있었다
+### Four loud spots missing from the transcript
 
-파형이 먼저 찾아냈다. 그 중 **121-136초에는 비명("으아아아")과 채팅 읽기가
-통째로 들어 있었는데 첫 전사가 한 줄도 안 남겼다.** 무르게(no_speech 0.15,
-log_prob -2.5, temperature 층계) 그 15초만 잘라 다시 들어서야 말인 줄 알았다.
-맘터귀칼가챠의 3.2초 웃음과 같은 종류다 - **전사만 보고 컷을 정하면 안 된다.**
+The waveform found them first. **121-136 s held a scream ("으아아아") and chat reading, and the first transcription left not one
+line.** Only re-listening to those 15 s with loose settings (no_speech 0.15, log_prob -2.5, temperature ladder) showed it was speech.
+Same kind as 맘터귀칼가챠's 3.2 s laugh - **never decide cuts from the transcript alone.**
 
-반대 방향의 판단도 있었다. **16.6-21.2초**도 전사가 비어 있는데 소리는
-나는 자리인데, 이번엔 뺐다. 근거는 셋이다: 창을 두 가지로 바꿔 들어도
-한 낱말도 안 잡혔고, 말보다 12dB 낮고(최고 -22~-29dB), **프레임을 보니
-입이 거의 닫혀 있었다.** 웃음이면 남겼겠지만 웅얼거림이라 뺐다.
-되살리려면 세 조각을 도로 넣으면 된다 (`timeline.py` 주석에 적어 뒀다).
+There was a judgement in the other direction too. **16.6-21.2 s** is also empty in the transcript but has sound, and this time it was
+removed. Three reasons: two different window sizes caught not one word, it is 12 dB below speech (max -22 to -29 dB), and **the frames
+show the mouth almost closed.** A laugh would have stayed, but it is mumbling. To restore it, put the three pieces back (noted in the
+`timeline.py` comments).
 
-### 낱말은 화면의 채팅이 정본이다
+### Words: the chat on screen is canonical
 
-담유이가 채팅을 읽는 대목이 많은데 **그 채팅은 오른쪽 위에 글자로 떠 있다.**
-프레임을 잘라 눈으로 읽는 것이 전사를 여러 창으로 다시 듣는 것보다 빠르고
-확실했다. 이걸로 고친 것:
+Damyui reads chat a lot, and **that chat is on screen as text in the top right.** Cropping frames and reading them was faster and surer
+than re-listening with several windows. Fixed this way:
 
-| 전사 | 실제 | 근거 |
+| Transcript | Actual | Evidence |
 |---|---|---|
-| 한생여행 · 하나생명 · 대치생명 · 해치생명 | 한화생명 | 채팅 3.0초 "유이 한생유입 은근 많더라" |
-| 담요잉 · 담요엘 | 담유이 | 채팅 288.0초 "악성팬덤 소유자 담유이님 안녕하세요" |
-| 매일단 · 매일 다들 | 메일단 | 채팅 175.0초 "메일단창설 ㄷㄷ", 298.0초 "악성메일단 운영중이신 담유이님" |
-| 취직 스트리머 | 치지직 스트리머 | 채팅 145.5초 · 여러 창에서 확인 |
+| 한생여행 · 하나생명 · 대치생명 · 해치생명 | 한화생명 | chat at 3.0 s "유이 한생유입 은근 많더라" |
+| 담요잉 · 담요엘 | 담유이 | chat at 288.0 s "악성팬덤 소유자 담유이님 안녕하세요" |
+| 매일단 · 매일 다들 | 메일단 | chat at 175.0 s "메일단창설 ㄷㄷ", 298.0 s "악성메일단 운영중이신 담유이님" |
+| 취직 스트리머 | 치지직 스트리머 | chat at 145.5 s, confirmed in several windows |
 
-"테러 아님?"(채팅 173.5초)과 "고객센터 폭파"(채팅 229.5초 "유이의 도파민을
-위해서 고객센터 폭파하자는거구나")도 채팅으로 확인했다.
+"테러 아님?" (chat 173.5 s) and "고객센터 폭파" (chat 229.5 s "유이의 도파민을 위해서 고객센터 폭파하자는거구나") were confirmed from chat too.
 
-**아직 짐작인 것 셋**은 `make_csv.py` 머리글과 대시보드 메모에 "(짐작)"으로
-갈라 적었다: 253.6 "스트리머 걔가 뭐야"(창 셋이 개그/계획/걔가 로 갈렸다),
-150.4 "장문으로 보내봤다"(두 창 모두 "오픈해"로 들었는데 말이 안 된다),
-296.3 "악성 메일단을"(전사에 "악성"이 없다).
+**Three remaining guesses** are marked "(guess)" in the `make_csv.py` header and the dashboard notes: 253.6 "스트리머 걔가 뭐야" (three
+windows split between 개그 / 계획 / 걔가), 150.4 "장문으로 보내봤다" (both windows heard "오픈해", which makes no sense), 296.3 "악성 메일단을"
+("악성" is not in the transcript).
 
-지시에는 "울프"로 적혀 있지만 **그가 실제로 말한 것은 "울쌤"**이다
-(창 두 가지에서 똑같이 들렸다). 자막은 말한 대로 적었다.
+The instruction wrote "울프", but **what she actually said is "울쌤"** (the same in two windows). The caption follows what was said.
 
-### 화면 다섯 가지 - 채팅을 통째로 살리거나 통째로 버린다
+### Five framings - keep the chat whole or drop it whole
 
-|이름|crop|배율|쓰는 자리|
+|Name|crop|Scale|Used where|
 |---|---|---|---|
-|wide|없음|1.00|채팅 안 읽고 카메라에 말할 때|
-|mid|1344x756 @(232,180)|1.43|얼굴. 채팅 없음|
-|close|1152x648 @(416,220)|1.67|얼굴 한가운데. 채팅 없음|
-|채팅|1440x810 @(480,0)|1.33|채팅을 읽는 자리|
-|채팅클로즈|1280x720 @(640,0)|1.50|채팅을 더 크게|
+|wide|none|1.00|talking to the camera without reading chat|
+|mid|1344x756 @(232,180)|1.43|face, no chat|
+|close|1152x648 @(416,220)|1.67|face centre, no chat|
+|chat|1440x810 @(480,0)|1.33|reading chat|
+|chat close|1280x720 @(640,0)|1.50|chat larger|
 
-처음에 얼굴 컷을 1600 폭으로 잡았더니 **오른쪽 끝에 말풍선이 절반만 걸려
-나왔다** - 맘터귀칼가챠에 "반쯤 잘린 오버레이가 제일 보기 싫다"고 적어 둔
-그 자리다. 말풍선 왼끝이 x=1575 이므로 얼굴 컷은 `x + w <= 1575` 로 다시
-잡았다. 그 제약 때문에 **얼굴 컷은 1.43배부터 시작한다** - 더 넓게 잡으면
-채팅이 걸린다.
+The first face framing at 1600 wide **caught half a chat balloon at the right edge** - exactly what 맘터귀칼가챠 recorded as "a half-cut
+overlay looks worst". The balloon's left edge is x=1575, so face framings were re-set with `x + w <= 1575`. Because of that, **face
+framings start at 1.43x** - anything wider catches the chat.
 
-확대 상한은 입이 자막을 안 가리는 선이다. 재 보니 입 아래끝 y=580, 턱끝
-650, 자막 잉크 윗변 910. 채팅 컷은 y=0 에서 시작해야 하므로 배율이
-910/580 = 1.57 을 못 넘는다 - 채팅클로즈를 1.50 에서 멈춘 까닭이다.
+The zoom limit is where the mouth does not cover the captions. Measured: bottom of mouth y=580, chin 650, caption ink top 910. Chat
+framings must start at y=0, so the scale cannot exceed 910/580 = 1.57 - why chat close stops at 1.50.
 
-**채팅에 정말 읽을 것이 떠 있는지도 프레임으로 확인했다.** 147-152초(긴
-채팅글을 읽는 대목)는 그 글이 이미 위로 밀려 올라가 "?" 말풍선만 남아
-있어서 채팅이 아니라 얼굴로 잡았다. 68-77초도 마찬가지다.
+**Frames confirmed there really is something to read in the chat.** At 147-152 s (reading a long chat post) the post had already scrolled
+up leaving only a "?" balloon, so it was framed on the face, not the chat. Same for 68-77 s.
 
-배율이 바뀌는 자리는 **전부 컷 자리에 놓았다** (경계 18곳 모두 컷으로 빠진
-구간 안에 있는 것을 확인했다).
+Every scale change **sits at a cut** (all 18 boundaries confirmed inside removed ranges).
 
-### 강조는 재서 골랐다
+### Emphasis chosen by measurement
 
-자막 줄마다 말소리 대역 p90 을 재어 큰 쪽에서 뜻이 실린 둘을 뽑았다:
-"하지만 파트너가 될 수 있다면"(-13.4dB, 전체 4위)과 "너네밖에 없다"
-(-14.4dB, 8위). 합쳐 3.4초 = 본편의 2.5% (참고본 3.5초 · 4%).
-가장 큰 줄은 "막 와아아아아"(-11.6dB)였지만 말이 아니라 소리라 뺐다.
+The speech-band p90 was measured for every caption line, and two meaningful ones were picked from the loud end: "하지만 파트너가 될 수
+있다면" (-13.4 dB, 4th overall) and "너네밖에 없다" (-14.4 dB, 8th). 3.4 s together = 2.5% of the main part (reference: 3.5 s, 4%). The
+loudest line was "막 와아아아아" (-11.6 dB) but it is sound rather than words, so it was excluded.
 
-### 장면별 이득 - 3dB 이상 모자란 둘만
+### Per-scene gain - only the two short by 3 dB or more
 
-조각마다 **말하는 칸만 골라**(대역 레벨 -40dB 초과) RMS 를 쟀다. 스물다섯
-중 아홉이 목표(0.115)에 못 미쳤는데 3dB 이상 모자란 둘만 올렸다:
+RMS was measured per piece **over speaking frames only** (band level above -40 dB). Nine of 25 fell short of the target (0.115), but only
+the two short by 3 dB or more were raised:
 
-    조각 3  21.20-23.94   rms 0.0780 (-22.2dB)  +3.4dB
-    조각 22 275.54-276.40 rms 0.0382 (-28.3dB)  +6.0dB  "나 울게"
+    piece 3  21.20-23.94   rms 0.0780 (-22.2 dB)  +3.4 dB
+    piece 22 275.54-276.40 rms 0.0382 (-28.3 dB)  +6.0 dB  "나 울게"
 
-"나 울게"는 나머지보다 **11dB 낮아** 그냥 두면 안 들린다. 1~2dB 짜리까지
-손대면 컷마다 배경 소리가 들썩여서 남겨 두었다.
+"나 울게" is **11 dB below** the rest and inaudible otherwise. Touching 1-2 dB pieces too would make the background bed jump at every cut,
+so they were left.
 
-### loudnorm 을 고정 이득으로 바꿨다
+### loudnorm replaced with a fixed gain
 
-롱폼 `apply_captions.py` 는 `loudnorm ... linear=true` 를 쓰고 있었다.
-CLAUDE.md 규칙("완성본 크기도 loudnorm 이 아니라 고정 이득 한 번으로")에
-맞춰 **ebur128 로 재고 `volume=NdB` 한 줄**로 바꿨다. linear=true 라도
-안쪽에 트루피크 리미터가 물려 있다. 이번 소스는 본편 -14.8 LUFS · 최고
--0.4 dBTP 라 -1.2dB 를 내려 -16 LUFS 에 맞췄다.
+The longform `apply_captions.py` used `loudnorm ... linear=true`. Following the CLAUDE.md rule ("final loudness with one fixed gain, not
+loudnorm") it now **measures with ebur128 and applies one `volume=NdB` line**. Even with linear=true, loudnorm has a true-peak limiter
+inside. This source's main part was -14.8 LUFS / max -0.4 dBTP, so it was lowered 1.2 dB to -16 LUFS.
 
 
-## 악성메일단 - 첫 피드백 (2026-09-11)
+## 악성메일단 - first feedback (2026-09-11)
 
-지적 열두 가지가 전부 맞았고 그 중 넷은 **내가 틀린 것**이었다.
+All twelve points were right, and four were **my mistakes**.
 
-### "앞 여백이 왤케 많지?" - 자막이 소리 위에 있어도 여백이 생긴다
+### "Why so much leading space?" - captions over sound can still leave space
 
-지난 판에서 "자막 창은 전부 소리 위에 있다"고 확인하고 넘어갔다. 그런데
-**문턱(-46dB)을 넘는 소리와 '말'은 다르다.** 맨 앞 자막이 그 예다:
+Last round "every caption window sits over sound" was checked and passed. But **sound above the threshold (-46 dB) is not the same as
+speech.** The first caption is an example:
 
-    2.12-2.32 / 2.58-2.74 / 2.90-3.04   0.2초짜리 군소리 셋
+    2.12-2.32 / 2.58-2.74 / 2.90-3.04   three 0.2 s filler noises
     3.44-4.84                            "나 한생 유입 많다고?"
 
-자막을 2.12 에 걸어 놨으니 1.3초 동안 자막만 떠 있었다. 사용자가 짚어 준
-"00:01.4" 가 3.44 를 완성본 시각으로 옮긴 값과 **정확히 같았다.**
+With the caption hung at 2.12, the caption alone stood on screen for 1.3 s. The user's "00:01.4" was **exactly** 3.44 converted to final
+time.
 
-고친 방법: 자막 창 안에서 **뚜렷한 말소리(-32dB)가 시작하는 자리**를 다시
-재고, 0.3초 넘게 비는 열 장을 옮겼다. `-46dB` 은 "컷을 어디서 끊나"의
-문턱이고 `-32dB` 은 "자막을 언제 띄우나"의 문턱이다 - **두 개를 갈라 쓴다.**
+Fix: within each caption window, re-measure **where clear speech (-32 dB) starts**, and move the ten captions with gaps over 0.3 s. `-46 dB`
+is the threshold for "where to cut" and `-32 dB` for "when to show a caption" - **use them separately.**
 
-### 후원 알림을 못 보고 있었다
+### Donation alerts were being missed
 
-"0:53.82~0:58.40 -> 후원 멘트" 라는 지적을 받고 그 자리를 열어 보니
-**화면 왼쪽 위에 후원 알림이 떠 있었다**(원본 140.8-153.4초).
+Opening the spot for "0:53.82-0:58.40 -> donation speech" showed **a donation alert in the top left** (source 140.8-153.4 s).
 
     익명의 후원자 님이 1,000 후원!
     유이야 내가 한화생명에 치지직 스트리머 프로젝트아이 소속 담유이
     파트너 달라고 장문으로 보내봤다
 
-지난 판에 "그가 읽는 긴 채팅글인데 148초에는 이미 밀려 올라가 못 읽었다"고
-적고 짐작으로 자막을 썼다. **채팅이 아니라 후원이었고, 글은 내내 화면에
-있었다.** 오른쪽 위 채팅만 보고 왼쪽 위를 안 봤다.
+Last round I wrote "a long chat post she reads, already scrolled up at 148 s and unreadable" and guessed the captions. **It was a
+donation, not chat, and the text was on screen the whole time.** I looked only at the chat in the top right, not the top left.
 
-덕분에 짐작 하나가 확인됐다 - "장문으로 보내봤다"는 알림 원문과 같았고,
-"프로젝트"는 "프로젝트**아이**"였다.
+That confirmed one guess - "장문으로 보내봤다" matched the alert text, and "프로젝트" was "프로젝트**아이**".
 
-교훈: **말하는 내용이 화면 어딘가에 글로 있는지 먼저 찾는다.** 채팅 · 후원
-알림 · 오버레이 전부. 전사를 여러 창으로 다시 듣는 것보다 싸고 확실하다.
+Lesson: **first look for the spoken content as text somewhere on screen** - chat, donation alerts, overlays. Cheaper and surer than
+re-listening with several windows.
 
-### 웃음으로 본 것이 말이었다
+### What was taken for laughter was speech
 
-"1:11.30 -> 말소리 '다'가 안 들림 ('너네밖에 없'에서 끊김)". 원본
-164.60-165.94 를 웃음으로 보고 잘랐는데 재 보니 **-9.6dB 로 말소리 크기**
-였다. 컷 끝을 164.60 -> 166.14 로 늘렸다.
+"1:11.30 -> the '다' is inaudible (cut at '너네밖에 없')". Source 164.60-165.94 was cut as laughter, but measured it is **-9.6 dB, speech
+level**. The cut end moved 164.60 -> 166.14.
 
-지난 판에 반대 방향(16.6-21.2초의 웅얼거림)은 제대로 뺐다. 가른 근거가
-레벨(-22~-29dB)과 입 모양이었는데, 이번 자리는 레벨을 안 봤다.
+Last round the opposite case (the mumbling at 16.6-21.2 s) was removed correctly, judged by level (-22 to -29 dB) and mouth shape. This
+spot's level was never checked.
 
-### 확대하면 오른쪽으로 쏠렸다
+### Zooming pushed the face right
 
-"캐릭터가 오른쪽으로 치우쳐진 느낌 -> 가운데로 정렬, 머리 부분이 너무 많이
-잘려". 얼굴 한가운데가 x=1000 인데 **채팅 말풍선(x>=1575)을 통째로 버리려면
-crop 이 1575 를 못 넘는다.** 지난 판은 폭을 넓게 잡아(1344) 얼굴이 오른쪽
-1097 로 밀렸다. 폭을 줄이니 정확히 가운데(960)에 온다:
+"The character feels shifted right -> centre it; too much of the head is cut off." The face centre is x=1000, but **dropping the chat
+balloon (x>=1575) entirely means the crop cannot pass 1575.** Last round's wide crop (1344) pushed the face to 1097. A narrower width puts
+it exactly in the centre (960):
 
-    mid   1344x756 @(232,180) 1.43배  ->  1152x648 @(420, 80) 1.67배
-    close 1152x648 @(416,220) 1.67배  ->  1024x576 @(488,120) 1.88배
+    mid   1344x756 @(232,180) 1.43x  ->  1152x648 @(420, 80) 1.67x
+    close 1152x648 @(416,220) 1.67x  ->  1024x576 @(488,120) 1.88x
 
-세로 시작을 80 / 120 으로 올려 머리가 더 나온다. 상한은 입(원본 y=580)이
-자막 잉크(y=910) 위에 남는 선이다 - 채팅 컷은 y=0 에서 시작해야 하므로
-배율이 910/580 = 1.57 을 못 넘는다.
+The vertical start moved up to 80 / 120 so more of the head shows. The limit is the mouth (source y=580) staying above the caption ink
+(y=910) - chat framings must start at y=0, so their scale cannot exceed 910/580 = 1.57.
 
-### 직원 연기 구간을 새로 꾸몄다
+### The staff role-play section was redesigned
 
-핀 두 개와 프롬프트로 받은 지시를 한 자리에 모았다 (원본 248.90-274.70):
+Two pins and the prompt were combined in one spot (source 248.90-274.70):
 
-- 원본 영상 **가우시안 블러**(sigma 14)
-- 화면 왼쪽에 **화난고객센터.png** (533x797 @248,191)
-- 말하는 동안 **등속 바운스**. 참고본("개 짱짱 빵댕이를 갖고 싶은 유이.mp4"
-  93-95초)을 재니 **주기 0.24초 · 세로 흔들림이 키의 11%** 였다. 지시가
-  "약간의"라 절반인 5%(40px)만 쓴다. 등속이므로 사인이 아니라 삼각파다
-- 자막은 오른쪽 **말풍선** 안에 **ONE Mobile POP OTF 130px**, 직원이
-  말하는 것처럼. 말풍선은 구간 내내 **하나**로 두고 글만 바꾼다 - 자막마다
-  새로 그리면 1~2초마다 깜빡인다. 안쪽은 최대 두 줄, 낱말 가운데는 안 자른다
+- **Gaussian blur** on the source (sigma 14)
+- **화난고객센터.png** on the left (533x797 @248,191)
+- **Constant-speed bounce** while speaking. Measured on the reference ("개 짱짱 빵댕이를 갖고 싶은 유이.mp4" 93-95 s): **period 0.24 s,
+  vertical travel 11% of height**. The instruction said "slight", so half that, 5% (40 px). Constant speed means a triangle wave, not a
+  sine
+- Captions in a **speech balloon** on the right in **ONE Mobile POP OTF 130 px**, as if the staff member speaks. One balloon for the whole
+  section with only the text changing - redrawing it per caption would blink every 1-2 s. At most two lines inside, never breaking a word
 
-`piece_cache.cut()` 에 `fx`(블러 · 겹침)를 넣었다. 열쇠에 들어가므로 값을
-바꾸면 그 조각만 다시 굽는다.
+`fx` (blur, overlay) was added to `piece_cache.cut()`. It is part of the key, so changing a value re-renders only that piece.
 
-사용자가 적은 끝(1:58.97)은 문장 한가운데라 **"이러는 거 아니야?"가 끝나는
-자리**로 맞췄다. 바로 뒤 "나 울게"는 직원이 아니라 담유이가 하는 말이다.
+The end the user gave (1:58.97) was mid-sentence, so it was set to **where "이러는 거 아니야?" ends**. "나 울게" right after is Damyui, not
+the staff.
 
-### 결과
+### Result
 
-컷 27조각 · 본편 134.42초 · 완성본 141.44초(2분 21.4초) · 자막 66장
-(직원 말풍선 14장 · 발끈 4장).
+27 cut pieces, main 134.42 s, final 141.44 s (2 min 21.4 s), 66 captions (14 staff balloons, 4 outbursts).
 
-### 피드백의 범위는 [첫 자막의 시작, 마지막 자막의 시작] 이다
+### A feedback range is [start of first caption, start of last caption]
 
-사용자가 물었다: "피드백에 자막 타임스탬프 끝나는 시점을 기준으로 적은거야?"
-지난 판 자막표(`project.json.bak` 에 68장이 남아 있다)에 주신 숫자를
-맞춰 보니 **범위의 양 끝이 둘 다 '시작' 값**이었다.
+The user asked: "Did you take my feedback as caption end timestamps?" Matching the numbers against last round's caption table (68 lines
+left in `project.json.bak`), **both ends of each range were 'start' values.**
 
-증거는 `1:31.56 ~ 1:32.68 "그건 안된다" -> 왜 자막을 2개나 쓴거지?` 다.
-그 판에서 두 자막은 91.56-92.62 와 92.68-94.52 였다. 92.68 을 두 번째
-자막의 **시작**으로 읽어야 범위 안에 두 장이 들어온다.
+The proof is `1:31.56 ~ 1:32.68 "그건 안된다" -> why two captions?`. In that version the two captions were 91.56-92.62 and 92.68-94.52.
+Only reading 92.68 as the second caption's **start** puts both inside the range.
 
-이걸 끝 시각으로 읽어서 **발끈 한 장을 빠뜨렸다** - "0:40.86 ~ 0:44.16"
-은 44.16 에서 시작하는 "나 오렌지색으로 안 태어났는데"까지 세 장이다.
-고쳐서 다시 구웠다.
+Reading it as an end time **missed one outburst caption** - "0:40.86 ~ 0:44.16" covers three captions up to "나 오렌지색으로 안 태어났는데"
+starting at 44.16. Fixed and re-rendered.
 
-같은 읽기로 "1:58.97"(블러 끝)은 "이러는 거 아니야?"의 시작이므로 그
-자막이 끝나는 자리까지가 맞다 - **결과는 내가 한 것과 같지만**, "문장
-한가운데라 옮겼다"고 적은 설명은 틀렸다.
+Read the same way, "1:58.97" (blur end) is the start of "이러는 거 아니야?", so the range runs to where that caption ends - **the result is
+what I did**, but my explanation "moved because it was mid-sentence" was wrong.
 
-반대로 "앞 여백" 항목의 숫자(1.4 · 6.33 · 38.27)는 자막 경계와 안 맞는다.
-그건 **말소리가 나는 자리**를 짚어 준 것이다 - 38.27 은 더듬은 구간이
-끝나는 원본 113.70 과 0.01초 차이였다. 두 종류를 갈라 읽어야 한다.
+On the other hand the numbers in the "leading space" item (1.4, 6.33, 38.27) do not match caption boundaries. Those point at **where speech
+is heard** - 38.27 was 0.01 s from source 113.70 where a stumble ends. The two kinds must be read differently.
 
 
-## 악성메일단 - 두 번째 피드백 (2026-09-11)
+## 악성메일단 - second feedback (2026-09-11)
 
-열네 가지. 큰 것은 **화면을 '잡는' 것에서 '덮는' 것으로 바꾼 것**이다.
+Fourteen items. The big one: **the picture changed from 'framing' to 'covering'.**
 
-### 인서트 - 컷 자리에 안 매이는 화면
+### Inserts - pictures not tied to cut points
 
-지시: "후원, 채팅 확대는 LongBG.jpg 를 배경으로 깔고 스크린샷처럼 확대해서
-표시하기(채팅, 후원이 가운데에 오도록, 후원의 경우 캐릭터까지 잡히도록),
-자막 표시x".
+Instruction: "for donations and chat zooms, lay LongBG.jpg as the background and show them enlarged like a screenshot (chat or donation in
+the centre; for donations include the character), no captions".
 
-지금까지 화면은 전부 crop 이었고, **crop 은 컷 자리에서만 바뀔 수 있었다**
-(장면 안에서 배율이 바뀌면 꿀렁거린다). 그 제약 때문에 지난 판에서
-후원 구간을 끊으려고 0.18초짜리 억지 컷을 넣었고, 그게 이번에
-"부자연스러운 컷 전환 ('다'가 제대로 안들림)"으로 돌아왔다.
+Until now every picture was a crop, and **a crop could only change at a cut** (scale changing inside a scene wobbles). Because of that,
+last round a forced 0.18 s cut was added to end the donation section, and it came back this time as "unnatural cut transition ('다' not
+heard properly)".
 
-인서트는 화면을 **통째로 덮는다.** 배율이 스르르 바뀌는 것이 아니라 그림이
-바뀌는 것이라 조각 한가운데서 시작하고 끝나도 된다. 억지 컷이 사라졌다.
+An insert **covers the whole screen.** The picture changes rather than the scale gliding, so it can start and end mid-piece. The forced
+cut is gone.
 
-    LongBG.jpg 를 1920x1080 으로 채우고
-    원본에서 잘라낸 칸을 1440x1080 으로 키워 가운데(x=240)에 얹는다
-    채팅 420x315 @(1500,0)  3.43배   후원 520x390 @(10,45)  2.77배
+    fill 1920x1080 with LongBG.jpg
+    enlarge the cell cut from the source to 1440x1080 and place it centred (x=240)
+    chat 420x315 @(1500,0)  3.43x   donation 520x390 @(10,45)  2.77x
 
-칸은 **말풍선(x1580-1908)과 후원 알림(x70-470)이 칸 한가운데 오도록** 재서
-잡았다. 좌우로 배경이 240px 씩 보이는데 참고 스크린샷과 같은 비율이다.
+Cells were measured so that **the balloon (x1580-1908) and the donation alert (x70-470) sit in the middle of the cell**. 240 px of
+background shows on each side, the same proportion as the reference screenshot.
 
-**한 번 크게 헤맸다.** 처음에 인서트를 화면 잡은(crop) 뒤의 그림에서
-잘랐더니 엉뚱한 데가 나왔다 - 원본에서 잘라야 한다. 고친 뒤에도 화면이
-그대로여서 또 헤맸는데, **조각 캐시의 열쇠에 필터 짜임새가 안 들어 있어서
-옛 그림이 그대로 나온 것**이었다. `piece_cache.FX_VERSION` 을 열쇠에
-넣었다 - 필터를 고치면 이 값을 올린다.
+**One big detour.** At first the insert was cut from the already-cropped picture and showed the wrong area - it must be cut from the
+source. After fixing that the picture still did not change, another detour: **the piece cache key did not include the filter structure,
+so the old picture came back.** `piece_cache.FX_VERSION` went into the key - bump it whenever filters change.
 
-### 부분 강조
+### Partial emphasis
 
-지시: "강조 파트 -> 전체 강조, 부분 강조 / 하지만 파트너가 될 수 있다면 ->
-파트너에 부분강조 / 색깔 관련 -> 해당 색에 맞게 부분 강조".
+Instruction: "emphasis -> whole-line and partial emphasis / 하지만 파트너가 될 수 있다면 -> partial emphasis on 파트너 / colour words ->
+partial emphasis in that colour".
 
-전체 강조(Emph)는 그라데이션을 가로 띠로 잘라 쌓아 만들기 때문에 **낱말
-하나만 골라 칠할 수가 없다.** 그래서 부분 강조는 다른 장치로 만들었다 -
-보통 자막 줄 안에서 그 낱말만 단색으로 바꾼다:
+Whole-line emphasis (Emph) is built by stacking horizontal slices of the gradient, so **a single word cannot be coloured.** Partial
+emphasis uses another device - inside an ordinary caption line only that word changes to a solid colour:
 
-    파트너    #C30000 + 노란 외곽선 (발끈과 같은 색)
+    파트너    #C30000 + yellow outline (same as outburst)
     하늘색    #5AC8FA
     오렌지색  #FF7A00
 
-CSV 에는 `«낱말|색이름»` 으로 적고, ASS 로 구울 때 색 태그로 바꾸고,
-대시보드로 내보낼 때는 표시를 뗀다.
+The CSV writes `«word|colourname»`; rendering to ASS turns it into colour tags, and exporting to the dashboard strips the mark.
 
-### 시간을 끊는 또 다른 방법 - enable
+### Another way to cut time - enable
 
-"'절대 주기 싫어졌어'까지만 직원이 나오게, '이러는 거 아니야?' 부터는
-원래대로". 그 자리에 컷이 없다. 그런데 **gblur 와 overlay 는 `enable=`
-으로 시간을 끊을 수 있다** - 컷 없이 블러와 겹침만 끝난다.
+"Show the staff only up to '절대 주기 싫어졌어', back to normal from '이러는 거 아니야?'". There is no cut there. But **gblur and overlay can
+be limited in time with `enable=`** - the blur and overlay end without a cut.
 
-컷 · crop · 인서트 · enable 이 각각 다른 층이라는 것이 이번 판의 요지다.
+The point of this round: cuts, crop, inserts and enable are separate layers.
 
-### 그 밖
+### Other
 
-- "한화생명 화이팅 부분 전부 지웠는데 왜 살아있는거지?" - drop.json 에는
-  0.5초만 들어와 있었다(타임라인에서 지운 클립은 drop 으로 안 넘어온다).
-  뜻이 분명해 그 대목을 통째로 뺐다
-- "혹시"인 줄 알았던 37.20-37.50 은 **-43.8dB 로 숨소리**였다. 진짜
-  "혹시"는 38.12-38.40(-17.3dB). 숨 조각과 앞 여백 1.5초를 뺐다
-- "1:41.26 메일을 쥰내 보낸 거야?" - "메일을"은 자막보다 1.02초 앞
-  (원본 259.34)에서 시작한다. 앞 자막의 끝을 당겼다
-- 말풍선 좌우 여백 70px, **줄마다 크기 자동 맞춤**(130 -> 안 들어가면 5씩
-  줄임). 한 줄만 125 가 됐다
-- 직원 바운스 0.24 -> 0.34초 ("살짝 느리게")
-- "하지마 하지마 하지말라고"는 원본 그대로(wide) - "몸 움직임에 포커스"
-- **완성본 1.1배속** (자막을 구운 뒤 본편에만)
-- 사용자가 고친 자막 12장 반영
+- "I deleted all of the 한화생명 화이팅 part, why is it still there?" - drop.json contained only 0.5 s (clips deleted on the timeline do not
+  become drops). The intent was clear, so the whole passage was removed
+- 37.20-37.50, thought to be "혹시", was **breathing at -43.8 dB**. The real "혹시" is 38.12-38.40 (-17.3 dB). The breath piece and 1.5 s of
+  leading space were removed
+- "1:41.26 메일을 쥰내 보낸 거야?" - "메일을" starts 1.02 s before the caption (source 259.34). The previous caption's end was pulled back
+- Balloon side margins 70 px, **auto-fit per line** (130 -> down by 5 until it fits). One line ended at 125
+- Staff bounce 0.24 -> 0.34 s ("a bit slower")
+- "하지마 하지마 하지말라고" left as the source (wide) - "focus on body movement"
+- **Final at 1.1x** (main part only, after burning captions)
+- 12 user-edited captions applied
 
-### 되살리기 1건은 보류했다
+### One restore held back
 
-restore 112.76-114.76("색이 맞아서")은 안 썼다. 그 안의 113.12-113.70 은
-**지난 판에 "말을 절은 부분이라서 빼는게 더 나음"이라고 직접 지시해서 뺀
-자리**이고, 같은 판의 다른 지적이 "여백이 생각보다 많아"라 되살리면 서로
-어긋난다. 전사 탭의 줄 그어진 낱말을 되돌리려던 것으로 읽고 사유를
-`timeline.IGNORE_RESTORE` 에 적어 두었다.
+restore 112.76-114.76 ("색이 맞아서") was not applied. Inside it, 113.12-113.70 was **removed last round on the user's own instruction,
+"that part stumbles, better removed"**, and another point in this round says "more empty space than expected", so restoring would
+contradict both. It was read as an attempt to undo a struck-through word in the transcript tab, and the reason is recorded in
+`timeline.IGNORE_RESTORE`.
 
 
-## 악성메일단 - 세 번째 피드백 (2026-09-11)
+## 악성메일단 - third feedback (2026-09-11)
 
-### 인서트는 "가운데 놓기"가 아니라 "딱 붙여 오리기"다
+### An insert is "cut tight", not "placed in the centre"
 
-"채팅의 경우 해당 부분 확대 후 가운데 정렬 ... '네모에게 비틱' 프로젝트
-작업할때는 잘 했잖아". 4:3 창을 떠서 화면 한가운데 놓았더니 **말풍선이
-여전히 오른쪽으로 쏠렸다** - 말풍선이 화면 오른쪽 끝에 붙어 있으니
-창 안에서도 오른쪽에 있다. 창을 가운데 놓아도 내용은 안 가운데 온다.
+"For chat, zoom in on that part and centre it ... you did it well on '네모에게 비틱'". A 4:3 window was taken and placed in the middle of
+the screen, but **the balloon still leaned right** - it hugs the right edge of the screen, so it is on the right inside the window too.
+Centring the window does not centre the content.
 
-네모비틱의 인용 카드가 답이었다: **글자에 딱 붙여 오리고**, 그걸 키워
-가운데 놓는다. 오린 자리는 격자를 얹어 눈으로 읽었다:
+네모비틱's quote cards were the answer: **cut tight around the text**, enlarge that and centre it. The cut regions were read by eye with a
+grid overlay:
 
-    "유이 한생유입 은근 많더라"         (1578, 143, 242,  60)  5.95배
-    "악성팬덤 소유자 담유이님 안녕하세요"  (1577,  16, 336,  94)  4.29배
-    후원 알림 + 캐릭터                  (  10,  45, 520, 390)  2.77배
+    "유이 한생유입 은근 많더라"            (1578, 143, 242,  60)  5.95x
+    "악성팬덤 소유자 담유이님 안녕하세요"    (1577,  16, 336,  94)  4.29x
+    donation alert + character            (  10,  45, 520, 390)  2.77x
 
-배율은 `min(1440/w, 1080/h, 6.0)`, 배경은 LongBG 를 1.1배로 키워 채운다.
+Scale is `min(1440/w, 1080/h, 6.0)`; the background is LongBG enlarged 1.1x to fill.
 
-### 강조 기본색이 빨강에서 파스텔 블루로
+### Default emphasis colour from red to pastel blue
 
-"강조 자막은 추가적인 지시가 없는 경우 ... 눈에 잘띄는 파스텔톤 블루계열
-자막으로 써. 빨간 자막은 완전 분노를 표현할때 쓰는게 더 적합할 거 같아."
+"Unless told otherwise, write emphasis captions ... in an eye-catching pastel blue. Red seems better for expressing real anger."
 
-빨강은 **참고본 두 편을 재서** 나온 값이었다. 그래도 사용자가 정하면
-그쪽이 이긴다 - 측정은 관찰이고 지시는 결정이다.
+Red came from **measuring two references.** Still, when the user decides, that wins - measurement is observation, the instruction is a
+decision.
 
-    기본(pastelBlue)  #E3F6FF -> #5FC9F3  외곽선 #1B4E6B
-    분노(anger)       #C30000 -> #820000  외곽선 #FCFC7D   화자를 "...분노"로
+    default (pastelBlue)  #E3F6FF -> #5FC9F3  outline #1B4E6B
+    anger                 #C30000 -> #820000  outline #FCFC7D   speaker "...분노"
 
-### 스타일 파일에 저장했다
+### Saved into the style file
 
-지시("채팅, 후원 부분같은 경우에는 편집스타일에 잘 저장해, 등속 바운스
-애니메이션도 '말할떄 모션'으로 저장하고")대로
-`dashboard/styles/담유이_일반롱폼.json` 에 네 가지를 새로 적었다:
+As instructed ("save the chat and donation parts properly in the editing style, and save the constant-speed bounce as 'speaking motion'"),
+four new entries in `dashboard/styles/담유이_일반롱폼.json`:
 
-- `caption.emphasis.default/kinds/partial` - 파스텔 블루가 기본, 분노는 빨강,
-  부분 강조의 만드는 법과 색
-- `overlays.zoomInsert` - 채팅 · 후원 확대 (오리는 법 · 배율 · 배경 · 자막 없음)
-- `overlays.speakingMotion` - **말할 때 모션** (삼각파 · 주기 0.34초 · 키의 5%,
-  참고본에서 잰 값과 왜 절반으로 줄였는지까지)
-- `overlays.roleplayInsert` - 블러 + 인물 + 말풍선 (역할극)
+- `caption.emphasis.default/kinds/partial` - pastel blue default, red for anger, how partial emphasis is built and its colours
+- `overlays.zoomInsert` - chat / donation zoom (how to cut, scale, background, no captions)
+- `overlays.speakingMotion` - **speaking motion** (triangle wave, period 0.34 s, 5% of height, plus the value measured on the reference and
+  why it was halved)
+- `overlays.roleplayInsert` - blur + person + speech balloon (role-play)
 
-### 대시보드 두 가지를 고쳤다
+### Two dashboard fixes
 
-**"'컷 편집 후'에 해당하는 자막이랑 타임스탬프가 실제 자막, 타임스탬프랑
-달라"** - 여러 판에 걸쳐 "프로젝트 매니저에서 다시 열어 주세요"로 넘겨 온
-그 문제다. `app.js` 가 부팅할 때 **브라우저에 남은 상태가 언제나 최신이라고
-가정**했는데, 클로드가 다시 내보내면 폴더가 앞선다. 이제 부팅 후 폴더의
-`savedAt` 을 확인해서 더 새것이면 그쪽을 읽는다(`freshenFromDisk`). 사용자가
-고쳐 둔 것이 있으면(dirty) 건드리지 않고 알려만 준다.
+**"The captions and timestamps under 'after cut edit' differ from the real ones"** - the problem passed off for several rounds with "please
+reopen from the project manager". At boot `app.js` **assumed the state left in the browser is always newest**, but when Claude exports
+again the folder is ahead. Now after boot it checks the folder's `savedAt` and reads the folder if newer (`freshenFromDisk`). If the user has
+unsaved edits (dirty) it does not touch them and only says so.
 
-**"화자 변경, 타임스탬프 변경 가능하게 해줘, 시작 부분을 적고 타임스탬프
-변경 시 자막은 유지, 해당 클립 시작 부분만 변경"** - 자막 줄의 시작 시각과
-화자를 그 자리에서 고칠 수 있게 했다. 시각을 고치면 `c.s2` 로 들고 가고
-자막 글은 그대로 둔다 - 파이프라인이 그 클립의 시작만 옮긴다. 고친 줄은
-노란색으로 표시된다(`is-retimed`). "1:23.45" 와 "83.45" 둘 다 받는다.
+**"Let me change the speaker and timestamp - enter the start, keep the caption when changing the timestamp, change only that clip's
+start"** - a caption line's start time and speaker can now be edited in place. A time edit is carried as `c.s2` and the caption text stays -
+the pipeline moves only that clip's start. Edited lines are highlighted yellow (`is-retimed`). Both "1:23.45" and "83.45" are accepted.
 
-### 결과
+### Result
 
-컷 24조각 · 본편 130.90초 · **완성본 126.17초(2분 6.2초, 1.1배속)** ·
-자막 61장(전체 강조 2 · 부분 강조 3 · 직원 말풍선 14).
+24 cut pieces, main 130.90 s, **final 126.17 s (2 min 6.2 s, 1.1x)**, 61 captions (2 whole-line emphasis, 3 partial, 14 staff balloons).
 
 
-## 악성메일단 - 네 번째 피드백 (2026-09-11)
+## 악성메일단 - fourth feedback (2026-09-11)
 
-편집만 반영해 렌더했다 (2분 6.2초). **대시보드 쪽 지적은 손대지 말 것** -
-사용자가 "일단 정리만 하고 진행하지마"라고 했다.
+Only the edit was applied and rendered (2 min 6.2 s). **Leave the dashboard items alone** - the user said "just list them for now, don't
+proceed".
 
-**편집 (완료)**
-- 채팅 두 개를 확대 인서트로: "색이 맞아서 오시면..."(원본 113.92-116.30),
-  "테러아님?"(173.54-177.14). 자막은 안 띄운다.
-  - **읽을 때 그 채팅은 이미 화면에서 밀려 올라가 있다.** "테러아님?"은
-    173.0-174.2 에만 떠 있고 말하는 것은 175.16 이다. 그래서 인서트에
-    `grab`(집는 시각)을 두어 **그 순간 프레임에서 칸을 잘라 정지 카드**로
-    쓴다 (piece_cache.still, FX_VERSION 4).
-- 강조 낱말의 외곽선 = 그 낱말 색의 0.35 배(진한 쪽). 지시 "테두리 색도
-  변경 (내부 색보다 진하게)". 전에는 하늘색 · 오렌지색의 테두리가 기본
-  진남색이라 따로 놀았다. "파트너"는 #00FFA3 + #005939 (mint).
-- 직원 말풍선 세 줄 -> 네 줄 ("글쎄 뭐 / 치지직 파트너 스트리머 /
-  걔 그...뭐야 / 담유이?"). 자른 자리는 말소리 대역에서 잰 말 사이다.
-- drop 142.18-145.04, restore 202.26-202.88 반영. "악성 메일단을" ->
-  "메일단을" (짐작으로 붙였던 "악성"을 뗐다).
-- "색이 맞아서" 되살리기(112.76-114.76)는 **표시 문제였다고 확인됨** -
-  편집은 그대로 둔다. timeline.IGNORE_RESTORE 주석에 적어 뒀다.
+**Edit (done)**
+- Two chats as zoom inserts: "색이 맞아서 오시면..." (source 113.92-116.30) and "테러아님?" (173.54-177.14). No captions.
+  - **By the time she reads them the chat has already scrolled off.** "테러아님?" is visible only at 173.0-174.2 and she says it at 175.16.
+    So inserts got a `grab` time and **the cell is cut from that frame as a still card** (piece_cache.still, FX_VERSION 4).
+- Outline of an emphasised word = 0.35 x its colour (the darker side). Instruction: "change the outline colour too (darker than the
+  inside)". Before, sky blue and orange used the default dark navy outline and looked detached. "파트너" is #00FFA3 + #005939 (mint).
+- Staff balloon three lines -> four ("글쎄 뭐 / 치지직 파트너 스트리머 / 걔 그...뭐야 / 담유이?"). The splits are between words measured in the
+  speech band.
+- drop 142.18-145.04 and restore 202.26-202.88 applied. "악성 메일단을" -> "메일단을" (the guessed "악성" removed).
+- The "색이 맞아서" restore (112.76-114.76) **was confirmed as a display issue** - the edit stays. Noted in the timeline.IGNORE_RESTORE
+  comment.
 
-**대시보드 (미착수 - 사용자 지시로 보류)**
-1. 자막 고침이 옛 판 타임스탬프로 돌아온다. 이번 판 12줄 중 11줄이 지금
-   자막이거나 **바로 옆 줄의 글**이었다. captions_user.json 의 열쇠가
-   (s,e) 인데 판마다 시각이 바뀌니 다른 줄에 가서 붙는다.
-   -> 열쇠를 시각이 아닌 것으로 바꾸거나, 내보낼 때 글로 다시 맞춰야 한다.
-2. "'컷 편집 후' 자막 타임스탬프가 실제와 안 맞고, 마지막 값이 영상 길이도
-   넘는다" - **자막 시각을 SPEED(1.1)로 안 나눠서다.** 마지막 자막 130.9 >
-   완성본 126.17. export_project.py 가 full_dur 만 나누고 자막은 안 나눈다.
-   1번의 원인도 아마 여기에 있다.
-3. 타임스탬프 칸이 좁아 모든 줄이 두 줄로 접힌다 -> 칸 넓히기.
-4. 문구: "렌더링" -> "재 편집", "렌더" -> "편집".
+**Dashboard (not started - held by user instruction)**
+1. Caption edits come back with old-version timestamps. Of this round's 12 lines, 11 were the current caption or **the text of the line
+   next to it.** captions_user.json is keyed by (s, e), and times change every version, so edits attach to other lines.
+   -> change the key to something other than time, or re-match by text on export.
+2. "Timestamps under 'after cut edit' don't match, and the last value exceeds the video length" - **caption times were not divided by
+   SPEED (1.1).** Last caption 130.9 > final 126.17. export_project.py divides full_dur but not captions. Probably also the cause of 1.
+3. The timestamp column is narrow and every line wraps -> widen it.
+4. Wording: "렌더링" -> "재 편집", "렌더" -> "편집".
 
 
-## 피곤해 - 1차 편집 (2026-09-11)
+## 피곤해 - first edit (2026-09-11)
 
-`피곤해.mp4` 143초 -> **31.6초**(1.1배속), 자막 25장(발끈 2), 컷 14개.
-완성본 `edited/피곤해_ko.mp4`, 대시보드 `projects/pmtx0a8ybfo19`.
-스타일 담유이 1인 일반 쇼츠, `edit/모캡밀림` 파이프라인을 옮겨 왔다.
+`피곤해.mp4` 143 s -> **31.6 s** (1.1x), 25 captions (2 outbursts), 14 cuts.
+Final `edited/피곤해_ko.mp4`, dashboard `projects/pmtx0a8ybfo19`. Style 담유이 1인 일반 쇼츠; the `edit/모캡밀림` pipeline was carried over.
 
-- 소리 값을 다시 쟀다: -19.2 LUFS / -0.4 dBTP, 대역 RMS p50 0.0081.
-  문턱은 스타일 기본값 0.014/0.006 이 맞았다 (0.013 에서 소리 48% ·
-  덩어리 96개. 0.020 으로 올리면 119개로 늘어 말 안에서 끊긴다).
-- **전사 시각이 이 소스에서 0.5~1.7초 이르다.** 그룹 경계와 자막 시각을
-  전부 파형 덩어리 경계로 잡았다.
-- 화면 채팅이 정본: 44초 프레임의 "앗 나도 한영키" (전사는 "아 나도").
-- 발끈 둘은 재서 골랐다 - "언제 나오는데"(p85 0.2374) · "피곤해"(0.2131).
-- "없거든"과 "나는" 사이가 0.02초뿐이라 컷이 "거든" 자락을 물고 왔다.
-  TRIM {6: [(96.20, 96.56)]} 으로 떼어 냈다 (verify_cuts 0건).
-- 크롭 x=428 (얼굴 한가운데 940). 채팅 기둥 1560 보다 왼쪽에서 끊어
-  말풍선이 반쯤 걸리지 않는다.
-- **채팅 카드 두 장**(지시 "영어 채팅들, 앗 나도 한영키 부분만 보여줘").
-  이 영상은 전부 채팅에서 벌어지는 일인데 크롭이 채팅을 잘라 내니 보는
-  사람이 무슨 일인지 모른다. 말풍선을 떠서 화면 위(y=430, 최대 900x330)에
-  얹는다. timeline.CHATS · build_edit._chat_png.
-  세로를 400 으로 잡았더니 말풍선 두 장짜리가 **눈(y=855)을 덮어서** 330
-  으로 줄였다.
+- Audio re-measured: -19.2 LUFS / -0.4 dBTP, band RMS p50 0.0081. The style defaults 0.014/0.006 were right (at 0.013: sound 48%, 96
+  blobs; raising to 0.020 grows it to 119 and splits inside speech).
+- **Transcript times are 0.5-1.7 s early on this source.** All group boundaries and caption times use waveform blob boundaries.
+- The chat on screen is canonical: "앗 나도 한영키" in the 44 s frame (transcript: "아 나도").
+- Two outbursts chosen by measurement - "언제 나오는데" (p85 0.2374), "피곤해" (0.2131).
+- Only 0.02 s between "없거든" and "나는", so the cut carried a trace of "거든". Removed with TRIM {6: [(96.20, 96.56)]} (verify_cuts 0).
+- Crop x=428 (face centre 940). Cut left of the chat column at 1560 so no half balloon shows.
+- **Two chat cards** (instruction "show only the English chats and the 앗 나도 한영키 part"). The whole video happens in chat, but the crop
+  removes the chat and viewers cannot tell what is going on. Balloons are grabbed and placed over the picture (y=430, max 900x330).
+  timeline.CHATS, build_edit._chat_png. With a height of 400 the two-balloon card **covered the eyes (y=855)**, so it was reduced to 330.
 
-**피곤해 - 자막 손질 (같은 날)**
-- **자막을 39장에서 25장으로 합쳤다.** 지시: "너무 길면 단어가 잘리거나
-  보기 불편하니까 나누는 건데 지금 너무 불필요하게 많이 나눠져 있어".
-  **나누는 까닭은 폭 하나뿐이다** - 1020px 에 들어가면 한 장으로 간다.
-  ("와 / 영어 개많아 / 왜" -> "와 영어 개많아 왜", "나는 / 이 세상이 /
-  싫어" -> "나는 이 세상이 싫어")
-- 설명 자막을 넣었다가 뺐다. **작업 지시의 괄호는 배경 설명이지 화면에
-  띄우라는 말이 아니다** - 지시에 없는 것을 넣지 않는다.
-- "한말도" -> "아무말도", 발끈 "피곤해" -> "피곤해!" (둘 다 지시).
+**피곤해 - caption pass (same day)**
+- **Captions merged from 39 to 25.** Instruction: "you split them so words don't get cut or become hard to read when too long, but now
+  they're split far more than needed". **The only reason to split is width** - if it fits in 1020 px it is one caption.
+  ("와 / 영어 개많아 / 왜" -> "와 영어 개많아 왜", "나는 / 이 세상이 / 싫어" -> "나는 이 세상이 싫어")
+- An explanatory caption was added and then removed. **Parentheses in the job instructions are background, not text to put on screen** -
+  nothing that was not asked for.
+- "한말도" -> "아무말도", outburst "피곤해" -> "피곤해!" (both instructed).
 
-**피곤해 - 첫 피드백 (같은 날)**
-- **피드백을 못 보고 두 판을 헛돌렸다.** 대시보드가 `edit/피곤해/`에
-  `feedback_prompt.txt` · `captions_user.json` 을 써 뒀는데 **작업 폴더를
-  안 봤다.** 사용자가 "피드백을 계속 넘겼는데 왜 안 들어갔냐"고 할 때까지
-  몰랐다. **새 판을 시작하기 전에 작업 폴더의 피드백 파일부터 읽는다.**
-- **앞 여백 (같은 지적 두 번째 -> 방법을 고쳤다).** 자막 시각이 아니라
-  **컷이** 문제였다. 히스테리시스가 소리 덩어리를 THR_LO 까지 거슬러
-  잡는데, 이 소스는 방 소리가 0.006~0.010 이라 THR_LO(0.006)가 말 사이
-  틈을 통째로 이어 버렸다 - 그래서 0.5~1.0초짜리 여백이 컷 안에 남았다.
-  **THR_LO 0.006 -> 0.011** (이 소스에서 다시 잰 값). 조각 14 -> 20개,
-  본편 35.8 -> 31.4초. 자막 25장의 앞 여백이 전부 0.05초 안쪽이 됐다.
-  (조각 20개 = 분당 34컷으로 스타일의 cutsPerMin 33 과도 맞는다)
-- 자막 시각도 **들리는 소리(THR_HI)가 시작하는 자리**로 잡는다
-  (make_csv.cue). 덩어리 시작은 아직 안 들리는 자리다.
-- **"언제 나오는데!" 의 "데!" 가 잘렸다.** 130.74-131.30 이 그 "데!" 인데
-  위스퍼가 되풀이되는 "그래서"로 적어 놔서 130.69 에서 끊었다. 레벨이
-  0.20 으로 0.5초 **평평하다** - 세 음절이면 봉우리가 셋이다. 131.45 까지.
-- 완성본 28.5초. 스타일 targetTotalSec(30-40)보다 1.5초 짧다 - 여백을
-  들어낸 결과다. 말을 더 넣을지는 사용자 판단.
+**피곤해 - first feedback (same day)**
+- **Two rounds were wasted without seeing the feedback.** The dashboard had written `feedback_prompt.txt` and `captions_user.json` into
+  `edit/피곤해/`, and **the work folder was never checked.** Unnoticed until the user asked "I kept sending feedback, why isn't it in?".
+  **Read the feedback files in the work folder before starting a new round.**
+- **Leading space (second time for the same complaint -> the method was fixed).** The problem was **the cuts**, not caption times.
+  Hysteresis traces a sound blob back to THR_LO, and this source's room tone is 0.006-0.010, so THR_LO (0.006) joined whole gaps between
+  words - leaving 0.5-1.0 s of space inside cuts. **THR_LO 0.006 -> 0.011** (re-measured on this source). Pieces 14 -> 20, main 35.8 ->
+  31.4 s. Leading space before all 25 captions is now under 0.05 s. (20 pieces = 34 cuts per minute, matching the style's cutsPerMin 33)
+- Caption times also start **where audible sound (THR_HI) begins** (make_csv.cue). A blob start is not audible yet.
+- **The "데!" of "언제 나오는데!" was cut.** 130.74-131.30 is that "데!", but Whisper wrote it as a repeated "그래서" and the cut was at
+  130.69. The level is **flat** at 0.20 for 0.5 s - three syllables would show three peaks. Extended to 131.45.
+- Final 28.5 s, 1.5 s under the style's targetTotalSec (30-40) - a result of removing space. Whether to add more speech is the user's call.
 
-## 악성메일단 - 다섯 번째 피드백 (2026-09-12)
+## 악성메일단 - fifth feedback (2026-09-12)
 
-**"전부 밀린 느낌" 의 정체: 그림이 소리보다 0.135초 뒤처져 있었다.**
-조각을 구울 때 소리는 딱 (b-a)초로 잘리는데 그림은 프레임 단위라 올림이
-된다(60fps 에서 최대 0.017초). 스물네 조각을 이어 붙이니 그만큼 쌓였다.
-완성본 영상 126.167초 / 소리 126.032초가 증거다. 자막과 직원 겹침은
-그림에 구워지므로 같이 밀린다.
+**What "everything feels late" really was: the picture lagged the sound by 0.135 s.** When rendering a piece, sound is cut at exactly (b-a)
+s but the picture is in frames and rounds up (at most 0.017 s at 60 fps). Over 24 joined pieces it accumulated. Evidence: final video
+126.167 s / audio 126.032 s. Captions and the staff overlay are burned into the picture, so they lag with it.
 
-사용자 말이 그대로 진단이었다: "앞쪽은 자막이 먼저 뜨고 ... 이후로는
-조금씩 늦고 ... '메일단을 직접' 이 부분만 타이밍이 맞고". 그 자막은 완성본
-112초인데 거기서의 밀림(0.12초)이 원래 주던 앞 여백(0.12초)과 상쇄된다.
+The user's words were the diagnosis: "at the start the captions come early ... after that slightly late ... only '메일단을 직접' is in time".
+That caption is at 112 s in the final, where the lag (0.12 s) cancels the leading margin originally given (0.12 s).
 
-고친 것
-- `timeline._quantize()`: KEEP 을 1/60 격자에 올린다 (최대 8ms 이동).
-- `piece_cache.cut()`: 조각마다 `-t` 로 프레임 수에 떨어지는 길이를 못박고
-  소리는 `apad` 로 그 길이까지 채운다. 그림과 소리가 정확히 같아진다.
-  -> 완성본 영상 126.067 / 소리 126.046 (0.02초, 프레임 1/3)
-- `make_csv.cue()`: 자막이 켜지는 자리를 **-32dB(말이 또렷해지는 문턱)** 로
-  맞춘다. 컷 문턱(-46dB)은 숨소리까지 잡아서 자막이 먼저 떴다.
-  -> 60장 전부 앞 여백 0.15초 안쪽 (전에는 0.51초까지)
-- `STAFF_RANGE` 를 직원 자막과 같은 자리로 (249.30-273.72). 전에는 인물이
-  첫 직원 자막보다 0.35초 먼저 튀어나왔다.
+Fixes
+- `timeline._quantize()`: KEEP snapped to the 1/60 grid (at most 8 ms moved).
+- `piece_cache.cut()`: each piece is pinned with `-t` to a length that falls on a frame count, and audio is padded to that length with
+  `apad`. Picture and sound become exactly equal.
+  -> final video 126.067 / audio 126.046 (0.02 s, a third of a frame)
+- `make_csv.cue()`: captions switch on at **-32 dB (the threshold where speech becomes clear)**. The cut threshold (-46 dB) catches breaths,
+  so captions came early.
+  -> all 60 within 0.15 s leading space (up to 0.51 s before)
+- `STAFF_RANGE` aligned with the staff captions (249.30-273.72). Before, the figure popped out 0.35 s before the first staff caption.
 
-**캐시 얘기:** 컷 시각을 건드리면 조각 캐시가 전부 무효가 된다(24개 재굽기).
-자막만 고치는 판은 1~2개만 다시 굽는다 - 이번이 느렸던 까닭이다.
+**On the cache:** touching cut times invalidates every piece (24 re-rendered). A caption-only round re-renders 1-2 - why this one was slow.
 
-## 대시보드 피드백 기능 수리 (2026-09-12)
+## Dashboard feedback repairs (2026-09-12)
 
-**"'컷 편집 후' 자막이 실제랑 다르다" 는 지적의 진짜 원인 두 가지.**
+**The two real causes of "the 'after cut edit' captions differ from reality".**
 
-1. **`freshenFromDisk` 가 한 번도 돌지 않았다.** 부팅 때 `D.Server.online` 을
-   **함수처럼 불렀는데 그건 참/거짓 값**이다. 부팅 시점엔 아직 false 라
-   그 조건에서 늘 일찍 돌아나갔다. 지난 판에 "고쳤다"고 말한 기능이
-   실제로는 죽어 있었다. -> 서버 확인을 빼고 fetch 의 catch 에 맡긴다.
-2. **폴더와 견주는 시각이 틀렸다.** `savedAt` 은 브라우저가 저장한 시각이라
-   **새로고침할 때마다 지금 시각**이 된다. 그걸로 견주니 브라우저가 언제나
-   더 새것이었다. -> 읽어 온 폴더의 시각을 `diskAt` 으로 따로 들고 다닌다
-   (core.serialize + app.freshenFromDisk).
+1. **`freshenFromDisk` never ran.** At boot it **called `D.Server.online` like a function, but it is a boolean.** At boot it is still false,
+   so the condition always returned early. The feature "fixed" last round was actually dead. -> the server check was removed and failure is
+   left to the fetch's catch.
+2. **The time compared with the folder was wrong.** `savedAt` is when the browser saved, so it becomes **now on every reload.** Comparing it
+   made the browser always newer. -> the folder time that was read is carried separately as `diskAt` (core.serialize + app.freshenFromDisk).
 
-그 밖에
-- 고친 것이 있어도(dirty) 이제 **합친다.** 파이프라인이 만든 것(자막 목록 ·
-  컷 · 전사)은 폴더 것을 쓰고 사용자 것(프롬프트 · 쪽지 · 빼기 · 되살리기 ·
-  자막 고침)만 얹는다. "프로젝트 매니저에서 여세요"로 넘기지 않는다.
-- **자막 고침은 시각이 아니라 `orig`(고치기 전 글)로 제자리를 찾는다.**
-  판마다 컷이 밀려 시각으로 찾으면 옆 줄을 덮어썼다 - 네 번째 판에서 고친
-  12줄 중 11줄이 그렇게 엉뚱한 줄에 붙었다. 못 찾으면 버린다.
-- **롱폼 export 가 자막 시각을 배속으로 안 나눴다.** 마지막 자막이 130.9 로
-  영상 길이(126.07)를 넘던 것이 그 자국이다. -> `/ T.SPEED`.
-- 타임스탬프 칸 46px -> 62px + 줄바꿈 금지 (모든 줄이 두 줄로 접혔다).
-- 문구: 렌더링 -> 재 편집, 렌더 -> 편집.
+Also
+- Edits (dirty) are now **merged.** Pipeline output (caption list, cuts, transcript) comes from the folder, and only user values (prompt,
+  notes, drops, restores, caption edits) are laid on top. No more "open it from the project manager".
+- **Caption edits find their line by `orig` (text before editing), not time.** Cuts shift every version, and matching by time overwrote the
+  neighbouring line - in the fourth round 11 of 12 edits attached to the wrong line. If not found, the edit is discarded.
+- **Longform export did not divide caption times by the speed.** The last caption at 130.9, beyond the video length (126.07), was the
+  symptom. -> `/ T.SPEED`.
+- Timestamp column 46 px -> 62 px, no wrapping (every line wrapped to two).
+- Wording: 렌더링 -> 재 편집, 렌더 -> 편집.
 
-확인: 대시보드가 자막 60장 · 첫 줄 0:02.07 (전에는 61장 · 0:02.20) 로 뜬다.
+Checked: the dashboard shows 60 captions, first line at 0:02.07 (before: 61, 0:02.20).
 
-## 참고본 자막 타이밍 실측 (2026-09-12)
+## Reference caption timing measured (2026-09-12)
 
-"자막을 언제 띄우고 어디서 끊는지 계속 못 잡는다"는 지적을 받고, **완성본
-네 편에서 자막이 소리에 대해 언제 뜨는지만** 쟀다. 자막 띠를 원본 해상도
-에서 이진화해 프레임마다 잉크를 세고 말소리 대역 RMS 와 견줬다.
-스크립트는 `tools/caption_timing.py <완성본>` (자막 띠 찾기부터 자동).
+After the complaint "you keep failing to get when captions appear and where they end", **only when captions appear relative to sound** was
+measured on four finals. The caption band was binarised at source resolution, ink counted per frame and compared with speech-band RMS.
+Script: `tools/caption_timing.py <final>` (finds the caption band automatically).
 
-| 참고본 | 애니 | 뜨기-소리 | 굳는 데 | 줄바뀜 골 | 사라짐-말끝 |
+| Reference | Animated | Appear - sound | Settle time | Line change at dip | Disappear - speech end |
 |---|---|---|---|---|---|
-| 허츄의 뒤를 잇는 2대 곡예사 (랩) | 없음 | -0.050 | - | 84% | +0.24 |
-| 일본에서 화상 입은 유이 | 있음 | -0.060 | 0.050 (3f) | 82% | +0.16 |
-| 집에서 미끄러져서 응급실간 유이 | 있음 | -0.045 | 0.067 (4f) | 85% | +0.03 |
-| 유이가 말아주는 러브송 (노래) | 없음 | -0.060 | 0.000 (0f) | 66% | +0.01 |
-
-**자막은 말이 들리기 0.05초(3프레임) 전에 뜬다 - 애니메이션과 상관없다.**
-줄 바뀜은 말 사이 **골의 끝**(바꾸고 0.00~0.09초 뒤 다음 말). 끝은 말끝보다
-먼저 끄지 않는다.
-
-지금 파이프라인은 자막을 **말에 딱 붙인다**(0.00~+0.15). 바꾸려면
-`make_csv.cue()` 가 돌려주는 값에서 0.05초를 빼면 된다 - 컷은 안 건드리므로
-자막만 다시 구우면 끝난다. **아직 적용 안 했다 (사용자 판단 대기).**
-
-한 번 틀렸던 해석도 적어 둔다: 애니메이션 있는 편 하나만 보고 "굳는 순간이
-말 시작"이라고 했다가, 네 편을 놓고 보니 굳는 순간은 흩어지고 **뜨기 시작이
-모인다.** 참고본 하나로 규칙을 정하면 그 편의 애니메이션 길이를 규칙으로
-착각한다.
-
-## 냉면 - 1차 편집 (2026-09-13)
-
-`냉면.mp4` 70초 -> **31.9초**, 자막 25장(발끈 3), 조각 14개. 배속 없음.
-스타일 담유이 1인 일반 쇼츠, `edit/피곤해` 파이프라인을 옮겨 왔다.
-
-- **전사 규칙 바뀜 (사용자 지시):** 1차 편집에서는 전사 한 번을 묻지 않고
-  돌린다. 추가 전사만 묻는다 (CLAUDE.md 에 적었다).
-- **`probe.py` 는 위스퍼를 돌린다 = 추가 전사다.** 이름만 보고 소리로 답하는
-  도구로 착각해 묻지 않고 세 구간을 돌렸다. `ai_budget.require` 로 막았다.
-- 소리: -16.1 LUFS / -0.7 dBFS. 대역 트랙 방 소리 p90 0.0066, 말 p50 0.0380
-  -> 문턱 0.014/0.011 그대로 (덩어리 70개).
-- 전사 시각 0.4~0.9초 이르다 -> 그룹·자막 경계 전부 파형 덩어리 경계.
-- 뺀 것: "고맙습니다"(후원 인사로 보임, 짐작), 8초 넘는 빈자리 둘, "원 투 쓰리".
-- 크롭 x=468 (얼굴 960~1000, 채팅 기둥 1580). 채팅 카드 없음 (지시 없음).
-- **자막을 소리보다 0.05초 먼저 띄운다 (make_csv.LEAD)** - 참고본 네 편 실측을
-  처음 적용한 프로젝트다.
-- 발끈 셋 (지시 "중간 중간"): "물냉면은 진짜 내가" · "아 뭔 물냉면이야" ·
-  "너네는 뭐 먹었는데?" - 따지는 줄 가운데 p85 로 골랐다.
-- 짐작 낱말: "불냉면은" · "물냉면은 비냉이지" · "왕만두의 비냉이".
-- 검증: cuts 0 · gaps 0 · sync 0. timing 2건은 틈 없는 자리에서 나눈 줄
-  ("뭐 먹었는데요?" 64.35 짐작, "말해봐" 66.41 레벨 골).
-- **`build_ass.py` 의 main 은 전사로 자막을 새로 짠다** - CSV 에서 ASS 를
-  만드는 것은 `rebuild_from_csv.py` 다. main 을 돌리면 "말해봐 원" 처럼
-  잘린 말까지 끌려 들어온다.
-
-**냉면 - 첫 피드백 (같은 날)**
-- 사용자: "처음으로 말소리, 자막 타이밍이 완벽해" - **파형 덩어리 컷 + cue()
-  + LEAD 0.05 조합이 기준이다.** 다음 프로젝트도 edit/냉면 에서 옮겨 온다.
-- 자막 고침 5 (captions_user.json, orig 없이 시각이 CSV 와 딱 맞아 그걸로
-  찾았다): 땡기는데?->땡기네, 먹는거지->먹는거임~, 물냉면은 비냉이지->냉면은
-  (내 짐작이 틀렸다), 물비빔면->물비빔은, 것이->것이~. 나머지 두 줄은 글도
-  화자도 그대로라 바뀐 게 없다.
-- drop 63.44-66.84 = 끝의 "여러분들은 ... 말해봐". drop 의 LAG 0.25 로
-  자르면 63.69 라 "여러분들은" 머리가 남아 그룹 끝을 앞 덩어리 끝 63.51 로
-  직접 잡았다. 발끈 셋째도 같이 빠져 둘. **28.5초** (targetTotalSec 30 아래).
-- **seg_durs.json 순서 함정:** 조각 수가 바뀌면 timeline 이 옛 seg_durs 로
-  TOTAL_DUR 를 내서 CSV 가 틀린다. build_edit 뒤에 make_csv 를 **다시** 돌린다.
-- rebuild_from_csv 에 shrinkOverLongLine: 6% 안으로 넘는 줄은 \fs 를 줄여 한
-  장으로 둔다 (1050px 줄이 글자 수로 쪼개질 뻔했다).
-
-**냉면 - 두 번째 피드백 (같은 날)**
-- "인정입니 까지밖에 안 들려 끝에 '다'까지" - 마지막 그룹 끝 63.51 -> 63.71.
-  **덩어리 경계가 틀린 자리를 줬다:** "다"(63.55 봉우리)와 뒤 "여러분들은"이
-  63.54- 한 덩어리로 묶여 있어서, 뒤를 뺄 때 덩어리 끝이 아니라 **5프레임
-  평균 레벨의 골**(63.70, 0.022)을 찾아야 했다. 뺀 대목 바로 앞에서 끊을 때는
-  덩어리 경계를 믿지 말고 골을 본다.
-
-**냉면 - 종료 (같은 날)**
-- 사용자가 두 번째 피드백 반영본에서 종료했다. 완성본 28.7초, 검사 전부 0.
-  남은 짐작 낱말: "불냉면은", "왕만두의 비냉이" (사용자 지적 없음).
-
-## 삼성 - 1차 편집 (2026-09-13)
-- 스크립트는 edit/냉면 에서 옮겼다 (타이밍이 "완벽하다"고 한 조합). 전사 1회(기본).
-- 103초, -14.1 LUFS · -0.5 dBFS. 문턱 0.014/0.011 그대로 (방 p90 0.0091).
-- **후원 멘트가 전사에 없었다.** 사용자에게 물었더니 "아 끝나는 줄 알았는데
-  왜 안 끝남?" - 가운데에서 전사가 못 들은 말소리는 64.4-66.4 뿐이라 그걸로
-  보고 뺐다 (짐작). 찾는 법: 전사 낱말(+0.2~+1.0초)로 덮이지 않는 THR_HI
-  위 소리를 0.5초 넘게 모았다.
-- 말이 51.6초라 30-40초에 맞추려고 **겹치는 줄을 내가 골라 뺐다** (timeline
-  머리말 "길이 때문"). 사용자가 되살릴 수 있다.
-- 줄 안 자막 나누기: 이 소스는 전사 낱말 시각이 구간마다 0.3~1.1초로 흔들려
-  낱말 시각을 못 쓴다 - 덩어리 길이를 음절 수로 나눈 어림 + 5프레임 골.
-- **줄 나누기 1차가 한 구절씩 늦었다** (verify_sync 10건이 전부 옆 구절을 들었다).
-  전사 덩어리 범위로 음절을 나눴는데 그 범위가 틀렸다. **컷 뒤 남은 조각의 말
-  시간**으로 나누고 조각 머리/골에 붙이니 1건 (남은 1건은 자막이 컷을 넘어
-  다음 조각 "여러분도"를 들은 것). 골이 둘 붙어 0.14초짜리 자막이 나오면 줄을
-  합치거나 다르게 나눈다 ("솔직히 업무 / 환경에서 쓰려면은").
-- 첫 줄 뒤 전사에 없는 소리 3.78-5.32(1.5초)를 길이 때문에 뺐다 (확인 안 함).
-  완성본 **40.00초**, 컷·여백·자막 시작 0, 싱크 의심 1(위).
-
-**삼성 - 첫 피드백 (같은 날)**
-- "한 달"·"솔직히"가 안 들렸다: 그룹 머리를 25.95->25.50, 33.37->32.74. **1차에서
-  말이 이어진 자리의 골을 머리로 잡았는데, 그 골이 첫 음절 뒤였다** - 전사
-  덩어리 범위만 보고 앞 줄이 어디서 끝나는지를 안 쟀다. 50ms 레벨로 봉우리를
-  세어 보니 앞 무음(25.05-25.55, 32.72)이 따로 있었다. 머리를 자를 때는 **앞쪽
-  무음까지 거슬러 가서** 음절 봉우리 수가 낱말과 맞는지 센다.
-- "아무리 어? / 뒤를 구르고 앞으로 구르고 / 옆으로 구르고 날아다녀도": "어?"
-  (36.10-36.20)는 전사에 없었다. 음절 어림은 없는 말을 모르니 틀린다.
-- 사용자 시각 0:27.45 · 0:31.45 는 **현재 판의 완성본 시각이라 컷을 옮기기 전에
-  소스 시각(51.45 · 63.13)으로 바꿔 두었다.** 둘 다 조각 머리였다 - 음절 어림이
-  조각 경계를 넘어 늦었다.
-- 부분 강조 «낱말|blue» 를 악성메일단에서 가져왔다 (build_ass · rebuild · export).
-- drop.json 81.4-84.14 = "근데 아이폰 14년 썼으면은..." 그룹 통째.
-- 자막 고침 3 (captions_user.json): "삼성폴드가 더 좋죠?", "삼성? 연락주세요",
-  "아무리 어? 뒤를 구르고" (feedback_prompt 의 나눔을 따랐다).
-
-**삼성 - 두 번째 피드백 (같은 날, 진행 중)**
-- **대시보드 저장이 화자를 버리고 있었다.** 로그에는 "자막 6 화자: 담유이발끈"이
-  찍혔는데 captions_user.json 과 project.json 에는 옛 화자. server.py save_project 의
-  review 병합이 고친 자막에서 text · by 만 옮겼다 -> speaker · s2 · orig 도 옮기게
-  고쳤다. **서버를 다시 띄워야 먹는다.** 이번 판의 화자 셋은 feedback_prompt 에서 읽었다.
-- 부분 강조 색을 낱말마다: 승자 yellow · 1년 뒤 sky(#6FCFF5) · 구형 핸드폰 brown ·
-  삼성 폴드 8 lavender · 삼성? blue(#7FA8FF). 채움 값은 이름만 받아 고른 짐작.
-- make_csv LINES 넷째 칸이 화자 이름도 받는다 ("담유이강조").
-- **강조 디자인** (사용자 지시, 전체 · 부분 강조 모두 통일, 폰트 · 크기 유지): 채움 = 강조
-  색, 안 테두리 = 채움이 밝으면 하양 · 어두우면 검정, 바깥 테두리 = 채움보다 어두운 같은 색.
-  두 층으로 겹쳐 그린다 (build_ass emph_layers). 두께 7/16 · 문턱 휘도 0.35 · 어둡게 0.5 는
-  캡처 눈대중 (짐작). 그라데이션 발끈은 이 통일로 안 쓴다.
-
-**삼성 - 세 번째 피드백 (같은 날)**
-- **발끈은 강조 디자인에서 뺐다** - "발끈이랑 강조랑은 디자인이 달라야지 / 발끈은 원래
-  디자인이 맞아". 발끈 = 그라데이션(emph_lines), 강조 디자인 = 담유이강조 + «낱말|색».
-  한 판 전 "강조는 모두 통일(전체 강조, 부분 강조)"의 "전체 강조"를 발끈까지로 넓게 읽었다.
-- 강조 바깥 테두리 0.5 -> 0.75 배 ("너무 어두워"). 강조 글자 140 -> 130 ("일반 자막보다
-  커 보인다" - 테두리 두 겹 탓). 노랑 #FFE27A -> #FFC83D ("잘 안 보인다"), 삼성 파랑
-  #7FA8FF -> #7384CA (로고 #1428A0 에 흰색 45%). 값은 전부 짐작.
-- 자막 고침: "330만원 실화냐~". 나누기: "솔직히 / 업무 환경에서 / 쓰려면은".
-
-**삼성 - 네 번째 피드백 (같은 날)**
-- **"강조 외부 테두리가 그림자(입체)처럼"** = 내 버그. 세 번째 판에서 강조 글자를 130 으로
-  줄였는데, 부분 강조 줄의 위 층(안 테두리)은 강조 뒤를 투명으로만 두고 크기를 140 으로
-  안 되돌렸다. 두 층의 줄 폭이 달라져 \an5 가운데 맞춤이 어긋나고 바깥 테두리가 한쪽으로
-  삐져 나왔다. **두 층으로 겹치는 자막은 두 층의 크기 · 글꼴 태그 흐름이 똑같아야 한다** -
-  투명하게 숨긴 부분도. 줄 전체 강조는 두 층이 같아서 멀쩡했다.
-- 확인은 넉 줄을 줄여 뜬 시트로 했는데 거기서 못 봤다. 테두리 모양 확인은 **원본 크기로
-  잘라서** 본다.
-- 부분 발끈 «진짜|balkkeun»: 발끈 층(emph_lines)에 그 낱말만 보이게, 보통 층에 그 낱말만
-  투명하게 - 같은 줄을 두 번 그린다.
-- 색: 담유이강조 #6FCFF5 -> #45B4EA ("좀 더 진하게"), 삼성? = 로고 (20,40,160) 색상에
-  명도 0.75 · 채도 0.78 (파스텔). 자막 고침: "256GB가?", "삼성 폴드가 더 좋죠?".
-
-## 담유이 테스트 쇼츠 - 참고 채널 분석 (2026-09-14)
-- 사용자: "분석까지만", "처음이니까 프리셋 적용은 하지마". 삼성 사본 · 프리셋 안 건드림.
-- 준비만 함: 프로젝트 "삼성 사본"(pmu0vhh61j3b1) 작업 폴더를 edit/삼성_사본 으로 가르고
-  완성본 이름 삼성_사본_ko.mp4, export_project 대상 id 를 못 박았다 (원본과 대상 파일이
-  같아 이름으로 찾으면 원본이 잡힌다). 프리셋 복사본: dashboard/styles/담유이_테스트_쇼츠.json.
-- 분석 결과 · 스크립트 · 그림: docs/테스트쇼츠_참고분석/ (분석.md). 형독 · 미도미도 마요 ·
-  라코코 · 자석사냥꾼 정타비 조회수 상위 5씩, 360p 로 받아(사용자 허락, yt-dlp 2026.8.19
-  로 올림) 쟀다.
-- 요점: 역동성은 카메라 움직임이 아니라 **창 안 소스가 1초 안팎마다 바뀌는 것** (라코코
-  분당 48-91, 중앙 0.34-0.96초). 레터박스 + 색 낱말 훅 제목이 넷 다 공통. 느린 확대는 드묾.
-  효과음 · 배경음은 숫자로 못 갈라 확인 안 함.
-
-## 삼성 사본 - 화면 역동성 1차 (2026-09-14)
-- 사용자: "삼성 사본에 적용해서 편집해줘". 자막 배열 · 프리셋은 그대로.
-- **공용 모듈 assets/fx/fxlib.py** (다른 프로젝트도 가져다 쓴다): 카드 · 장 제목 · 초점 괄호 ·
-  왕관 · 도는 화살표 · 미끄러지는 화살표 · 훅 제목(ASS), 창 확대 · 그림 튀어나오기(ffmpeg 필터).
-- **프로젝트 연출표 edit/삼성_사본/fx_plan.py**: 연출을 자막 글로 찾아 붙인다(시각을 숫자로 안 박음).
-  화면 크기 33번(W/1.25/1.55, 줄 바뀔 때 바로 컷), ASS 연출 28, 원본 채팅 캡처 2
-  (삼성 안써요 1.2초 · 광고 받으셨나 99.6초 - 말과 시간이 맞는 것만).
-  rebuild_from_csv 가 fx 스타일 · 이벤트를 붙이고 훅 제목이 옛 상단 캡션을 대신한다.
-  apply_captions 가 확대 · 그림을 자막보다 먼저 건다.
-- 화면 움직임 0.4 -> 1.9 (참고 채널 2.0 ~ 12.5).
-- 사고 셋: (1) Bash heredoc 이 역슬래시를 먹어 패치가 안 맞았다 - 패치는 Write 로 파일을 써서
-  chr(92) 로. (2) cv2.imwrite 가 한글 경로에 **조용히** 실패 - imencode + open().write.
-  (3) ffmpeg 가 한글 절대 경로의 그림 입력을 못 연다 - 작업 폴더 기준 상대 경로. 그리고 -loop
-  그림 입력이 길어 완성본이 1초 늘었다 - 출력에 -t FINAL_DUR.
-- 전부 짐작(사용자 확인 전): 훅 제목 문구, 카드 문구, 확대 배율, 장 제목 나눔. 인터넷 그림(제품
-  사진 · 로고 · 이라스토야 사람)은 허락 받고 2차에.
-
-**삼성 사본 - 2차 (같은 날)**
-- 사용자: "1. 가격, 2. 먼저 산 사람 -> 이런거는 빼고 2차 진행해줘". 장 제목 뺐다 (fxlib.chapter 는 남겨 둠).
-- 사용자: "사람 이미지가 필요하면 대부분 이라스토야(저작권 무료)에서". 규약을 열어 확인: 상업 무료지만
-  **한 작품 21점 이상은 유료**(중복 1점). 이 작품 9점. 목록 · 크기를 보이고 허락 받아 받았다.
-- **공용 소스 폴더 assets/irasutoya/** (+ SOURCES.md: 원문 주소 · 규약 요약). 투명 PNG 라 누끼 불필요.
-  경로에 한글이 없어 ffmpeg 가 절대 경로로 읽는다. 일본어 글자가 든 그림(POP)은 안 골랐다.
-- 그림은 카드(오른쪽 위)를 피해 왼쪽 머리칼 쪽에. 처음엔 너비 230~380 이라 스티커처럼 작아 1.25배로 키움.
-  "안 할 듯" 그림이 초점 괄호 모서리와 겹쳐 괄호를 560 으로 줄이고 그림을 오른쪽 위로.
-- 화면 움직임 1.9 -> 2.0 (그림이 가만히 있어 수치로는 거의 안 오른다).
-
-**삼성 사본 - 3차 피드백 (같은 날)**
-- 프롬프트: "실제로 존재하는 제품은 실제 이미지, 사람 이미지만 이라스토야". 영상 위 쪽지 7개:
-  돈 -> 한국 돈 / "お断りします" 제거 / 초점 괄호는 얼굴에 집중할 때만 / 구르기 -> 사람 애니메이션 /
-  옆 화살표 -> 이미지 / 환율 그림 -> 실제 그래프 / 가격 화살표가 위를 가리킴 -> 아래.
-- **화살표 방향은 내 버그:** ASS \frz 는 양수가 반시계라 오른쪽 화살표에 90 을 주면 위를 본다.
-  ffmpeg rotate 는 반대로 양수가 시계 방향 - fxlib 에 적었다.
-- "아이폰 폴드" 는 2026-09-09 **iPhone Duo** 로 발표됐다 (Apple Newsroom). 담유이가 "아이폰 듀오"라고도 한다.
-- 받은 것 (허락, 출처는 각 SOURCES.md): assets/products (애플 뉴스룸 보도 사진 · 삼성 제품 페이지 KV),
-  assets/photos (Unsplash 만원권 - 원본이 회색 바닥투성이라 지폐만 잘랐다), assets/irasutoya (+ 구르기 ·
-  풍선 2), assets/data (FRED DEXKOUS). 삼성 뉴스룸은 봇 차단. **FRED CSV 크기를 재려고 본문을 한 번
-  받아 버렸다 - 허락 전이었고 사용자에게 알렸다.**
-- 새 공용 도구: fxlib.image_move_filter (가로질러 가며 돌기 · 둥둥), image_pop_filter border (사진 카드),
-  assets/fx/make_rate_chart.py (공개 데이터로 그래프를 직접 그린다 - 남의 그래프 캡처 안 함).
-- 초점 괄호는 둘 다 뺐다 (얼굴을 봐야 하는 순간이 아니라고 판단 - 짐작).
-
-**삼성 사본 - 훅 제목 키우기 (같은 날)**
-- 사용자: "제목 부분은 전반적으로 더 크게", "핵심 단어는 일반적인 제목 자막보다 살짝 더 크게".
-- fxlib.hook_title 에 size · key_size 를 더했다 (공용). 삼성 사본: 92 -> 124, 핵심 낱말 "삼성 폴드8" 142
-  (약 1.15배). textwidth 로 잰 폭 1줄 833px · 2줄 906px. 위 띠(0-407) 안에 들게 줄 가운데 y 195 / 335.
-
-## 담유이 테스트 쇼츠 - 2차 참고 분석 + 모캠 밀림 사본 (2026-09-14)
-- 사용자: 정타비 · 로션욤 15편씩 더, 자막 디자인까지. "너무 일반적인 양산 쇼츠느낌". 그리고 "삼성 - 사본 말고
-  모캡 밀림 사본 만들어서 거기에 적용". 분석: docs/테스트쇼츠_참고분석/분석2_정타비_로션욤.md.
-- 요점: 참고 채널은 **자막이 쓰임마다 모양이 다르다** (대사 작게 · 괄호 무대지시 연노랑 · 채팅은 캐릭터 색
-  알약/마스코트 라벨 · 펀치라인만 크게). 캠은 그대로 두고 필요한 순간에만 얹는다. 색은 캐릭터에서 온다.
-  우리 영상은 한 틀 자막 + 줄마다 확대 + 검정 카드 + 스톡 그림이라 양산형으로 보였다 (짐작).
-- 사고: 목록 파일이 CRLF 라 30편 첫 받기가 전부 실패 (메모리에 적음). 받은 해상도는 608x1080 이다.
-- 모캠 밀림 사본: projects/pmu0z5vpip86u, edit/모캡밀림_사본 (완성본 모캡밀림_사본_ko.mp4, export 대상 id 고정).
-  옛 파이프라인(09-09)에 fx 연결만 붙였다 - 자막 · 컷은 사용자가 세 번 고친 그대로.
-  **1.1배속이라 연출은 배속 전 시간표(TOTAL_DUR)로 굽고 출력만 FINAL_DUR 로 자른다.**
-- fxlib 새 부품 (공용): stage_note (괄호 무대지시), chat_pill (캐릭터 색 이중 테두리 알약), question_ripple,
-  mono_filter (창만 흑백), push_filter (느린 확대 - 크기가 바뀌는 그림을 검정 바탕에 얹어 자른다).
-- 모캠 밀림 사본 첫 굽기: 물음표 파문 · "(기대 중)" 이 안 보였다. **fx_plan.L 이 글 일부로 찾아서** "먼저" 가
-  "제일 먼저"(2.69초), "나는" 이 "나는 내가"(0.08초)에 걸려 끝이 시작보다 앞섰다. L(..., exact=True) 로 고침.
-  같은 낱말이 여러 줄에 들어가는 영상이면 연출 열쇠를 정확히 맞춘다.
-- 느린 확대가 안 먹은 줄 알았는데 **먹었다** (눈 폭 125 -> 180px, 약 1.45배). 줄여 뜬 시트를 눈대중으로 보고
-  틀리게 판단했다 - 크기 비교는 같은 자리를 재서 한다.
-
-## 담유이 테스트 쇼츠 스타일 전면 개편 + 다음생 사본 (2026-09-14)
-- 사용자: "스타일이 너무 다른데? 절제 하라는 말이 아니라 스타일 자체가 문제", "자막 종류도 너무 단조로워",
-  "현재 프리셋에서 컷편집 관련 부분만 남기고 나머지는 전부 스타일에 맞게 변경, 추가", "다음생 사본 만들어서 적용",
-  그리고 "왜 로션욤만 참고하지?" - **내 설계가 로션욤(틀이 일정해 숫자가 잘 나오는 채널)으로 쏠렸다.** 처음 지시는
-  라코코 · 정타비 비중이었다. 정타비 · 라코코 중심 + 로션욤 · 형독 일부로 다시 섞었다.
-- 프리셋 dashboard/styles/담유이_테스트_쇼츠.json: cut · audio · pacing · verify 만 남기고 caption · video · notes 를
-  새로 썼다 (자막 종류 표 · 화면 틀 · 연출 규칙).
-- 공용 스타일 assets/fx/refstyle.py: 검정 레터박스(위 0-290 제목 / 창 290-1429 / 아래 크레딧), 자막 종류 7가지
-  line(라코코, Gmarket Bold) · hand(Nanum Brush Script) · char(담유이 색) · punch(라코코 빨강, Black Han Sans) ·
-  react(Jalnan) · label(형독 흰 상자) · note(로션욤 괄호), 제목(크게 + 핵심 낱말 더 크게) · 크레딧(정타비) · 체크리스트.
-  폭이 1000px 넘으면 글자를 줄인다 (PIL 로 잰 폭을 ascent+descent 기준으로 환산).
-- 다음생 사본: projects/pmu135i3ixdks, edit/다음생_사본. build_edit 배경을 lavfi 검정으로, Y_TOP 290. 옛 CookieRun
-  rebuild_from_csv 대신 rebuild_refstyle.py. fx_plan: 채팅 알약(원본 "그래도 다음생에 유이로 태어나줄거죠?") ·
-  조건 체크리스트 · 괄호 지시 4 · 확대 4 · 느린 확대(다짐) · 흔들기(비명) · 흑백(GG) · 거실 사진 · いらすとや 복통.
-- 첫 굽기에 모든 글자가 작았다 (대사 80 이 라코코보다 한참 가늘어 보였다) -> 1.15~1.35 배. 손글씨는 나눔바른펜이
-  고딕처럼 보여 나눔손글씨 붓으로. **글꼴 이름이 맞는지는 이름 후보를 한 장에 구워 보고 판단한다** (영문 · 한글 이름 둘 다 먹었다).
-- Unsplash 돌멩이 사진은 검색 페이지 구조가 달라 못 찾아 뺐다. 크레딧 날짜는 원본 파일 시각 (짐작).
-- 사용자: "일반 고딕 대신 cookierunotf쓰고 영상 프리셋은 넣어 / 나머지는 아까보다 괜찮네". refstyle 기본 글꼴을
-  CookieRunOTF Black 으로 (손글씨 · 펀치 · 리액션은 그대로), 배경을 DamuiPreset 으로 되돌리고 창 y 407 · 크레딧 뺌
-  (프리셋 이름판이 있다). 제목은 위 띠 0-407 에 124 / 142. 프리셋 JSON 도 같이 고침.
-- 사용자: "기본 자막이 좀 작네 조금만 키워줘 큰 자막이랑 차이가 너무 많이나". refstyle line 96 -> 112 (외곽 9),
-  char 98 -> 114. 펀치 132 · 리액션 150 · 손글씨 124 는 그대로.
-- 사용자: "큰자막은 조금만 작게해줘". refstyle punch 132 -> 122 (흰 바깥선 층 같이), react 150 -> 138.
-
-## 담키니 - 1차 편집 (2026-09-15, 담유이 테스트 쇼츠)
-- 작업 지시: "복장에 포커스를 둬서 편집하고 수위 높은 상황 / 단어가 나올 경우 전부 넣어". 137.6초 -> 40.5초.
-- 파이프라인: 컷 · 자막 타이밍은 edit/냉면 (파형 컷 + cue + LEAD 0.05), 자막 틀 · 연출은 refstyle + fx_plan
-  (rebuild_refstyle.py, apply_captions 에 fx 필터). 배경은 DamuiPreset, 기본 글꼴 CookieRun.
-- 생일 계획(0-23초)은 복장과 상관없어 뺐다. "빅뱅빅댄스"로 들린 소리는 음절 8 에 봉우리 3 이라 흥얼거림으로 보고 뺐다
-  (짐작). "뭘 안 늦어"는 음절 4 에 봉우리 10 - 전사가 낱말을 놓쳐 뺐다. 되풀이한 "그건 그냥 가을이라서"는 뒤엣것만.
-- 짐작 낱말: "유인이라 하지 맘대로 떳니", "겨울에 벗어주세요란 걸?"(채팅에 맞춤), "산타걸이요", "에바네", "호초 언니".
-- 채팅 알약은 담유이가 읽기 전에 떠 있던 것만 (29 · 36 · 80.5 · 95.8 · 114.2 초 확인).
-- 그림: いらすとや 수영복 · 산타 (허락). 간호사는 사용자가 "쓰지말고 인터넷에서 다시 찾아" -> 스미소니언 CC0 모자
-  사진을 골랐다가 사용자가 직접 코스튬 사진을 줬다 (assets/photos/nurse_costume_user.jpg, 출처 확인 안 함).
-  **실존 인물 사진을 수위 대목에 붙이는 건 피하려고 했다** - NLM 1960년대 간호사 사진은 그래서 뺐다.
-  스미소니언 원본 페이지는 봇 확인(CAPTCHA)이 떠서 들어가지 않았다.
-
-## 담키니 - 2차 (2026-09-15, 피드백 반영)
-
-- 소스 변경: 수영복 -> 사용자 "허츄 수영복.png" (assets/photos/huchu_swimsuit_user.png), 산타 -> 사용자 "산타걸.png" (santa_costume_user.png). 둘 다 투명 PNG, 출처 확인 안 함 (SOURCES.md)
-- 상단 캡션: 테스트 쇼츠 두 줄 제목을 걷고 1인 쇼츠 TopTitle (BM JUA 190, MarginV 229) 한 줄 "담키니" - rebuild_refstyle.py 가 build_ass.HEADER 의 스타일 줄을 가져다 쓴다. 글은 CSV 제목 줄
-- drop.json 3곳 = 전사 낱말과 딱 맞는 줄: "성인 / 유인이라 하지 맘대로 떳니", "스타일리스트... / 다녀오려면...", "일을 하지 마" -> 그룹 셋을 통째로 지웠다
-- _with_drop: 밀린(+0.25) 끝이 소리 덩어리 안이면 덩어리 밖으로 뺀다 - 87.08 drop 이 "하는 거예요?"(소리 86.81-87.80) 꼬리를 먹을 뻔했다
-- "여기 자막이 좀 늦게 떠": 왜 벗어요 83.45->82.89 (소리 재시작 자리, 0.56초 늦었다), 껴입어야지 84.91->83.75, 뭔 소리 86.24->85.45 (전사 낱말 시작에 가장 가까운 덩어리 틈)
-- 자막 고침(captions_user.json): 호초->허츄 x2, "뭔 소리 하는 거예요?", "에바네.."
-- **함정:** 컷을 바꾼 뒤 make_csv 를 build_edit 보다 먼저 돌리면 timeline 이 옛 seg_durs.json(조각 25개) 길이를 섞어 TOTAL_DUR 가 27.92 로 틀렸다 (실제 33.91). 컷이 바뀌면 build_edit -> make_csv 순서, 또는 make_csv 를 한 번 더
-- 결과: 33.91초, 23줄, 검사 cuts/gaps/sync/timing 전부 0, -16.5 LUFS, 대시보드 반영
-
-## 담키니 - 3차 (2026-09-15, 피드백 반영)
-
-- 자막 고침: "어머 유이 너 벗을래?" -> "어머 유이도 벗을래?" (make_csv + fx_plan 의 종류 · 확대 · 흔들기 · 괄호 지시 키 4곳)
-- 0:06 메모 "크기 키우고 x축 기준 가운데로": 허츄 수영복 그림 폭 330 -> 480, 가운데 (210,850) -> (540,880)
-- "산타걸 살짝 밝게 조절": fxlib.image_pop_filter 에 pre(그림에만 거는 색 보정) 를 더했다. colorlevels 흰점 0.88 (약 14% 밝게). eq 는 yuv 라 투명 PNG 알파를 잃어 안 썼다
-- 실수 둘: (1) 검사를 make_csv 앞에 돌려 옛 CSV 로 KeyError, (2) pad 식 조건부 우선순위로 테두리 없는 그림에서 pre 가 빠졌다 - 괄호로 고침
-- drop.json 은 2차와 같다 (새로 뺀 곳 없음)
-- **정정:** colorlevels(pre) 로 밝혔더니 산타 그림이 한 프레임 걸러 가로 띠로 깨졌다 (5fps 띠로 확인 - 참고 시트의 +0.4초 한 장은 멀쩡해 못 봤다). 파일에 구웠다: assets/photos/santa_costume_user_bright.png (RGB/0.88, 알파 유지). 다시 구운 뒤 같은 구간 9장 전부 멀쩡. fxlib 의 pre 인자는 남겨 뒀지만 움직이는 그림에는 쓰지 말 것 - 색 보정은 파일에 굽는다
-
-## 봉누도2 귀신 - 1차 편집 (2026-09-17, 담유이 테스트 쇼츠)
-
-- 작업 지시: 봉누도 = 봉누도2, 담유이와 채팅 간 대화에 포커스, 담유이는 봉누도2 불참 -> 초반 설명 멘트. 109.9초 -> 29.75초
-- 프로젝트 edit/봉누도2귀신 (담키니 스크립트 복사). 크롭 x468 · 얼굴 (540,920) 그대로 - 같은 그림 · 같은 화면 틀
-- 소리 -19.8 LUFS, 대역 트랙 이득 0. 말 섬 12개 30.0초 - 채팅 기다리는 빈 시간만 뺐고 말은 하나도 안 뺐다
-- 위스퍼 시각이 소리보다 0.1-1.2초 이르다 (4.70 vs 5.94). 줄 나누기는 소리 덩어리 음절 비례 (scratchpad bn_split.py)
-- verify_sync 가 "아니요" 를 앞줄로 잡아 경계 33.27 -> 32.86 (소리 덩어리 32.86-33.23 이 아니요). "그래?" 1건은 전사 시각이 이른 탓 (소리 93.30-93.61, 전사 92.68-93.30) - 그대로 둠
-- 짐작 낱말: 봉누도(전사 복무도 · 복노도), 유이님(유인님), "님 그거 유령임"(요령임), "헷갈릴 정도임..."(채팅 글), "약간 비슷한 느낌이"
-- 57.86-62.49 채팅 읽기 세 줄은 음절 38 이 4.6초 - 빠르다. 유일한 쉼 60.03|60.45 에서 갈랐다 (짐작)
-- 채팅 알약 10개: 3.5 · 19.5 · 29 · 40 · 55 · 68.5 · 89 초 크롭에서 읽은 글 그대로. "귀신 ㄷㄷㄷ" · "유사품에 주의하세요.." 는 90초 화면에 있던 반응 - 올라온 시각은 안 쟀다
-- 초반 설명: 흰 라벨 "※ 담유이는 봉누도2 참가 안 함" (0 ~ 제가요?)
-- 제목: 1인 쇼츠 TopTitle 한 줄 "봉누도2 귀신" (담키니 2차 지시를 따름 - 프리셋 json 은 두 줄 제목, 어긋남 확인 필요)
-- 연출: 확대 1.2 예? · 제가요?, 1.35 귀신임 · 그 정돈가?, 느린 확대 안타깝게~, 흔들기 + 흑백 "그거 귀신임 귀신". 그림 없음 (유령 그림은 내려받기 허락 필요)
-- 소리: 최고 -1.1 dBTP 라 고정 이득이 -0.4 dB -> -19.6 LUFS (필터 없이 -16 까지 못 올린다)
-- 검사 cuts 0 · gaps 0 · sync 1 (위 그래?) · timing 0. 대시보드 projects/pmu56rn62sahe
-
-## 봉누도2 귀신 - 2차 (2026-09-17, 피드백 반영)
-
-- drop.json 41.46-43.32 = "다같이 잠이 덜 깼나봐" -> 그룹 머리 41.80 -> 44.70. 자막 "오늘도" -> "봉누도" (captions_user)
-- "뭔소리?" 채팅 · "결론 나옴" 무대 지시 삭제
-- "비슷한 소리 들었으면 / 그거 귀신임 귀신" 타이밍: 72.16-73.60 에 음절 봉우리 7 = "혹시 저 같은 비슷한", 쉼 73.60-74.05. 74.10-74.88 큰 덩어리(저는 말) 뒤 쉼 74.90-75.05, 75.10-75.85 작게 -> "그거 귀신임" 75.05 (1차 74.43, 0.6초 일렀다). 끝 "귀신" 은 사용자 말대로 글에서 뺐다 (75.54-75.85 작은 소리는 컷 밖)
-- 채팅 알약 -> 사용자 "채팅 자막 예시.png" 카드 (chat_cards.py): 민트 테두리 둥근 상자 + 예시에서 잘라 쓴 검정 아이콘 + GmarketSans Bold (글꼴은 짐작). 배율 0.80 공통, 폭 1000 넘으면 그 카드만 줄임, y 640
-- いらすとや 젊은 여자 유령 ① 笑顔 ② 笑った顔 받음 (허락, 151KB · 152KB) + 표정 폴더 "놀리는 유이.png" · "크게 웃는 유이.png" 얼굴 합성 (ghost_faces.py, 표정 고르기 짐작). 유령 머리를 지우고 턱 0.90/0.95 까지 자른 얼굴을 얹고 가장자리 5% 흐림. 삼각 두건은 사용자 "빼줘"로 뺐다
-  - "님 그거 유령임" 동안 놀리는 유령, "그거 귀신임" 동안 웃는 유령, 창 왼쪽 (225~240, 1030)
-- 결과 27.91초, 검사 cuts 0 · gaps 0 · timing 0 · sync 1 ("봉누도" - 사용자 고침이라 전사와 다른 게 맞다), -19.7 LUFS
-
-## 봉누도2 귀신 - 3차 (2026-09-17, 피드백 반영)
-
-- 라벨 "※ 담유이는 봉누도2 참가하지 않음" (사용자 고침). 채팅 카드 글꼴 GmarketSans Bold -> CookieRunOTF Black (사용자)
-- "잘못 들으신 듯 -> 듯이 안들림": 62.51 골 뒤 62.69-62.84 에 0.010 덩어리 (전사도 듯) -> 문턱(0.011) 아래라 조각이 62.57 에서 잘렸던 것으로 봤다 (짐작). timeline.EXTEND_TO 로 62.90 까지
-- "그거 귀신임 귀신 맞는지 확인": 75.49 골(0.002) 뒤 75.52-75.85 에 0.010-0.014 덩어리, 전사도 "귀신" -> 말한 것으로 봤다 (짐작, 들어서 확인 안 함). 조각 75.54 -> 76.05 (뒤 여운 0.2초 - "너무 빨리 지나감" 도 같이), 글 "그거 귀신임 귀신" 으로 되돌림
-  - 2차에 사용자 "마지막 귀신이 안 들림" 을 글이 틀렸다로 읽고 글만 뺐는데, 실은 컷이 작은 소리를 자른 것이었다 (짐작). "안 들림" 은 소리가 잘렸을 수도 있다 - 글보다 조각 끝부터 볼 것
-- verify_gaps 가 두 꼬리를 DEAD AIR 로 잡는다 (62.49-62.90, 75.46-76.05) - 문턱 아래 작은 말이라 의도한 것
-- captions_user.json 의 "혹시 저 같은  비슷한" 은 띄어쓰기 두 칸만 다르다 - 실수로 보고 한 칸으로 뒀다 (짐작)
-- 결과 28.75초, cuts 0 · timing 0 · sync 2 (봉누도 사용자 고침, 그래? 전사 시각 이름), -19.8 LUFS
-
-## 파이프라인 전환: React + ffmpeg (2026-09-17)
-
-- 지시: ffmpeg -> React(자막 · 디자인 · 애니메이션) + ffmpeg(컷 · 하드웨어 인코딩), 토큰 절약, 자막 고침이 피드백 미리보기에 바로,
-  스타일 적용에 소스 파일 칸. 목표: 프리셋 쓰는 30초 쇼츠 한 편을 세션의 20% 안에
-- `render/` (Remotion 4.0.525, React 19). body.py · make_scene.py · render.mjs · still.mjs · preview/entry.tsx · src/
-- 봉누도2귀신으로 옮겨 봤다: fx_plan 표 -> fx.json. 옛 완성본과 1.0 · 4.5 · 18.8 · 24.2 · 25.2 초를 나란히 비교해 거의 같다 (눈으로 봄)
-  - 제목(BM JUA)만 폭이 9% 커서 cssPerAss 0.93 (13.9초 잉크 폭으로 잼). 다른 글꼴 비율은 PIL getmetrics 값 그대로 - 잉크로 대조 안 함
-- 속도 (잼): body.py 첫 굽기 2분 32초 (조각 21, 대부분 원본 탐색 · QSV 세션 준비로 보임 - 짐작), 캐시 2.5초.
-  render.mjs 전체 약 50초 (오버레이 186장/1725프레임), 자막 한 줄 고침 10초
-- GPU 는 Intel Arc A350M (NVENC 없음) -> h264_qsv. 1080x1920 60fps 10초 x264 medium 36초 / QSV 16초
-- 대시보드: 피드백 탭 장면 미리보기 (dampreview.js), server.py 가 scene*.json · otf · ttf 도 내준다,
-  스타일 적용 탭 "소스 파일 / 폴더" (job.assets, 프롬프트에 목록)
-- 소리: 옛 방식 그대로 고정 이득 한 번 (-0.4 dB, 최고 -1.1 dBTP 라 -16 까지 못 올림)
-- 아직: 기존 편들은 옛 파이프라인 그대로. 다국어(자막만 바꾼 scene_en.json)와 대시보드 "렌더" 버튼 연결은 안 함.
-  글꼴 경로가 이 컴퓨터 사용자 폰트 폴더에 묶여 있다 (damui.ts FONT_DIR)
-
-## 공개 패키지 shortsmith + 프리셋 영어화 (2026-09-17)
-
-- 지시: 프리셋 다듬기 (특별한 상황 · 고유명사가 아니면 영어), 타인도 쓰게 (배포 · 공유). 사용자 선택: CLI + 스킬 둘 다,
-  범용 프리셋은 공개 · 담유이 프리셋은 비공개
-- `render/` -> `shortsmith/`. Python 스크립트(body.py · make_scene.py)를 Node 로 옮겨 받는 사람은 Node 18+ 와 ffmpeg 만 있으면 된다
-  - lib: cuts (audio.py 이식) · body (조각 3개씩 나란히) · scene · render · preset (찾기 · 글꼴 · extends) · encoder (NVENC > QSV > AMF > VideoToolbox > x264 를 실제로 구워 보고 고름)
-  - React 는 프리셋 JSON 만 읽는다 (코드에 박힌 담유이 값 · C:/Users 경로 없음). 글꼴 비율이 없으면 브라우저에서 잰다
-  - 스킬 `skills/edit-short/SKILL.md`, 플러그인 `.claude-plugin/`, README, `schema/preset.schema.json`. 라이선스는 아직 안 정함 (UNLICENSED)
-- 확인한 것 (잼): cuts.mjs = audio.py (8구간 같음). 봉누도2귀신 CLI 빌드 = 앞 React 렌더 (채팅 카드 가장자리 몇 px 만 다름, 평균 차이 1.4 이하, 원인 안 찾음).
-  basic-shorts 프리셋으로 한 장 찍어 봄 (Pretendard 없어 대체 글꼴). 대시보드 미리보기 새 번들로 뜸
-- 편 폴더 edit/봉누도2귀신 에 edit.json · cuts.json(timeline.PIECES 그대로) 추가. 완성본 edited/봉누도2귀신_ko.mp4 는 안 바꿈
-- 사고: 스타일 이름이 영어로 바뀌어 대시보드가 봉누도2 귀신 프로젝트의 스타일을 첫 항목(Video-donation)으로 자동 저장했다 ->
-  aliases 로 옛 이름을 찾게 고치고 "담유이 Test Shorts" 로 되돌림. 다른 프로젝트는 안 바뀐 것을 파일로 확인
-- 아직: legacy-ass 프리셋 4개의 React 렌더 (발끈 그라데이션 · 게스트 이름표 · 인용 자막 · 롱폼 인서트), 전사 명령 (Whisper 는 스킬이 따로 부른다),
-  다국어 scene, 대시보드 자체의 공개 (한국어 UI · Python 서버라 이번엔 미리보기 번들만 뺐다)
-
-## AGPLv3 + 옛 프리셋 React 렌더 (2026-09-17)
-
-- 라이선스: shortsmith 를 AGPL-3.0-only 로. LICENSE 는 gnu.org 공식 전문 (허락 받고 받음, 34,523 바이트)
-- 자막 엔진 일반화: 층(look) 목록 - z 순서 · 그림자 밀기 · 테두리 · 흐림 · 세로 그라데이션, 낱말 강조 디자인(안 · 바깥 테두리),
-  «낱말|balkkeun» 부분 발끈, 화자 -> 종류 (speakers · speakerSuffix · 게스트 색), 빈틈 메우기, 여러 줄 말풍선 글
-- 연출: 말풍선 도형, 튀는 그림(삼각파), 원본 정지 화면 인서트(뜨는 동안 자막 숨김), 블러. 본체: 조각별 크롭 · 다른 파일(아웃트로) ·
-  배속(아웃트로 제외) · 아웃트로 소리 크기 따로
-- 프리셋 넷을 옛 스크립트 값 그대로 옮기고 옛 완성본과 견줬다 (잼):
-  - solo (냉면): 자막 잉크 y 1424-1527 같음, 발끈 같음. 제목이 17px 아래라 BM JUA ascent 0.8 -> 0.711 (봉누도2귀신 제목도 240 -> 241 로 옛것과 맞음)
-  - solo (삼성 사본): 부분 발끈 · 노랑 낱말 · 전체 강조 · 보라 낱말 눈으로 같음
-  - multi (담아맷돌): 아야 자막 같음. 담유이는 프리셋이 140 + 튀어나오기라 옛 편(130, 없음)보다 크다 - 프리셋의 짐작 그대로 둠
-  - donation (고구마): 띠 · 제목 같음, 자막 흰 잉크 1px 안. **옛 설명(검정 배경)과 달리 실제 편집본은 DamuiPreset 배경** -> 편집본을 따름
-  - longform (악성메일단): 일반 · 강조 그라데이션 · 낱말 색 · 후원 인서트 · 역할극(블러 + 말풍선 + 튀는 직원) 눈으로 같음.
-    다른 점: 옛 편의 "grab 없음" 인서트는 살아 있는 화면이었는데 가운데 시각 정지 화면으로 대신함, 아웃트로 겹쳐 넘기기 0.45초 -> 바로 붙임 (길이 126.07 -> 126.48)
-- 롱폼 첫 빌드 594초 (본편 115초 60fps 1920x1080, 64덩어리). 쇼츠 첫 빌드 105-158초
-- 아직: 다인 host 크기 재기, donation quoted 종류는 쓴 편이 없어 짐작, 롱폼 살아 있는 인서트 · 겹쳐 넘기기
-
-## 피드백 미리보기 소리 반복 (2026-09-17)
-
-- 사용자: "여러번 들리는데". 재 보니 재생 4초에 미리보기 시계는 0.6초만 가고, 창 영상이 앞서다 되감기 2번 · 버퍼링 멈춤 9번 -> 같은 말이 다시 들렸다
-- 원인 셋: Video 의 pauseWhenBuffering (한 영상만 버퍼링해도 전체가 멈춤), 작은 어긋남에도 되감아 맞춤, server.py 의 Cache-Control no-store (되감을 때마다 다시 받음)
-- 고침: pauseWhenBuffering 뺌, 창 영상은 0.3초 넘게 어긋날 때만 맞춤 (0.5 는 소리가 자막보다 0.35초 앞선 채 굳었고, 0.2 는 재생 직후 한 번 되감았다), 배경은 맞추지 않음, 서버는 no-cache + Last-Modified
-- 확인: 2 · 12 · 20초에서 4초씩 재생 - 되감기 0, 최대 어긋남 0.31초 (재생 시작 직후), 이후 0.2초 안
-
-## 생일방송컨 1차 편집 (2026-09-18, shortsmith · damui-test-shorts)
-
-- 136.8초 -> 40.5초, 컷 21 · 자막 22. 첫 빌드 166초 (Remotion 이 Chrome Headless Shell 113MB 를 처음 한 번 자동으로 받음)
-- 판단 · 짐작은 `edit/생일방송컨/notes.md` (대시보드 editNotes 로 나감). 소리 -16.1 LUFS / 피크 -1.9, 필터 없음
-- 자막 만들기 `make_captions.py`: 낱말마다 파형 조각과 겹침을 재면 산 말 속 낱말이 빠지고 잘린 소리 조각이 들어왔다 ->
-  **전사 문장의 가운데가 keep 구간 안이면 문장을 통째로**, 문장 안 줄 시각은 글자 수 비율로. 의존 명사(건 · 거 · 적 ...)는 줄 머리에 안 둠
-- 말 끝이 잘린 자리 둘을 파형으로 찾아 keep 을 늘림: 9.6 -> 9.9 ("스튜디오?" 꼬리), 106.1 -> 106.8 ("수준이었어요"),
-  "아무튼 그거랑 별개가" 는 파형이 133.15 에서 끊어 raw 131.9-133.45 로 고정
-- **공용 내보내기 `tools/export_shortsmith.py <편 폴더>`** - 옛 편마다 있던 export_project.py 를 shortsmith 편 공용으로.
-  review.notes · 사용자 자막 보존, project.json.bak, scene.json 연결
-- 남은 것: いらすとや 생일 일러스트 두 장 (받기 허락 대기)
-- **사용자 지적 "프리셋 소스 어디갔어?"**: 첫 인서트(후원 알림)가 화면 전체를 검정으로 덮어 DamuiPreset 배경(HONEYZ 담유이)이 5.7초 동안 사라졌다.
-  인서트에 `area` 추가 - 배경 그림이 없는 인서트는 기본 `window` (영상 창만 덮음). 롱폼(LongBG 있음)은 그대로 `canvas`
-- **재편집 (사용자 피드백 8건)**: 컷을 문장 단위 raw 조각 11개로 새로 (파형 컷이 음악 때문에 문장 한가운데를 잘랐다). 자막 시각은
-  `blobs.py` 소리 덩어리 기준 - 위스퍼는 **문장 첫 낱말만** 0.3-1.2초 이르고 문장 안 낱말은 +0.3초로 맞았다. TTS 끝 7.7 -> 6.3,
-  제목 "생일 방송", 설명 띠 · 치즈 그림 뺌, 언아카 설명은 description.txt. 창 위 1px 선: ffmpeg 가 창을 짝수 줄(406)에 놓아 인서트 상자(407)
-  위로 영상이 비쳤다 -> 인서트 상자 위아래 2px 여유. 내보내기가 지난 피드백을 갈무리(feedback_*.json)하고 비우게 고침
-- **"중간 중간 영상이 멈춰, 자막은 정상"** (대시보드 미리보기): 완성본에는 멈춤 없음(freezedetect). 미리보기가 렌더용 60fps 1080 영상 둘
-  (bg 1080x1920 · 창 1080x1140, 31MB)을 그대로 틀어 브라우저가 못 따라갔다 - 배경 0.4배속 · 창 가끔 waiting. body 가 미리보기 전용
-  `window_preview.mp4`(30fps 720폭 g15, 5.7MB) · `bg_preview.mp4`(30fps 540폭)를 따로 굽게 바꿈. 재 보니 두 영상 모두 1.0배속, waiting 0
-- **이음매 겹쳐 넘기기 (사용자 허락)**: `edit.json` `crossfadeSec: 0.15` (프리셋 `audio.crossfadeSec` 로도). 소리만, 컷 가운데를 중심으로
-  앞 조각을 0.075초 더 끌며 줄이고 뒤 조각을 0.075초 먼저 키운다 - 그림 컷 · 전체 길이 · 자막 시각은 그대로. 이음매 30ms 앞뒤 차이
-  최대 14.6dB -> 4.2dB. 비교 파일 edit/생일방송컨/겹쳐넘기기_전후비교.m4a
-- **재편집 3**: 1.1배속 (captionClock timeline), 조각 끝 +0.3-0.45초 ("말끝이 잘려"), TTS 끝 6.7, 후원 알림 가로 꽉 (maxW 1080),
-  팔 벌린 유이는 "무슨 모션 스튜디오?" 동안만, 줄 나눔 셋 사용자대로, "그렇게 축하 받아 본 적이" 95.95 로 당김 (늦다는 지적).
-  소리: 최고점이 고르게 퍼져(상위 8곳 -21.9 ~ -24.5) 이득만으로는 -16.2 LUFS 가 끝 -> 리미터 A/B (+2dB: -14.3 LUFS, 0.5초 창 82개 중
-  3개만 0.5dB 넘게 깎임 / +3.5dB: -12.9, 7개, 최대 1.7dB) 만들어 여쭘
-- **"미리보기 소리가 작네"**: 미리보기(window_preview.mp4)는 렌더가 마지막에 올리는 고정 이득 전의 창 소리라 이 편에서 20dB 작았다.
-  body 가 같은 식(min(-16 - I, -1.5 - TP))으로 미리보기에도 이득을 넣게 고침. 미리보기 -16.2 LUFS = 완성본 -16.2 LUFS
-- **편집 / 렌더 단추 나눔 (사용자 지시)**: 피드백 탭 "편집"(AI) = 저장 + jobs/ 작업 파일, "렌더"(AI 없음) = 서버 /api/render 가
-  edit.json 있는 편이면 apply_review -> shortsmith build -> export --keep-feedback. 시험: 사용자가 대시보드에서 고친
-  "끝나는 수준이었어서" 가 들어가 덩어리 1개만 다시 굽고 약 35초에 끝, 프로젝트 다시 열림 · by user 표 유지
-- 편집 단추 보라(.btn-ai, AI 아이콘), 렌더 진행 칸 (단계 n/3 · 막대 · 경과/남은 시간 · 마지막 로그 한 줄). 시험: 24초에 완료 표시.
-  덤으로 고침: 새로고침도 작별 신호를 보내 서버가 곧바로 내려갔다 ("Failed to fetch") -> 페이지 0개가 10초 이어질 때만 내림
-
-## 2시 1차 편집 (2026-09-21, jobs/20260921_114702 - 114531 은 같은 요청의 앞 판)
-- 소스 C:/Users/12612/Downloads/Quick Share/2시.mp4 (313초, 1726x970 레터박스 y54). 전사는 155초부터만 (clip_timestamps)
-- 160-251초에서 12조각 38.6초, 문장 단위 raw 조각 + crossfade 0.15. 채팅 캡처 6장은 fx images (인서트는 자막을 가림)
-- 자막 make_captions.py (생일방송컨 규칙). 짐작 1건: "아까부터 2시라고" (전사 "조시라고") - notes.md
-- 완성본 edited/2시_edit.mp4, 대시보드 pmuan4xqbjnff. 빌드 143초 (첫 빌드라 Remotion 이 headless Chrome 을 받음)
-- 재편집 1 (jobs/20260921_121224): 조각 가장자리 edges.py (머리 -25dB 시작 -0.06, 꼬리 -20dB 끝 +0.25), 0+1 조각 합침 -> 11조각 42.6초.
-  damui-test-shorts 프리셋에 outburst(발끈) 종류 추가 (solo 에서 복사). 빌드 103초
-- 재편집 2 (jobs/20260921_122350): **원인 찾음 - 소스 오디오 start_time 0.450** (영상 0). 분석 wav · 전사가 0.45초 일렀다 -> 말끝 잘림 ·
-  자막 이름 두 번 지적. wav adelay=450.2ms (샘플 수로 주면 입력 48k 기준이라 0.15초만 밀렸다), 전사 +0.45. 완성본 어긋남 +0.455 -> +0.010.
-  body.mjs 가 이제 오디오/영상 시작이 다르면 WARNING. scene.mjs images 에 lead (채팅 -> 자막 순서). 11조각 42.3초
-
-## 손질 1차 편집 (2026-09-25, jobs/20260925_225918)
-- 소스 E:/Edit/OBS/손질.mp4 (66초, 1920x1080, 오디오 start_time 0). 게 손질이지만 "게"를 한 번도 말하지 않는 편으로 (사용자 지시, 일러스트 금지)
-- 8조각 38.5초. 크롭 x488 w1024. 채팅 캡처 둘 (무서워 · 칼을 입에 넣고 돌려) - 게가 보이는 12초 채팅은 안 씀
-- make_captions: 첫 줄 = 목소리 시작, 뒷줄 = 위스퍼 + 음절 시작 스냅, 쉼에 떨어지면 0.8초 안 다음 목소리 시작 (이 소스 위스퍼가 0.3-0.5초 이름).
-  첫 줄도 낱말을 따라가며 j 를 밀게 고침 (안 그러면 뒷줄이 앞 줄의 같은 낱말에 붙는다 - "배를 똑 따준")
-- 완성본 edited/손질_edit.mp4, 빌드 108초
-- 손질 재편집 1 (jobs/20260925_231326): 1.1배속 34.75초. 자막 시각 전수 확인 (말덩이와 대조) - 2줄 · 조각 머리 2곳 고침.
-  붙이기 규칙: 말 속이면 ±0.12 만, 쉼이면 앞으로 (±0.25 스냅이 앞 낱말로 끌려갔다). いらすとや 도구 그림 3장 (사용자 허락, 게는 여전히 안 나옴) + bounce
-- 손질 재편집 2 (jobs/20260925_233446): 흔들기 · bounce 제거, 가위(좌)/칼(우) 말할 때만, "돌려버리면"에 회전,
-  "보내줄 수 있잖아요"에 묘비(R.I.P. 는 직접 새김 - いらすとや 에 RIP 묘비 없음). shortsmith 에 image spin {period, from} 추가
-- 손질 재편집 3 (jobs/20260925_234943): 요청 셋(1.1배속 · 묘비 · 둘 다 회전)은 이미 반영돼 있었는데 회전만 화면에서 멈춰 보였다.
-  render.mjs overlaySig 에 spin 위상이 빠져 프레임들이 PNG 한 장을 돌려썼다 (자막 바뀔 때만 각도 튐). 넣고 VERSION 6. **새 프레임 애니메이션을 만들면 overlaySig 에도 넣을 것**
-
-## 프젝아 모캡 1차 편집 (2026-09-27, jobs/20260927_114218)
-- 소스 E:/Edit/OBS/프젝아 모캡.mp4 (80초, 오디오 start_time 0, -28 LUFS 로 조용함). 10조각 34.2초 -> 1.1배속 31.1초
-- **조용한 소스라 문턱을 다시 쟀다** (-52/-55, 음절 -42/-32). 컷은 전사 문장 시각이 아니라 실제 쉼으로 (전사가 최대 0.9초 일렀다)
-- 자막 24줄 전수 대조, 1줄만 고침(AT). 채팅 캡처 5장 (뒤에 나온 채팅을 앞에서 사용 - 사용자 허용). 일러스트·흔들림·확대 없음
-- 완성본 소리 어긋남 -0.02초 안. 빌드 131초
-- 프젝아 모캡 재편집 (2026-09-27, jobs/20260927_1224): 8조각 36.36초 -> 1.1배속 33.05초, 대시보드 pmuj7mh4jf2ps
-  - 컷 패딩을 전부 재서 다시 잡았다 (edges3.py, 말 문턱 -38dB · 머리 0.22 · 꼬리 0.35). 조각4 꼬리가 "있어요" 의 마지막 터짐을 물고 있었고,
-    조각8 머리는 0.86초가 숨소리·침묵이었다
-  - **위스퍼 낱말 시각은 쉼 앞뒤에서 0.2-0.4초 이르다** - 자막 두 줄이 침묵/숨소리 위에 떠 있었다 (8.72->9.08, 55.30->55.96).
-    조용한 소스일수록 크다. 레벨로 확인하지 않은 줄은 쓰지 말 것
-  - 채팅 캡처는 말풍선만 오려 쓴다 (img/cut_bubble.py). 네모 캡처를 그대로 얹으면 방송 배경이 네모로 따라온다 = 사용자가 말한 "여백"
-  - 완성본만 보고 검사하는 check.py 를 편 폴더에 남겼다. 앞 판 검사는 창 끝에 걸려 헛경보 20건을 냈다 (검사 자체를 검사할 것)
-- 프젝아 모캡 재편집 2 (2026-09-27, jobs/20260927_170429): 사용자 3점/10점. "타임스탬프가 전혀 안 맞는다 · 반팔이 안들려 ·
-  자막은 있는데 말소리는 스킵된다". 7조각 39.14초 -> 1.1배속 35.58초
-  - **자막 시계는 멀쩡했다.** 화면을 픽셀로 재서 확인 (자막 띠 20fps, 바뀌는 자리) - csv/1.1 보다 +0.09초 (팝 애니메이션 몫).
-    대시보드 미리보기도 같은 시계 (export 가 speed 로 나눠 내보낸다). 그러니 "안 맞는다" 는 **잘려 나간 말** 때문이었다
-  - **진짜 원인: 컷이 말 한가운데를 지나갔다.** 대역 트랙 -45/-62 토막 경계로 컷했는데 여린 음절이 그 아래라
-    "반팔이랑"(14.24-15.48)이 14.72 에서 잘리고, "힘들어"(~32.04)가 30.85 에서 잘렸다
-  - speech_map.py (전대역 -52/-60 · 0.30초) 로 말 지도를 그리고 **쉼에서만** 컷. verify_runs.py 로 완성본 덩이 길이 대조 (전부 ±0.06초)
-  - 자막: 사용자 고침 둘 ("어? 슈트인가 하셨겠지만" - 8.71 의 소리가 그것이었다 · "하고 있거든요?")
-- 프젝아 모캡 재편집 3 (2026-09-27, jobs/20260927_171806): 5점/10점 "자막이랑 말이랑 매칭이 이상해". 7조각 34.82초
-  - **줄 시각을 말 토막에 글자를 나눠 담아 푼다** (edit/프젝아모캡/align.py). 토막 길이는 잰 값 · 글자 수는 아는 값,
-    초당 글자가 고르게 되도록 DP. 위스퍼 낱말 시각으로는 못 잡는 오차를 잡는다 ("그래서 이제" 가 1.23초 일렀다)
-  - 음절 봉우리 세기는 실패 (8글자 토막에서 봉우리 3-5개). 봉우리가 아니라 토막+글자 수로 풀 것
-  - 컷 여유 머리 0.15 · 꼬리 0.25 로 통일. 자막 시계는 세 번 확인했고 맞다 (완성본 픽셀 · project.json · 미리보기)
-- 프젝아 모캡 재편집 4 (2026-09-27, jobs/20260927_173956): 6.5점/10점. 14조각 34.54초 -> 1.1배속 31.40초
-  - **말 덩이 하나 = 조각 하나.** 조각 안에 남아 있던 쉼(0.38-0.88초)이 사용자가 말한 "남아 있는 여백" 이었다.
-    덩이 사이는 0.30초로 통일, 한 자막 줄이 두 덩이에 걸치는 자리만 0.20초로 더 붙여 **묶음이 쉼으로 드러나게** 한다
-    (앞 판은 "제가|슈트를" 쉼이 "슈트를|입고" 보다 길어 귀에는 슈트를 이 뒷줄에 붙어 들렸다 - 사용자 지적)
-  - 되풀이되는 말도 버린다: "아~ 아 힘들어" 에서 앞의 "아~" (사용자 지시)
-- 프젝아 모캡 재편집 5 (2026-09-27, 사용자 "묶음 안 고쳐짐 · 이랑이 다음 컷으로 넘어감"): 10조각 32.91초
-  - 앞 판(덩이마다 조각)이 틀렸다. 쉼을 깎으려면 컷이 생기고, **그 컷이 자막 줄 한가운데를 지나가면 뒷말이 다른 장면이 된다.**
-  - 규칙: **컷은 자막 줄이 바뀌는 자리에만.** 줄 안의 쉼은 원본 그대로 두고, 줄 바뀌는 자리의 쉼을 그보다 길게 남긴다
-    (완성본 실측: 제가|슈트를 0.60 < 슈트를|입고 0.80 · 반팔|이랑 0.36 < 이랑|이렇게 0.50)
-  - 완성본에서 0.2초 넘는 쉼을 전부 재서 줄 안/줄 사이를 찍는 검사를 추가
-- 프젝아 모캡 재편집 6 (2026-09-27): 7조각 34.08초. **컷은 문장 사이에만, 큰 쉼은 줄 경계에.**
-  - 모캡 소스는 늘 움직여서 0.2초만 지워도 자세가 달라진다 = 시청자에게는 "다음 장면". cutmatch.py 로 쟀다
-  - 쉼을 꼭 줄여야 하면 **화면이 가장 덜 튀는 자리**를 골라 자른다 (제가|슈트를: 차이 1.7 = 이웃 프레임 수준, 안 보인다)
-  - 줄 한가운데에 0.45초 넘는 쉼이 있으면 자막을 그 쉼에서 나눈다 ("그래서 이제" -> "그래서" / "이제 너무 복잡한 이런")
-  - pauses.py: 완성본 쉼을 전부 재서 줄 안/줄 경계를 찍는 검사
-- 프젝아 모캡 재편집 7 (2026-09-27): 10조각 33.01초. **사용자가 따옴표로 쓴 말은 자막 줄 이름이다** -
-  "'이게'는 다음 장면으로 넘어감" 을 낱말로 읽고 엉뚱한 곳을 고쳤다 (한 판 낭비). "이게"+"슈트가 아니에요" 를 한 줄로 합쳤다
-  - "하고 있거든요?" 뒤 여백 0.80 -> 0.38 (자를 자리는 cutmatch 로), "제가|슈트를" 쉼 0.40 -> 0.30
-- 프젝아 모캡 재편집 8 (2026-09-27): 9조각 33.42초. "제가 슈트를" 묶음 네 판째.
-  - **쉼 차이를 3배로** (0.34 : 0.96). 1.3-1.6배로는 귀가 못 가른다
-  - **컷이 튀는지는 평균이 아니라 칸(8x8) 최대차이로 잰다.** 평균 3.8 = "안 보임" 이라고 적은 자리가 칸으로 보면 21.9 였고
-    실제로 팔이 확 달라져 있었다 (배경이 넓어 평균이 희석된다). 이웃 프레임끼리는 중앙 2.0 · 90% 13.6
-  - 자막이 화면에 어떻게 뜨는지 프레임을 떠서 확인했다 - 수치만 보고 "고쳤다" 고 하지 말 것
-- 프젝아 모캡 재편집 9 (2026-09-27): 9조각 33.32초. **"패딩 문제가 아니라 장면이 넘어가는 게 문제"** (사용자).
-  한 자막 줄은 한 장면 안에 있어야 한다. 쉼을 아무리 맞춰도 컷이 줄을 가르면 소용없다 - 다섯 판을 쉼만 만지다 날렸다.
-  scenes.py: 컷마다 그 자리에서 자막이 바뀌는지 검사 (지금 8개 전부 0.25초 안)
-- 프젝아 모캡 재편집 10 (2026-09-27): 8조각 33.80초. **"슈트를" 의 자리를 다섯 판 동안 잘못 알고 있었다.**
-  마찰음(3-7kHz)으로 찾으니 슈 는 5.92 (레벨 -64 라 대역만 보면 쉼으로 읽힌다). 위스퍼는 4.32-6.38 로 걸쳐 잡았다.
-  자막 "입고 있는 게 아니에요" 가 5.96 에서 **슈트를 위에** 떠 있었고, 그 앞에 컷까지 있었다 -> 6.76 으로 옮기고 컷 제거
-  - **무성 마찰음은 대역 레벨에 안 나온다.** 낱말 자리를 다툴 때는 3-7kHz 비율을 같이 본다
-- **프젝아 모캡 돌아보기** (2026-09-27): 왜 열 판이 걸렸는지 `edit/프젝아모캡/돌아보기.md` 에 정리.
-  검사 도구는 `tools/edit_audit/` 로 옮겼다 (speech_map · align · cutmatch · verify_runs · scenes · pauses · check + README).
-  CLAUDE.md 에 "컷과 자막 묶음" 규칙 여덟 줄 추가
-
-
-## 퍼리 취향 1차 편집 (2026-09-28, jobs/20260928_115551)
-
-소스 122.53초 -> **조각 12 · 자막 19줄 · 31.44초** (배속 1.0). 대시보드 pmuknjjx20v5j.
-내용은 지시대로 팬 믿음 -> 담비(팬 캐릭) 믿음 -> 퍼리 취향. 자세한 것은 `edit/퍼리취향/notes.md`.
-
-- **프젝아 모캡 열 판에서 세운 규칙대로 처음부터 했다** (CLAUDE.md "컷과 자막 묶음"):
-  전대역 말 지도로 덩이를 그리고 컷은 덩이 사이에만 · 한 자막 줄 = 한 장면 · 줄 시각은 말 토막에 글자 담기 ·
-  굽고 나서 검사 넷 + 프레임 육안. 재편집 없이 검사 넷 다 0건으로 끝났다
-- **소스가 -37.4 LUFS 로 지금까지 중 가장 조용하다.** 앞 편 문턱을 그대로 쓰면 소스 전체가 "말" 로 읽힌다 -
-  말 p90 -34.6 · 쉼 p50 -56 을 재서 -47/-53 으로 내려 잡았다. `tools/edit_audit/README.md` 에 편마다
-  다시 재는 절차와 두 편의 값을 표로 적어 두었다
-- **검사 도구 셋이 틀려 헛경보 10건을 냈다.** 전부 "앞 편에 맞춰 놓은 값" 탓 - 원본만 대역 트랙을 섞어 재기 ·
-  배속 1.1 박아 두기 · 말 문턱 p60. 고쳐서 `tools/edit_audit` 에 되돌렸다.
-  **결함 값이 한쪽으로 고르게 쏠리면 검사를 먼저 의심한다** 는 규칙이 이번에도 맞았다
-- 재전사를 한 번 더 했는데(허락받음) 결과가 거의 같았다. 되풀이로 보이던 문장이 실제 되풀이였다 -
-  **말 지도에 덩이가 따로 있으면 위스퍼 되풀이는 헛것이 아니다.** 다음엔 재전사 전에 말 지도부터 본다
-- 낱말 정본(아담이 · 담비 · 퍼리)은 클립을 보내 사용자에게 물어봤다. 파형으로 못 푸는 자리는 일찍 묻는다는
-  규칙대로 했고, 물음 두 번으로 끝났다
-- 연출: 후원 멘트는 캡처 카드 (흰 테두리를 구워야 배경에 안 묻힌다) · 채팅은 프리셋 카드 셋 ·
-  설명 딱지 한 장 · 확대 1.2 한 번 · 밀기 한 번. 2D 모델이라 이음매가 이웃 프레임과 같아 컷이 안 보인다
-
-### 퍼리 취향 재편집 1 (2026-09-28, jobs/20260928_160546)
-
-조각 12 · 31.96초 · 검사 넷 0건. 고친 것은 `edit/퍼리취향/notes.md`, 자막 세 갈래는 `edit/퍼리취향/자막.md`.
-
-- **자막 화자 칸을 '디자인 이름' 칸으로 바꿨다** (사용자: "화자가 아니라 기본/발끈/슬픔/강조 등 폰트 디자인을
-  바탕으로 표기할 것"). 프리셋 `captions.speakers` 가 이름 -> 종류로 옮기고, **채팅 · 후원 · 설명은 null** 이라
-  목록에만 남고 안 그려진다 (그림은 fx.json). 앞으로 모든 편이 이렇게 간다
-- 부분 강조 «낱말|sky» (solo 프리셋 accent 디자인 이식) · 슬픔 자막 종류 신설 · 채팅 카드 기본 자리는 화면 중간
-- **"담비에 포커스 맞춰 확대" 는 zoom fx 가 아니라 조각 크롭으로 했다.** zoom 은 프리셋 face 한 점만 보고
-  확대해서 얼굴 말고 다른 것에 못 맞춘다. 조각에 crop 을 주면 그 장면만 다른 화면잡기가 된다 (창 비율 0.948 유지)
-- 1차에서 "군더더기" 로 보고 자른 0.09초 토막이 **"해놓고" 의 "고"** 였다 (사용자: "해놓(말소리 끊김)").
-  덩이 끝의 짧은 토막은 숨이 아니라 **받침·끝음절**일 수 있다 - 자르기 전에 앞 토막의 글자 수와 맞춰 본다
-
-### 퍼리 취향 재편집 2 (2026-09-28, jobs/20260928_162411)
-
-지적 아홉 개 중 여섯이 **내가 지시를 잘못 읽은 것**이었다. 자세한 것은 `edit/퍼리취향/notes.md`.
-
-- **"전사 자막 / 컷 편집 후 / 전체 자막으로 분류" 는 파일을 셋으로 나누라는 뜻이었다.** 문서 한 장에 세 표로
-  적고 captions.csv 에는 다 섞어 넣었더니 "통합 하면 어떡해" 소리를 들었다.
-  이제 `captions_전사.csv` · `captions_컷후.csv` · `captions.csv`(전체 · 이것만 굽는다)
-- **화자 칸은 화자로 두고 `kind` 칸을 새로 만들었다** (기본 · 부분 강조 · 강조 · 슬픔 · 펀치 ...).
-  앞 판에 화자 칸을 디자인으로 덮었더니 담유이가 사라졌다. scene.mjs · apply_review · export_shortsmith 가 새 칸을 나른다
-- **대시보드 미리보기는 프리셋의 "안 그리는 화자" 를 몰랐다.** 그래서 채팅 · 후원 · 설명 줄을 자막으로 또 그려
-  화면에 두 번씩 나오고 겹쳤다 (`dashboard/js/feedback.js` 에서 건너뛰게 고침).
-  **파이프라인에 새 종류의 줄을 넣으면 굽는 쪽 · 대시보드 미리보기 · 손편집 탭 셋 다 손봐야 한다**
-- "슬픔 / 우울 같은 효과" 를 화면 흑백(mono)으로 읽었는데 시킨 적 없는 연출이었다 - 뺐다.
-  **애매한 주문은 시킨 범위 안에서 가장 좁게 푼다** (여기서는 자막 디자인 하나)
-- 부분 강조 낱말 앞뒤 틈 `accent.gapEm` (Caption.tsx) · 채팅 카드 배율 1.0 · 담비 클로즈업 1.5배 더
-
-### 퍼리 취향 재편집 3 (2026-09-28, jobs/20260928_164438)
-
-자막 줄 둘을 지우고("왜냐면" · "그러니까 난") 셋을 고쳤다. 31.96초, 검사 넷 0건.
-
-- **지운 줄 자리는 앞뒤 줄이 먹지 않고 비워 둔다.** 처음엔 뒷줄을 앞당겼는데 자막이 딴 말("왜냐면") 위에 떴다.
-  줄 끝을 제 조각 끝 +0.10초로 막았다 (컷에서 깜빡이지 않을 만큼만 넘긴다)
-- **스크린샷은 자막이 아니다** (사용자: "내용 변경이 안 되잖아"). 후원 캡처는 자막 목록에서 뺐고,
-  채팅 카드 · 설명 딱지는 글이라 남기되 **미리보기에서 고치면 카드 · 딱지에 바로 반영**되게 했다 (feedback.js)
-- **대시보드 렌더 단추가 fx.json 의 채팅 글을 지웠다.** 같은 시각에 자막 줄과 채팅 줄이 둘 다 있으면
-  빈칸 고침이 엉뚱한 쪽에 먹는다. `apply_review.py` 가 **빈 글은 fx.json 에 옮기지 않게** 막았다
-
-### 퍼리 취향 재편집 4 (2026-09-28) - "자막 세 갈래" 는 대시보드 탭이었다
-
-같은 지시를 세 번 잘못 읽었다: 문서의 세 표 -> csv 파일 셋 -> **피드백 탭의 자막 탭**.
-사용자가 보고 있던 화면을 먼저 확인했으면 한 번에 끝났다.
-
-- `dashboard/index.html` 자막 칸 탭을 셋으로: **전사 자막 · 컷 편집 후 · 전체 자막**.
-  전에는 둘이었고 "전체 자막" 이라는 탭이 실은 전사본을 보여 주고 있었다 (이름부터 틀렸다)
-- 자막 마디는 한 벌만 만들고 탭에 따라 옮겨 심는다 (`fillSubs`). 마디에 **디자인(kind) 칸**을 넣어
-  보이고 고칠 수 있게 했다. 전체 자막 탭에는 제목 · 설명 딱지 · 채팅 카드까지 나온다
-- 전사본 파일은 `edit.json` 의 `"transcript"` 로 고른다 (재전사한 편은 그쪽이 낫다)
-- **사용자가 "왜 이렇게 나눠지냐" 고 하면 내 파일이 아니라 사용자가 보는 화면을 먼저 본다**
-
-### 프리셋 이름 바꿈 (2026-09-28)
-
-담유이 Solo Shorts -> **담유이 Solo Shorts I** · 담유이 Test Shorts -> **담유이 Solo Shorts II** (사용자 지시).
-아이디(`damui-solo-shorts` · `damui-test-shorts`)는 그대로. 옛 이름은 `aliases` 앞에 남겨 두었다 -
-프로젝트에 적힌 옛 이름이 못 찾으면 첫 스타일로 떨어진 값이 자동 저장된다 (봉누도2 귀신에서 한 번 그랬다).
-대시보드는 preset.json 을 그때그때 읽으므로 새 이름이 바로 뜬다 (열어서 확인).
-
-### 피드백 탭 자막 칸 (2026-09-28) - 전사 자막 / 전체 자막 / 타임스탬프
-
-사용자: "컷편집 후를 지우고 전사 자막 / 전체 자막으로 바꾸자 어차피 중복인 부분이 있으니까
-대신 타임스탬프 탭을 추가하고 타임 스탬프 (시작 ~ 끝) 혹은 클립으로 적어줘 다른 탭에서는 타임 스탬프 적지말고".
-
-- "컷 편집 후" 를 뺐다 (전체 자막과 겹친다). 탭 셋: **전사 자막 · 전체 자막 · 타임스탬프**
-- **시각은 타임스탬프 칸에만 적는다.** 전사 · 전체 칸에서는 시각 칸을 뺐다 (글만)
-- 타임스탬프 칸: **클립 12개**(완성본 시작~끝 · 길이 · 원본 시작~끝)와 **자막 줄**(시작~끝 · 디자인 · 글).
-  시작 시각을 고치는 곳도 여기로 옮겼다 (c.s2, 글은 그대로 두고 그 클립 시작만 옮긴다).
-  글이 바뀔 수 있으니 이 칸은 **볼 때마다 새로 그린다**
-- 클립 시각은 `export_shortsmith.py` 가 `review.clips` 로 내보낸다 (원본 · 완성본 시각 둘 다)
-
-### 빈 "첫 프로젝트" 가 자꾸 생기던 까닭 (2026-09-28)
-
-사용자: "왜 자꾸 첫 프로젝트가 계속 생기는 거지? 내가 매번 지우고 있는데".
-
-`Projects.blank()` 가 **아이디를 미리 찍어서** 만들고 있었다. 그러면:
-브라우저에 저장된 상태가 없을 때 `blank('첫 프로젝트')` -> 20초 자동 저장(`P.dirty && cur().id`)에 걸려
-**빈 프로젝트가 폴더에 생긴다.** 열려 있던 프로젝트를 지웠을 때도 `blank('새 프로젝트')` 로 같은 일이 났다.
-
-- `blank()` 는 **아이디를 주지 않는다.** 실제로 저장할 때 `ensureId()` 가 준다 (새 프로젝트 만들기는 force 저장이라 그대로 된다)
-- 자동 저장과 `stash()` 는 **아이디가 있거나 손댄 것이 있을 때만** (`hasContent()`: 클립 · 자막 · 쪽지 ·
-  프롬프트 · 끌어다 놓은 파일). 빈 채로는 폴더에 안 만든다
-- 남아 있던 빈 프로젝트 하나(`pmukvvm5m0v2p` 첫 프로젝트)는 사용자가 지울지 정한다
-
-### 타임스탬프 칸을 한눈에 (2026-09-28)
-
-시각을 줄줄이 적으니 무엇이 무엇인지 안 보였다 (사용자: "직관적이지 않아").
-**클립을 제목으로 두고 그 안에서 시작하는 자막을 들여 적는다** - 어느 조각에 어떤 말이 들었는지,
-완성본 시각과 원본 시각이 어떻게 맞물리는지가 한눈에 보인다. 제목처럼 영상 내내 있는 줄은 "영상 전체" 로 위에 뺐다.
-
-### 전체 자막 = 두 축 타임라인 (2026-09-28/29)
-
-타임스탬프 칸은 **없앴다.** 사용자가 그려 준 두 축 그림을 **전체 자막 칸**에 그대로 넣었다
-(지시: "타임 스탬프 란 제거, 전체 자막에 현재 디자인으로 반영, 전사 자막은 일단 유지").
-자막 칸 탭은 이제 **전사 자막 · 전체 자막** 둘이다.
-
-왼쪽에 가는 두 축(**원본** · **편집**), 오른쪽에 자막 글. 머리글 "원본"/"편집" 은 축 한가운데에 맞춘다.
-
-- **줄 사이는 글이 아니라 선으로 말한다** (지시: "편집에선 붙음 - 이런거 적지말고 …
-  중간에 선으로 표시 -> 활성화 색상에 맞춰서 선 -> 붙음, 점선 -> 공백 프레임").
-  "컷 6.3s · 원본에서 뺌" 같은 딱지도 전부 뺐다
-  - 편집 축: **실선(활성 색) = 붙음** (한 프레임 안) · **점선 = 공백 프레임**
-  - 원본 축: 조각 안에 남아 있는 부분은 축과 **같은 너비의 이어진 띠**, 잘라 낸 자리만 **빗금**.
-    빗금의 위아래는 **앞 조각 끝 · 뒤 조각 시작**에 닿는다 (지시: "제거 부분도 단순 도형이 아니라
-    각 클립 시작 끝에 맞출 것"). 조각은 편집 시계에서 맞붙어 있으므로(`pk.oe === ck.os`)
-    그 한 점이 빗금 자리다 - 앞 조각 꼬리와 뒤 조각 머리 길이로 나눠 놓는다
-- **고른 줄은 파란 영역.** 거기서 글 · 화자 · 디자인 · 시작 · 끝을 고친다. 고르면 **영상이 그 시작으로 간다**
-  ("영상 위치로" 단추는 없앴다 - 편집하면 기본으로 옮긴다)
-- **시작 · 끝은 가로로 놓인 스핀 박스** (− 값 +). 누르고 있으면 빨라진다 -
-  한 프레임(1/60초)으로 시작해 1.2초 뒤 다섯, 2.5초 뒤 열 프레임씩. 위/아래 화살표도 한 프레임
-- **길이는 못 고친다** - 시작과 끝에서 나오는 값이다 (지시)
-- 고친 값은 `c.s2` · `c.e2`. `apply_review.py` 가 이제 **s2/e2 를 보고** captions.csv 를 쓴다
-  (전에는 s/e 만 봐서 대시보드에서 고친 시각이 렌더에 안 들어갔다). 미리보기와 클로드에게 넘길 글에도 들어간다
-- **숫자 딱지는 안 적는다** (지시: "클립 n, 자막 n 컷 n 이런거도 표시하지마") - 조각 번호 · 갯수 · 줄 번호 전부 뺐다
-- 제목처럼 영상 내내 떠 있는 줄은 축에 안 그린다 ("영상 전체" 로 맨 위에). 4.3초가 넘는 줄은
-  `≈` 로 접는다 (채팅 카드 하나가 칸을 다 먹는 것을 막는다)
-
-### 두 축 타임라인 되살림 · 원본/편집 따로 · 되돌리기 (2026-09-29)
-
-사용자: "이런 거 어디 갔어?" (빗금 삼각형 + ≈) · "이전에 얘기했던 내용이랑 너무 많이 달라졌어" - 11가지 그림을 다시 보냈다.
-**그 그림이 정본이다.** 줄 사이를 글 대신 모양으로 말하는 것만 유지하고 나머지는 그림대로 되돌렸다.
-
-- 공백 없음 -> 두 축 막대가 **맞붙는다** (전에는 5px 띄우고 실선을 넣었다). 공백 -> **그 길이만큼 떼고** 점선, 1.2초 넘으면 ≈
-- 컷 -> 원본 축 빗금 + 두 축 사이 **빗금 삼각형**(원본 구간 -> 편집 한 점) + 두 축에 ≈. 편집 축은 활성 색 실선(붙음)
-- 자막 안의 컷 -> 원본 막대 안에 빗금, 편집 막대는 이어진다. 자막 끝이 조각 끝을 0.15초 안으로 넘는 것은 꼬리 여유로 본다
-  (이 편은 모든 줄이 조각 끝 +0.10초라 이걸 안 두면 줄마다 삼각형이 붙는다)
-- 겹침(담유이 줄끼리) 빨강 · 0.15초보다 짧은 틈 노랑. 틈은 앞 줄들의 가장 늦은 끝(frontier)에서 잰다 - 채팅 카드가 말 위에 겹쳐 떠서
-- 고른 줄: 두 축과 글을 한 파란 띠로, 두 축 끝점에 점, 왼쪽에 원본 시각
-- **원본 · 편집 따로 만진다.** 원본 막대를 누르면 원본 시각(`os2`/`oe2`)만, 편집 막대나 글을 누르면 편집 시각(`s2`/`e2`)만.
-  만지는 축의 점만 꽉 차고 끌 수 있다. 원본 고침은 **컷**이라 렌더 단추로는 안 들어간다 -
-  클로드에게 넘길 글에 `[원본 시각 a~b → c~d - 컷 조정]` 으로 적히고 `apply_review.py` 가 알린다
-- **Ctrl+Z 되돌리기 · Ctrl+Shift+Z (Ctrl+Y) 다시.** 자막 줄(시각 · 원본 시각 · 글 · 화자 · 디자인)과 전사 낱말(남김/뺌)을 찍어 둔다.
-  같은 것을 0.8초 안에 잇달아 만지면(스핀 누르고 있기 · 끌기) 한 번으로 친다. 글 칸 안에서는 브라우저 글자 되돌리기가 먹는다
-
-### 자막 칸 = 원본 · 편집 (2026-09-29)
-
-사용자: "원본 클립에 제거된 전사 자막 클립 표시는 어디 가고 어떻게 긴 구간 생략만 이렇게 많을 수가 있지?" ·
-"전사 자막 / 전체 자막 나누지 말고 원본 편집 2개로 … 컨트롤 따로 / 표시는 동시에" · "타임라인 더 왼쪽으로" ·
-"원본 편집에서는 현재 전사 자막까지 표시에 해당하는 기능을 수행" · "배경 누르면 선택 해제".
-
-- 탭은 **원본 · 편집** 둘. 탭은 **무엇을 만지는지**만 고르고 두 축은 늘 같이 보인다. 전사 자막 칸(#subsTrans)은 없앴다
-- 줄은 **원본 시각 차례**. 컷 자리마다 원본 축에 빗금 띠를 깔고 **그 안에 뺀 말(전사) 클립**을 빨간 테로 제 자리에 세운다
-  (이 편: 머리 컷 포함 12자리, 뺀 말 클립 12개). **≈ 는 말 없는 1.2초 넘는 무음에만** - 전에는 컷마다 무조건 붙였다
-- 원본 탭: 담유이 줄 글 대신 **그 자리 전사 낱말**이 뜨고 눌러서 빼기 · 되살리기 (전사 칸이 하던 일). 줄을 고르면 원본 시각 스핀
-- 편집 탭: 자막 글 · 화자 · 디자인 · 편집 시각
-- 남은 낱말 -> 줄 짝짓기는 **낱말 x 줄 DP** (시각에서 떨어진 초 x 1.5 - 글자 맞은 비율 x 2.5, 차례 유지).
-  시각만 쓰면 위스퍼가 일러서 줄 끝 낱말이 앞 줄로 샜다 ("어 잠깐만 구독 | 풀려서"). 한 음절 "나" · "아" 는 아직 갈릴 수 있다 (짐작)
-- 컷 경계에 걸친 낱말(keep 인데 out 없음 8개)은 원본 시각으로 편집 시각을 찾아 담는다
-- 축을 왼쪽으로 (원본 x=6, 편집 x=40, 글 x=64). 원본 시각 숫자는 축 옆이 아니라 카드 안에 적는다
-- 배경을 누르면 고른 것이 풀린다
-
-### 자막 칸: 타임라인만 같이, 글 칸은 가로로 넘김 · 낱말 단위 전사 (2026-09-29)
-
-사용자: "같이 표시 하라는건 타임 라인만이고 횡스크롤로 타임라인 따로 컨트롤" · "제거 된 부분 시작, 끝 부분 표시도 제대로 안되고" ·
-"편집에서는 전사 자막이 안 보이게, 원본에서는 채팅 같은 전사 자막 외에는 표시 금지, 타임스탬프 조작 금지" ·
-"제거 부분 삼각형이 아니라 시작, 끝 제대로 반영해서 다각형으로" · "되살리거나 제거하면 해당 부분 편집에 반영" ·
-"클립 부분 말고도 배경 클릭하면 선택 해제" · "전사 다시 돌려서 앞으로는 단어 단위로 타임스탬프 찍어".
-
-- 왼쪽 두 타임라인은 **따로 깐다**: 원본은 원본 시각(조각 막대 · 뺀 자리 빗금 · **낱말 하나하나**), 편집은 편집 시각(자막 막대).
-  둘 사이에 남긴 구간은 띠(원본 구간 -> 편집 구간), 뺀 자리는 원본 구간 -> 편집 한 점 빗금. 위아래가 조각 끝 · 다음 조각 시작에 닿는다
-- 오른쪽 글 칸은 **원본 쪽 / 편집 쪽 두 장**을 가로로 넘긴다 (탭 · 가로 휠 · Shift+휠). 넘길 때 보던 시각이 그대로 보이게 스크롤을 맞춘다
-- 원본 쪽: 전사 낱말만, 눌러서 빼기/되살리기, 시각은 못 만진다. 편집 쪽: 자막만 (채팅 · 설명은 오른쪽에 흐리게, 축 옆 보라 줄)
-- 되살리기 · 빼기는 **편집 타임라인에 바로 반영**: 남길 구간 = 조각 - 뺄 말 + 되살릴 말. 되살린 자리는 초록, 뺄 말은 주황
-- 빈 곳(글자 · 막대 · 카드 · 단추가 아닌 데)을 누르면 선택 해제 - 글 줄의 빈 부분도 빈 곳이다
-- 전사: `tools/transcribe_words.py` (새). VAD 를 켜 봤다가 버렸다 (낱말 90 -> 71, 편집에 들어간 "사람은 아직 믿어?" · "아 맞다 나 단미지" 등이 빠짐).
-  VAD 없이 같은 모형 · 설정이면 앞 전사와 같아서 다시 돌리지 않고 `--from word_level_loud.json` 으로 2단계(말 토막에 글자 나눠 담기)만 했다.
-  자막 시작(잰 값)과의 차이 가운데값 0.96 -> 0.52초. 문장 첫 낱말은 앞소리가 이어지면 아직 1초 가까이 이르다 (강제 정렬 모형이 있어야 풀린다 - 내려받기 필요, 안 함)
-
-### 전환 동기화 · 원본 축척 따로 · 색 (2026-09-29)
-
-- 전환 동기화가 안 되던 까닭 (잰 것): 원본 1510px · 편집 ~700px 로 길이가 달라서, 원본에서 본 순간을 편집 쪽 같은 높이에 둘
-  스크롤 자리가 없어 맨 위에 걸렸다. -> **원본 축척을 따로 골라 두 타임라인 길이를 맞춘다** (글 한 줄 높이는 지키고,
-  그래도 길면 편집을 늘린다). 이 편 둘 다 858px
-- **노란 재생 위치 줄**을 두 타임라인에 같이 긋고 사이를 잇는다. 쪽을 넘길 때 재생 위치가 화면에 있으면 그 줄이 같은 높이에
-  남게 스크롤한다 (재 봄: 300px -> 300.5px -> 300px). 없으면 화면 가운데 시각을 맞춘다
-- 색: 말을 뺀 자리 빨강 빗금 · 무음만 뺀 자리 회색 빗금 (이 편 6 · 6) · 이번에 뺄 것 주황 · 되살릴 것 초록 ·
-  남긴 조각은 파랑/보라 번갈아 (원본 막대와 띠가 같은 색 - 어느 띠가 어느 조각인지 따라간다)
-
-### 편집 쪽 두 칸 · 같은 층 겹침 단추 · 원본 줄 안 갈림 (2026-09-29)
-
-- 편집 쪽 글 칸을 둘로: 담유이 왼쪽(62%), 채팅 · 설명 · 후원 오른쪽 좁은 칸, 각자 제 시각에. 오른쪽끼리 겹치면 아래로 민다
-  (재 봄: 담유이 16 · 오른쪽 7, 글 상자 겹침 0)
-- 같은 층 겹침(담유이끼리, 같은 화자의 채팅끼리)은 오류 -> 빨강 + 카드에 "앞 자막 끝을 뒤 자막 시작에 맞추기" 단추.
-  다른 층(채팅 카드가 담유이 말 위)은 원래 겹치는 것이라 안 건드린다
-- 원본 줄은 낱말 상태로 나누지 않는다 - 되살리거나 빼면 줄이 갈라져 새 줄이 생겼다. 위스퍼 문장 · 0.5초 넘는 쉼으로만 나눈다
-
-### 굽지 않은 미리보기 (2026-09-29)
-
-사용자: "추가된 부분 안 굽고 미리 보기에서 적용 가능한가?" -> "만들어줘".
-- `tools/src_preview.py`: 원본 전체의 가벼운 사본 `src_preview.mp4` (1280폭 30fps, 0.5초 키프레임, 21초 걸림, 31MB) +
-  project.json 에 `review.srcPreview` · 조각마다 `crop` · `gain`. 이득 = 완성본 고정 이득(+17.20) + 조각 최대(+4.0) = +21.20dB,
-  조각별 차이는 미리보기가 볼륨으로 줄인다. `export_shortsmith.py` 가 끝에서 부른다
-- shortsmith `scene.plan` (미리보기 전용): 남길 원본 구간을 차례로 `<Sequence>` + `<Video>` 로 이어 튼다 (0.6초 미리 올림).
-  조각 크롭은 전체 화면을 키우고 밀어서 맞춘다 (담비 확대 조각도 그대로)
-- 대시보드: 되살리기 · 빼기가 하나라도 있으면 저절로 이 미리보기로 바뀐다 (왼쪽 위 초록 표시). 자막 · 카드 · 효과 시각을 계획 시각으로 옮기고,
-  이동 · 쪽지 · 재생 위치 줄은 toVid / nowEdit 로 편집 시각과 오간다. 다 되돌리면 구운 미리보기로 돌아온다
-- 재 봄: "그런 거 아니지"(17.07-22.43) 되살림 -> 31.97 -> 37.33초, 계획 10.48초에서 원본 19.2초를 튼다. "사심이라고" 빼면 36.22초
-- 렌더와 다른 점: 컷 이음 크로스페이드 없음, 이음에서 조금 끊길 수 있음 (확인 안 함 - 귀로 들어 보지 못했다)
-
-### 제거만 다각형 · 파란 영역 안 빈 곳 = 해제 · 덜 빽빽하게 (2026-09-29)
-
-- 두 타임라인 사이 다각형은 **제거만** (말 뺌 빨강 · 무음 뺌 회색 · 뺄 것 주황). 남긴 구간 띠는 안 그린다. 원본 막대도 한 색
-- 고른 자막의 파란 영역 안에서도 입력 칸 · 단추 · 스핀이 아닌 데를 누르면 선택 해제
-- 덜 빽빽하게: 줄 최소 높이 24 -> 30, 글 13px · 줄 간격 19, 원본 줄 사이 5px, 원본 쪽 뺀 말은 상자 없이 흐린 빨강 줄긋기
-  (통째로 뺀 줄은 더 흐리게), 남은 낱말 막대는 흐리게 (뺌 · 되살림 · 뺄 것만 눈에 띄게), 오른쪽 칸(채팅 · 설명)은 한 줄 + …,
-  범례는 글 줄 대신 색 견본 다섯
-
-### 스핀을 눌러도 안 고쳐지던 것 (2026-09-29)
-
-사용자: "늘려도 지금 편집에서 수정이 안돼 미리보기에서 보이지도 않고". 재현: + 를 누르면 한 프레임 바뀐 뒤 카드가 닫혔다.
-스핀은 누르는 동안 칸을 새로 그리므로 누른 단추가 떨어져 나가고, 브라우저가 뒤따르는 click 을 빈 바탕에 쏜다 ->
-바로 앞에 넣은 "빈 곳 누르면 선택 해제" 가 그걸 빈 곳으로 읽었다. **누르기가 어디서 시작됐는지(mousedown)** 로 가르게 고쳤다.
-재 봄: 끝 + 1.5초 누르기 8.14 -> 8.73초, 카드 그대로, 8.44초에서 미리보기에 그 자막이 나온다, 빈 곳 누르기는 여전히 해제.
-
-### 되살린 자리를 편집 쪽 자막 줄로 (2026-09-29)
-
-사용자: "아예 추가된 부분 선택도 안되고 편집에서 추가되는게 없다니까". 되살린 말은 편집 축에 초록 막대로만 생기고
-글 칸에는 줄이 없어서 고를 수 없었다.
-- 되살린 구간(restoreRanges)마다 **편집 쪽 담유이 줄**이 생긴다 (앞에 초록 +). 글은 그 자리 낱말로 채우고 글 · 화자 · 디자인을 고친다.
-  시각은 되살린 낱말을 따른다 (카드에 원본 시각만, 스핀 없음). 초록 막대 · 글을 누르면 골라지고 영상이 그 자리로 간다
-- `R.restoreCaps` 에 원본 시각(src)으로 들고 간다 (지금 편집 시각이 없는 자리라 R.captions 에 못 넣는다). 되살리기를 풀면 줄도 사라진다.
-  사용자가 고친 글은 되살린 범위가 바뀌어도 남는다. 되돌리기에 들어간다
-- 굽지 않은 미리보기에 그 자막이 나온다. 렌더 단추로는 안 들어가고 (컷이 먼저) 편집(AI)에 넘기는 글에 `[되살린 자리 자막 - 원본 시각]` 으로 적힌다
-- 재 봄: "그런 거 아니지"(원본 17.07-22.44) 되살림 -> 초록 줄 1 · 막대 1, 골라서 "그런 거 아니지!" 로 고치면 미리보기 · 넘기는 글에 그대로
-
-### 원본 쪽 줄 전체 되살리기 / 빼기 (2026-09-29)
-
-사용자: "줄 전체 추가 / 삭제도 넣어줘". 원본 쪽 줄 끝에 + (줄 전체 되살리기) · - (줄 전체 빼기). 낱말 하나씩 누르는 것과 같은 규칙을
-줄 낱말 전부에 한 번에, 되돌리기도 한 번. 할 게 없는 쪽 단추는 흐리게 꺼 둔다.
-재 봄: "구독 풀릴까봐" + -> 되살림 2낱말, 편집 쪽 초록 줄, 31.97 -> 37.29초 / "이제 풀렸으니까 구독 안 해도 되겠네" - -> 6낱말 뺌, 34.36초 /
-Ctrl+Z 두 번에 원래대로. 단추 자리 때문에 둘째 줄이 잘리던 것도 고쳤다 (줄 폭을 22px 넉넉히 잰다).
-
-## 야설 낭독회2 1차 편집 (2026-09-29, jobs/20260929_160658)
-
-소스 야겜낭독회2.mp4 139.27초 -> **조각 10 · 38.44초** (배속 1.0). 대시보드 pmumc0danb4r3. 자세한 것은 `edit/야설낭독회2/notes.md`.
-
-- 크고(-18.5 LUFS) 배경음 바닥이 높은(-40) 소스. 말 지도 -26/-33 · 검사 도구 문턱도 그만큼 (verify_runs GAIN -0.8, pauses -30)
-- **transcribe_words.py 는 speech_map.json 이 없으면 -52/-60 고정으로 덩이를 그린다** - 바닥이 -40 인 소스에서는 통째로 한 덩이가 돼
-  2단계 맞춤이 헛돈다. 이 편은 말 지도를 먼저 그리고 `--from` 으로 2단계만 다시 돌렸다 (AI 안 씀). **다음 편은 말 지도를 전사보다 먼저**
-- 담유이가 소스 맨 아래 구석이라 **크롭을 크게 잡으면 자막이 입을 가린다** (첫 굽기에서 프레임으로 확인). 465x490 (2.3배)으로 좁혔다
-- 빌드 중 Remotion 이 Chrome Headless Shell(113MB)을 스스로 내려받았다 (첫 렌더에서)
-- 낱말 짐작: 퉁실이 · 비실이 (위스퍼 퉁시리 · 비시리) - 사용자 확인 전
-
-### 야설 낭독회2 재편집 1 (2026-09-29, jobs/20260929_163201)
-
-조각 9 · 35.80초. 퉁실이 · 비실이 사용자 확인. 자막 둘 고침 · 마지막 조각("이거 보내놔야겠다") 뺌.
-- **담유이가 소스 맨 아래에 붙어 있으면 확대할수록 입이 창 위로 올라간다** (아래 끝이 고정이라). 사용자 "확대를 더 크게 해서
-  위 여백을 줄이고 얼굴 아래 부분이 좀 더 많이 남게" -> 398x420. 첫 판 626x660 은 자막이 입을 가렸고, 465x490 은 위 여백이 많았다
-- 피드백 탭: 재생 중 재생 위치 선이 아래 1/4 로 내려가면 타임라인을 따라 내린다 (`follow()`, 선은 위 30% 로).
-  멈춤 · 방금 휠/스크롤바를 만졌을 때(1.5초)는 안 따라간다. 브라우저에서 재생해 확인 (스크롤 0 -> 190 -> 380 -> 779)
-
-### 렌더 단추가 되살리기 · 빼기까지 굽는다 · 원본 쪽 타임라인 (2026-09-29)
-
-사용자 "미리보기에서 컷 편집까지 관리" -> **미리보기에서 들은 컷 그대로 AI 없이 굽는다.**
-- `tools/apply_review.py` 가 feedback.js 와 **같은 계산**(plan · toPlanT · planScene 의 조각 나누기)으로 edit.json keep 을 다시 쓴다
-  (edit.json.bak). 조각마다 크롭 · gainDb 물려받음, 되살린 틈은 앞 조각 크롭 · 이득 0. 자막 · fx.json 숫자 시각도 옮기고,
-  말이 다 빠진 자막 줄은 버린다 (그 줄을 가리키던 연출은 그 자리 숫자 시각으로). 되살린 자리 자막(restoreCaps)은 줄로 넣는다
-- 서버(`dashboard/server.py` shortsmith_job)는 edit.json 이 바뀌었으면 `shortsmith cuts` 부터 돌린다 - **서버를 다시 켜야 적용**
-- 두 쪽 다 고친 규칙: 빼고 남은 토막에 남은 말이 없으면 버린다 (줄 전체를 뺐는데 조각 여유 0.6초가 남아 자막이 빈 소리 위에 떴다) ·
-  되살린 말 앞 0.10 · 뒤 0.15초 여유 · 걸친 원본 구간이 0.1초 미만 남는 자막 줄은 안 그린다
-- 미리보기에도 컷 이음 소리 크로스페이드 (Window.tsx PlanRange, 렌더와 같은 길이 - scene.body.crossfadeSec). 그림은 프레임에서 바로 넘어간다
-- 시험 (편 폴더 복사본, 뒤에 지움): "오케이 좋은데요 여러분?" 빼기 + "가 될 수도" 되살리기 -> 미리보기 34.51초 · 렌더 34.53초, 프레임으로 줄 순서 확인
-- 원본 쪽 글 칸: 편집 타임라인 · 다각형을 빼고 원본 축을 44px 로 넓혀 축척 1(18px/초)로 편다 - 전사 줄이 제 조각 막대 옆 같은 높이.
-  편집 쪽은 전처럼 두 타임라인 (원본은 편집 길이에 맞춘 축척)
-- (같은 날) 되살린 자리가 재생바로 안 가고 자막이 안 보이던 것: ① 재생바가 영상 시각을 편집 시각으로 여기고 seek() 로 한 번 더 옮겼다 -
-  되살린 자리는 지금 편집에 없는 시각이라 엉뚱한 데로 갔다 -> 재생바는 영상 시각을 그대로 쓴다. ② 크로스페이드를 넣으며 준 PlanRange 의
-  zIndex 가 영상을 자막 층 위로 올려 **굽지 않은 미리보기에서 자막이 전부 가려졌다** -> 뺐다. 스크린샷으로 확인.
-  확인용으로 `D.Feedback.sceneNow()` (미리보기에 넘기는 장면) 를 내보냈다
-- (같은 날) 원본 쪽 줄 끝 ＋/－ 단추가 "잘 안 보여": 회색 55% 에 마우스를 올려야 색이 나던 것을 늘 초록 ＋ / 주황 － 로 (23x21, 굵게). 할 것 없는 단추만 흐리게 30%
-- (같은 날) ＋/－ 글자가 단추 안에서 아래로 치우쳐 보였다 (잰 것: 잉크 가운데가 2px 아래, 글꼴 탓) -> 글자 대신 가운데에 맞춘 SVG 선. 다시 재니 0px
-- (같은 날) 줄 단추 23x21 -> **17x16** (기호 8px, 줄 첫 행 가운데에 top 2px). 글 자리 LINEOPS 54 -> 44
-- (같은 날) 새 프로젝트를 만들면 AI 편집 탭이 먼저 (projects.js create). 기존 프로젝트 열기 · 파일 불러오기는 그대로 피드백 탭
-- (같은 날) 새 프로젝트 이름 칸: 없는 클래스 inp -> .input (다른 칸과 같은 모양), Enter = 만들기 (한글 조합 중 Enter 는 건너뜀)
-- (같은 날) 피드백 탭 "어느 완성본을 볼지" 칸: 장면 미리보기(자막을 직접 그림)일 때와 완성본이 하나 이하일 때 숨긴다. 여러 언어 완성본을 mp4 로 볼 때만 보인다
-
-## 모캡영도랜디 디자인 확인 3초 (2026-09-29, jobs/20260929_173303)
-
-Basic Shorts(공개 프리셋) 첫 쓰임. 영도모캡랜디.mp4 8.60-11.60 한 조각, 앞 30초만 전사. 대시보드 pmumey27ghgew. 자세한 것은 `edit/영도모캡랜디/notes.md`
-- **Basic Shorts = 담유이 Solo Shorts II (배경 영상 없음)** (같은 날, 사용자 지시). shortsmith/presets/basic-shorts/preset.json 을 damui-test-shorts v3
-  에서 복사해 id · name · visibility 만 Basic 것으로, brand.background null, 옛 v1(OFL 글꼴만)은 preset.json.bak.
-  제목은 다음 생 · 삼성 사본처럼 **두 줄 + 핵심 낱말 색 · 1.15배** (Black Han Sans 그대로, 124 / 줄 가운데 195 · 335).
-  shortsmith TitleView 가 새로 두 줄("\n" 또는 " / ") · «낱말|색» 을 받는다 (preset title.centerY · lineGap · keyScale · keyColor).
-  모캡영도랜디 3초를 다시 구워 프레임으로 확인
-- 모캡영도랜디 3초 3판: "말 우리가 월말에 ~ 로 들려" - 조각을 앞 덩이 한가운데(8.60)에서 잘랐다. 파형으로 다시 재 9.40-12.40.
-  **낱말 맞춤(transcribe_words 2단계)은 늘여 말한 낱말 · 숫자에서 한 덩이만큼 틀린다** (고른 속도 가정, "10" 은 글자 수 0).
-  컷 자리는 늘 말 지도(덩이 사이 쉼)로 정한다 - 이번엔 3초짜리라 건너뛰었다가 걸렸다.
-  transcribe_words.py 말 덩이 문턱을 소스 바닥(p10)+7/+14 로 (고정 -52/-60 은 바닥 -40 소스를 통째로 한 덩이로 읽었다)
-- Basic Shorts 글꼴을 OFL 로 되돌림 (사용자 "폰트는 고치자"): 본문 Pretendard ExtraBold · 리액션 Black Han Sans · 손글씨 나눔손글씨 붓
-- Basic Shorts 채팅: 카드 대신 **원본 채팅 캡처** (사용자: 방송마다 채팅 디자인이 다르다). 프리셋 guidance 에 적고 채팅 카드 아이콘(로컬 경로) 뺌 - 공개 프리셋에 로컬 경로 0. 글자 크기는 그대로 두라고 함. 메모리 chat-as-capture
-
-## 모캡영도랜디 1차 편집 (2026-09-29, jobs/20260929_173303, Basic Shorts)
-
-소스 영도모캡랜디.mp4 211.77초 -> **조각 11 · 자막 18줄 · 37.92초**. 대시보드 pmumey27ghgew. 자세한 것은 `edit/영도모캡랜디/notes.md`.
-- 말 지도를 전사보다 먼저 (바닥 -39 소스라 -26/-33). 3초판에서 컷이 앞 덩이 한가운데를 물었던 것을 되풀이하지 않았다
-- **채팅을 처음으로 캡처로** (사용자 지시): 알약 말풍선 오리기 img/cut_bubble.py (푸른 테두리로 몸통을 찾는다), 흰 배경에 묻혀 그림자 구움
-- 검사: 줄 가름 0 · 묶음 0, verify_runs 1건은 헛경보(칸마다 이득만큼 차이), check 1건은 ㅎ 이음이라 골이 없는 자리
-- 확인 안 한 낱말 "푸젯하고" · 제목은 짐작
-
-## 2026-09-30 모캡영도랜디 2판 (Solo Shorts II, 제목 "영도 모캡", 영도 위주)
-- 조각 9 · 38.98초 · 대시보드 pmumey27ghgew. 촉각 슈트 대목을 줄이고 영도댄스 · 생일 모캡 설명(39-74초)을 넣음. 채팅 캡처 셋.
-- Basic 판은 *.basic.* 와 edited/영도모캡랜디_edit_basic.mp4 로 남김. 자세한 것은 edit/영도모캡랜디/notes.md
-
-## 2026-09-30 피드백 탭 리플 켬/끔 스위치
-- 사용자: "원본 편집 탭 전환 옆에 리플 on off 스위치 만들어줘" + 편집기 리플 삭제 · 리플 트림 설명. 끄면 뺀 자리는 빈 틈(검은 창 · 무음), 되살린 말은 덮어쓰기.
-- 고친 곳: dashboard/js/feedback.js (plan 이 [원본 s, e, 편집 시각] 을 돌려줌 · 리플 끔이면 편집 시각 = 계획 시각), index.html · feedback.css (스위치),
-  tools/apply_review.py (같은 계산 · keep 에 {gap}), shortsmith cuts.mjs · body.mjs · util.mjs (gap 조각), Window.tsx (틈은 검은 창, 번들 다시 묶음),
-  export_shortsmith.py · src_preview.py (gap 조각은 대시보드 조각이 아님, 리플 설정 지킴)
-- 시험: 무작위 300가지 리플 켬 = 옛 계산, 리플 끔은 남은 조각 제자리 · 겹침 0, JS = Python 40가지. 사본 렌더에서 틈 2.94초가 -91dB · 검은 창, 길이 38.98 그대로.
-  브라우저에서 시험 프로젝트로 켬 37.20초 / 끔 38.98초 · 틈 검은 창 확인 후 시험 폴더 지움 (사본 렌더 때 Remotion 이 크롬 헤드리스 셸 113MB 를 또 받았다 - 새 편 폴더마다 받는다)
-
-## 2026-09-30 피드백 탭 고른 자막 카드 높이
-- 사용자: "편집에서 자막 편집할때 클립을 많이 늘릴 필요가 없을 거 같아 생각보다 공간을 많이 안 먹어"
-- 재 보니 카드 내용은 글 한 줄에 119px 인데 CARDH 150 으로 잡고, 거기에 편집 쪽 늘림 배율(원본 길이 맞춤, 모캡영도랜디 2.26)이 곱해져 339px.
-  -> cardNeed(글 줄 수, 101 + 20/줄) 를 배율로 나눠 다시 잼 (세 번까지). 넘치면(겹침 고치기 단추) 그려 보고 한 번 더. 결과 122-130px.
-
-## 2026-09-30 리플 트림 · 편집 카드 아래로 밀기 · 글 가운데 · 저장 누락 고침
-- 사용자: "리플을 킨거랑 끈거랑 편집 탭에서 차이가 없는데 리플을 킨 상태로 클립을 늘려도 겹치는 걸로 나와" · 카드에 가리는 뒷 자막은 카드 아래로 · 클립 가운데에 글
-- feedback.js setT: 리플 켬이면 끝(e) 을 옮긴 만큼 같은 층 뒤 자막(시작 >= 옛 끝 - 0.02)을 같이 옮김. 편집 쪽 담유이 글은 클립 가운데, 카드 · 앞 글 아래로 밀림 (mainFree)
-- 시험 중 발견: server.py 저장 병합이 낱말 빼기/되살리기 표 · e2 · os2/oe2 · kind · ripple · restoreCaps 를 버리고 있었다 -> 받게 고침, 서버 다시 띄움.
-  시험 프로젝트로 낱말 표 · e2 · 밀린 자막 s2/e2 · ripple false 가 파일에 남는 것 확인. app.js mergeUserBits 도 ripple 을 지킴
-
-## 2026-09-30 재생 위치 선: 고정 · 끌기 · 원본 축 누르기
-- 사용자: "편집 상태에서 클립이 밀리든 줄어들든 재생 위치 선은 고정, 재생 위치 선 드래그로 움직일 수 있게, 원본 타임라인에 클릭하면 해당 위치로 이동,
-  삭제 부분인 경우 삭제 클립의 중간 부분에서 더 가까운 쪽 (시작 | | 끝)으로 이동"
-- feedback.js: setT 가 고친 시각으로 seek 하던 것 뺌 · srcSeek(원본 시각, 뺀 자리면 가운데 기준 앞 구간 끝 - 1프레임 / 다음 구간 시작) ·
-  .tl-ph 끌기 (원본 선은 srcSeek, 편집 선은 ME.t) · 원본 축 누르기. css: .tl-ph 잡는 자리 위아래 6px
-- 시험 (복사본 프로젝트): 뺀 자리 20% -> 2.483 (앞 조각 끝), 80% -> 2.50 (다음 조각 시작) · 끝 시각 고쳐도 12.05 그대로 · 마우스로 끌기 12.05 -> 14.75, 카드 안 닫힘
-
-## 2026-09-30 재생 중 재생 위치 선이 안 움직이던 것
-- 사용자: "편집 중이어도 재생 할때는 움직여야지 / 재생 위치선은 현재 시점에 절대적인 위치 확인을 위한거야 사용자 조작으로 이동 시키는 거는 현재 시점을 바꾸는 거고"
-- 재 보니 카드와 상관없이 재생 중 timeupdate 가 0번 (시각 표시도 멈춤). shortsmith/preview/entry.tsx 의 bind 가 첫 그리기 두 프레임 뒤 한 번만
-  플레이어에 붙는데 그때 플레이어가 아직 없으면 다시 안 붙었다 (다음 update() 때나 붙음). 붙을 때까지 50ms 마다 다시 시도. 번들 다시 묶음.
-- 확인: 새로고침 뒤 아무것도 안 건드리고 카드 연 채 재생 -> 8.13 -> 9.55초, 선 470 -> 535px
-
-## 2026-09-30 선 고정 (배치 · 배율) · 고르기는 선 안 옮김 · 겹치면 롤 편집
-- 사용자: "클립을 늘리고 줄이는데 왜 재생 위치 선이 움직이지? 클립 길이가 변경되야지 선은 늘리든 줄이든 고정" /
-  "편집 클립 클릭해도 선 이동 안하게" / "곂치면 편집 중인 자막 외에 곂치는 자막을 그 만큼 없애줘 총 길이는 고정 (3:7을 5:5나 2:8)"
-- 까닭: 고른 클립을 카드 높이까지 늘렸고(짧은 클립은 끝을 옮겨도 막대 그대로), 편집 쪽 늘림 배율(원본 길이 맞춤)이 고칠 때마다 새로 나와 화면 전체가 늘었다 줄었다 했다.
-- feedback.js: 고른 줄은 배치를 안 바꿈(카드는 글 칸 위, 뒤 글은 카드 아래로) · 카드 연 동안 배율 굳힘(FROZEN) · pick 이 seek 안 함 ·
-  setKey + 롤: 끝은 리플 끔일 때 뒤 줄 시작을, 시작은 늘 앞 줄 끝을 같이 옮김 (붙어 있던 줄은 줄일 때도 따라옴, 옆 줄은 한 프레임 남김)
-- 시험 (복사본): 고르기 t 9.00 그대로 · 끝 10.633->11.367 이면 뒤 줄 11.367-11.817 (끝 그대로) · 줄이면 뒤 줄 시작 따라옴 · 시작 당기면 앞 줄 끝 따라옴 ·
-  리플 켬은 뒤 줄 길이 그대로 밈 · 이 동안 선 517.956px 그대로, 막대 124 -> 158 -> 121px
-- 사용자 프로젝트에는 사용자가 직접 고친 것이 있다 (첫 줄 끝 1.73 -> 1.5 로 리플 당김, 리플 끔) - 건드리지 않음
-
-## 2026-09-30 카드는 글 누를 때만 · 선은 화면에 고정 (스크롤 맞춤) · 롤은 바로 옆 한 줄만
-- 사용자: "클립 조작 할떄는 카드 열지 말고 텍스트 클릭 할떄만 카드로 표시" / "선은 고정이고 나머지가 움직여야지 어떤 편집 프로그램이 클립 컨트롤 했다고 선이 이렇게 움직이냐고"
-- feedback.js: CARD 플래그 (막대 = 고르기 · 끝점 손잡이, 글 = 카드) · fillSubs 가 다시 그리기 전후 선의 화면 위치(PH_ANCHOR)를 재서 스크롤을 맞춤
-  (선이 화면 밖이면 스크롤 그대로) · 롤 편집은 바로 옆 한 줄만 (허용 0.02 가 한 프레임보다 커서 끌기를 이어 하면 다음다음 줄 시작까지 당겨졌다)
-- 시험 (복사본, 실제 마우스 끌기 두 번): 선 화면 위치 693px 그대로, 옆 줄만 한 프레임까지, 그다음 줄 11.817 그대로, 겹침 0. 막대 누르기 = 카드 없음 · 손잡이 2
-- 메모리 timeline-playhead-nle-rules 에 규칙으로 남김
-
-## 2026-09-30 편집 쪽 눈금을 시간에 정비례로
-- 사용자: "클립 길이를 줄여도 클립 길이가 줄지 않고 늘려도 늘지않고 선만 위아래로 왔다갔다 하잖아 그리고 클립 컨트롤을 하는데 스크롤은 왜 되는거야"
-- 까닭 (사용자 프로젝트 기록으로 확인: 첫 줄 끝 1.50 -> 2.35, "10월 말" 한 프레임): 편집 쪽 줄마다 글 높이를 최소로 둬서 한 프레임 클립도 막대가 그대로였고
-  대신 뒤가 통째로 밀려 선이 움직였고, 그걸 스크롤로 되돌려 화면이 흔들렸다. 끌기도 PPS 로 나눠 손잡이가 마우스보다 2.26배 빨랐다.
-- feedback.js: 편집 쪽 ME = 곧은 줄 (KE px/초, 편집 길이와 원본 쪽 높이로만 정함 - 자막 시각을 고쳐도 안 바뀜), 글은 mainFree 로 아래로 밀림,
-  dragEdge 는 KE 로 나눔. (처음에 이름을 K 로 해서 조각 목록 K 와 겹쳐 잠깐 탭이 깨졌다 - KE 로 바꿈)
-- 시험 (복사본, 실제 마우스): 첫 줄 끝을 위로 40px -> 손잡이 473 -> 433 (마우스 그대로), 막대 115 -> 59px, 다음 줄 2 -> 57px, 선 513px · 스크롤 0 그대로
-
-## 2026-09-30 롤 편집 덮어쓰기 · 고른 클립 위에서는 클립 조작이 먼저
-- 사용자: "왜 줄어드는건 되는데 늘어나지를 않지? 그리고 조작 중인 클립에서는 선 드래그 이동 보다 클립 컨트롤을 우선적으로 실행해줘"
-- 까닭: 롤에서 옆 줄을 한 프레임 남기게 막아 둬서 옆 줄이 한 프레임이 된 뒤로 안 늘어났다 (사용자 프로젝트 첫 줄이 그 상태) · 선(z 7)이 손잡이(z 6)를 가렸다
-- feedback.js: 옆 줄이 다 먹히면 길이 0 으로 덮어쓰고(줄 그은 흐린 글, .is-eaten) 다음 줄을 이어서 줄임 · 선을 고른 클립 위(±8px)에서 누르면 가까운 끝 끌기 ·
-  css .tl-dot z 8 · apply_review.py: 길이 0 줄은 렌더에서 뺌 (fx 참조는 그 자리 시각으로)
-- 시험 (복사본, 선을 첫 줄 끝에 겹쳐 두고 실제 마우스): 늘리기 2.35 -> 3.683 ("10월 말" 먹힘, 다음 줄 롤), 줄이기 -> 1.433 (다음 줄 따라옴), 선 473px · 재생 2.35 · 스크롤 0 그대로
-
-## 2026-09-30 편집 타임라인 Ctrl+클릭 = 재생 위치 이동
-- 사용자: "편집 타임라인에서 ctrl+클릭 하면 선 이동 되게 해줘" (처음엔 원본으로 적었다가 바로잡음)
-- feedback.js: 편집 쪽 stage 에 capture 단계 mousedown/pointerdown/click - Ctrl(Cmd)+왼쪽 클릭이면 막대 · 글 · 손잡이 동작을 막고 ME.t(y) 로 재생 위치
-- 확인 (사용자 프로젝트, 재생 위치만): 글 위 -> 4.53초 (카드 없음), 막대 위 -> 5.93초 (고르기 없음), 고친 것 없음 (dirty false)
-- 참고: 내 쪽 브라우저 창 스크린샷에서 미리보기 영상이 검게 찍힐 때가 있다 - 영상 픽셀을 캔버스로 읽으면 그림이 있다 (창 평균 216). 캡처 문제로 봄 (짐작)
-
-## 2026-09-30 자막 한 줄 길이 · 나눌 때 균형 (모든 프리셋)
-- 사용자: "한 자막 내에 너무 많은 글자 -> 폰트가 작아지잖아 안 작아질 정도로만 적어줘 / 의미 단위로 나누되 8:2 말고 비슷한 글자 - 모든 프리셋"
-- tools/edit_audit/fit.py: 프리셋 글꼴(lib/preset.mjs 로 찾음)로 렌더러와 같은 잣대(size*lineToEm 폭 > maxTextWidth)로 잰다.
-  브라우저 canvas 값과 맞춰 봄: 113/119/99/102% 똑같음. 쉼 없이 이어진 두 줄 70% 넘는 치우침도 알림. 규칙은 메모리 shorts-caption-rules · CLAUDE.md
-- 걸린 것: 모캡영도랜디 줄어듦 6 · 치우침 5, 야설낭독회2 줄어듦 6. 고치는 것은 사용자에게 물음 (모캡영도랜디는 대시보드에 사용자 고침이 진행 중)
-
-## 2026-09-30 편집 축 넓히기 + 파형
-- 사용자: "편집 클립 내부에 실제 파형 넣어줘 (세로, 위에서 아래, 축 가운데 정렬, 좌우 데칼코마니)" · "편집 타임라인의 클립들 전부 좌우로 늘릴것"
-- tools/src_wave.py: 원본 소리 20ms 최고값 dB(-60..0) 를 한 바이트로 (211초 = 10.6KB, base64 14KB), 편 폴더 wave.json 캐시.
-  export_shortsmith.py 가 review.wave 에 넣는다 (모캡영도랜디는 project.json 에 바로 넣음 - 사용자 고침 안 건드림)
-- feedback.js: 편집 축 너비 EXW 44 (원본 축은 22 그대로, X_SIDE · X_PAGE 따라 옮김) · drawWave: 남길 구간 [s,e,at] 대로 원본 시각을 편집 시각에 옮겨
-  px 줄마다 최고값을 축 가운데에서 좌우로. 조각 이득 더함. 눈금은 소스마다 바닥(아래 10%) ~ 큰 소리(위 0.5%) - -60dB 고정이면 바닥 -39dB 소스는 쉼까지 반쯤 찼다
-- 확인: 캔버스 44x2079, 막대 44px, 화면으로 쉼/말 구분 봄
-- 2026-10-01 피드백 탭 편집 타임라인: "클립 구분 더 잘보이게 / 공백 압축해 클립 사이에 나타내는 부분은 파란색 말고 (클립 컨트롤 시 헷갈림)".
-  클립 막대를 위아래 1px 씩 줄여 사이 2px 틈 (눈금 · 끝 잡기 자리는 그대로) · 테두리 흰색 .36 -> .62 · 파형도 클립 경계 3px 를 지운다.
-  뺀 자리가 붙은 선(tl-join)을 파랑(고른 클립 색) -> 분홍 #ff5fa8 (다른 색은 다 뜻이 있다). 브라우저에서 틈 2px · 분홍 확인.
-- 2026-10-01 이어서: "공백 압축 부분 -> 잘 안 보이는 색상으로, 클립 연결부는 완전히 이어지게". 클립 사이 2px 틈 · 파형 끊기를 되돌리고
-  (경계는 테두리 .62 로만, 파형 캔버스를 z 1 로 내려 테두리가 위에 보이게), tl-join 을 분홍 -> 흰색 .14. 브라우저에서 틈 0 확인.
-- 2026-10-01 저장소: E:\Edit\Claude 를 github seoldam82/Kirinuki-Edit (공개) 에 연결. .gitignore 로 프로젝트 · 편 폴더 · 영상 · 비공개 프리셋 ·
-  담유이 스타일 · 그림 자료 · davinci-resolve-mcp · .mcp.json 을 뺐다. E: 는 파일 주인을 기록 안 해서 git 에 safe.directory 예외가 필요하다.
-
-## 2026-10-01 Dance(C:S) Solo Shorts 프리셋 (카메라 정적 이동)
-- 사용자: "캐릭터가 화면 밖으로 나갈 것 같은 경우에 대부분 (아닌 경우도 있음) 풀샷을 잡기 위해서 혹은 캐릭터 중심이 중앙에 오도록,
-  상하좌우 여백이 많이 생기지 않도록 이동. 필요시 약간의 줌인, 줌아웃". 참고: 유튜브 4편 + Damyui-n152-1.mov (-0.mov 세로 재구성).
-- 잰 것 (-1.mov, 카메라 0.1초 · 몸 상자 0.25초): 머리 위 0.073h · 발 아래 0.053h · 좌우 0.18w, 너비 0.1 넘는 팬 30번 0.85초 · 0.116h/초,
-  한 프레임 점프 4번, 배율 0.787 / 0.842 두 가지. 유튜브 4편: 몸 가운데 0.50, 몸 높이 74-95%. R14ZVrYoWSs 챌린지 19.2-23.2초 상반신 컷 인 (머리 위 0.14).
-  -1.mov 은 0.3초마다 조금씩 따라가는 편이라, 사용자 말대로 "나갈 것 같을 때만" 옮기게 SIDE 를 좁혔다 (짐작).
-- 구독 · 후원 알림 치비 그림을 몸으로 잡았다 (n152 7.9-14.2초) -> 몸 밖의 큰 덩이는 뺀다.
-- 만든 것: presets/damui-dance-cs-shorts · tools/dance_camera.py · shortsmith body.mjs camera.keys (멈춤 crop, 이동 perspective).
-  고친 것: 같은 시각 키 두 개 -> 0초 조각이 깨진 파일로 붙어 2.7초 사라짐 (경계 하나로). perspective 의 in 은 1 부터 -> 이동이 한 프레임 앞섬 (in-1).
-- 시험 (원본 40-70초, 작업 임시 폴더): 이동 15 · 컷 2 · 배율 880/968, 길이 30.003초, 소리 원본과 어긋남 0 · 조각 경계 27곳 ±0.3dB,
-  이동 중 위치 계획과 ±1px, 참고본과 나란히 봄. 발끝이 2-6% 걸리는 순간 (다리 차기) 은 둔다.
-- Remotion 이 실행 폴더에 Chrome 을 받는다 (E:\Edit\Claude\.remotion 521MB 생겨서 지움, .gitignore 에 넣음). 편 폴더마다 521MB 가 이미 있다 - 따로 할 일로 올림.
-- 2판 (같은 날): 사용자 "너무 부자연스러워 / 가능하면 최대한 계속 트래킹 하듯이 캐릭터의 중심을 기준으로 따라가야해".
-  -1.mov 카메라를 몸 무게중심에 맞대 보니 가로는 σ 0.2초로 다듬은 무게중심을 늦음 없이 따라간다 (RMS 16.5px, 차이 90% 가 너비 ±0.05),
-  세로는 σ 2초. 그대로 옮김: 0.2초마다 키, 배율은 80 백분위 기준 + 안 들어갈 때만 10% 까지. body.mjs 는 이어진 linear 키를
-  3초 조각 하나의 perspective 경로(구간마다 clip)로 굽는다. 시험 40-70초: 조각 10 · 계획과 차 95% 1.4px · 조각 경계에서 안 튐 ·
-  소리 경계 -0.15~0.01dB · 참고본과 나란히 거의 같음. 다리 차기 때 발끝 11-18% 잘림은 둔다.
-- 3판: 사용자 "최대한 몸 전체가 다 나오게 줌인 아웃을 사용해줘". 10% 줌아웃 한도를 없애고 배율 = 앞뒤 0.6초 안 몸이 가장 넓게 퍼진 범위(높이 · 너비)가
-  여백까지 들어가는 높이 (σ 0.4초, 원본 높이까지). 그래도 안 들어가면 범위 가운데로 (무게중심을 따르니 차는 쪽만 잘렸다).
-  시험 40-70초: 잘림 18% -> 2% (65.8-67.2초 다리 차기, 몸 너비 578-639px 가 원본 높이 전체로 자른 너비 608px 와 같음 - 더는 못 넣음) ·
-  배율 h 850-1080 · 계획과 차 x 1.4 · h 1.7px (95%). 참고본은 같은 자리에서 발이 잘린다.
-- 4판: 사용자 "카메라가 캐릭터보다 먼저 이동하거나 늦게 이동하면 안돼". σ 0.2초 가우스와 앞뒤 0.6초 창이 카메라를 몸보다 먼저 움직이게 했다.
-  몸을 0.2초마다 isnet 윤곽 + 그 사이 광학 흐름(Farneback 480x270, 앞 · 뒤에서 옮겨 섞음)으로 1/30초마다 재고, 카메라는 같은 프레임에
-  (떨림만 σ 0.05초). 배율은 퍼지는 프레임에 같이 넓히고 당길 때만 0.5h/초. 흐름 추정 - 직접 잰 무게중심: 10곳 중 9곳 18px 안, 다리 차기 67.2초 38px.
-  카메라-몸 가로 속도 시간차 0프레임. body.mjs: 조각 점 40개 한도 (명령줄 32K), 카메라 조각은 -frames:v 로 (1797 -> 1800프레임, 30.000초).
-  소리 어긋남 0 · 경계 17곳 -0.15~0.10dB.
-- 5판: 사용자 "줌인 줌아웃이 크게 계속 반복 되면 어지러우니까 차라리 이런 경우에는 천천히 줌아웃을 해줘 (25~27초 부근 같은 경우), 나머지는 좋아".
-  줌 봉우리(8% 넘게 솟음)가 1초 안 간격으로 둘 이상 이어지면 되풀이 구간 -> 첫 봉우리 발치부터 1초에 걸쳐 구간에서 가장 넓은 배율까지, 마지막 봉우리까지 그대로,
-  뒤는 같은 빠르기로. 시험 40-70초에서 64.8-67.2초 하나만 잡힘 (봉우리 5개 -> 1개), 다른 곳은 그대로. 잘림 늘지 않음 · 1800프레임.
-- 6판: 사용자 "어떻게 처리하는지 내가 예시로 준 내 컴퓨터 경로의 영상을 참고 해 / 아직도 너무 어지러워 ... 크게 변경되는 경우 오히려 천천히 이동 ...
-  왔다 갔다 하는 기간 동안 최대 너비 까지 천천히 줌아웃 -> 이후에 다시 일반적으로 진행". -1.mov 카메라를 다시 잼 (99 백분위):
-  가로 속도 0.314h/초 · 가속 1.10h/초² · 세로 0.072 · 배율 바뀜 0.099/초 (가운데값 0.002 - 거의 고정), 다리 차기 64-70초는 2.5초에 7% 넓히고 그대로.
-  카메라 = 좁은 흔들림 무시(가로 너비 2.5% · 세로 2% · 배율 3%) + 이 한도 안 따라가기(속도 · 가속, 멈출 거리 보고 줄임, 지난 값만) +
-  배율은 지난 2.5초 가장 넓은 것. 왔다 갔다 = 꺾임 · 줌 봉우리 0.6초 안 간격 4번 넘게 (시험 64.9-67.2초 하나) -> 오간 전체 폭을 겨눠 천천히.
-  결과 (참고본): 가로 속도 가운데값 0.023 (0.037) · 90% 0.203 (0.153), 배율 바뀜 가운데값 0 (0.002) · 90% 0.053 (0.015). 잘림 1-6% 30순간 (천천히 따라가서).
-- 7판: 사용자 "(25~27초 같은 경우에서) 줌아웃이 너무 빠르고 캐릭터가 움직이기 전에 (동작이 화면 밖으로 나가기 전까지는) 줌아웃하면 안돼 /
-  동작 -> 카메라 혹은 동작 == 카메라 (상황에 따라, 일반적으로는 동작 == 카메라), 카메라 -> 동작은 절대 금지".
-  앞 판은 왔다 갔다 구간 전체(미래 포함) 폭을 구간 시작부터 겨누고 빠르기를 올렸다 + σ 0.05초 앞뒤 다듬기. 고침: 구간 안은 그때까지 오간 폭만,
-  줌 겨냥은 몸이 지금 화면(여백 1%)을 넘을 때만 넓힘 · 당기기는 지난 2.5초 풀샷이 3% 넘게 작을 때만 (구간 안은 안 당김), 줌 빠르기 참고본 한도 그대로,
-  다듬기 없음. 검사: 줌아웃이 그때까지 몸이 넘은 적 없는 크기로 간 프레임 0 · 가로는 몸보다 +5프레임(0.17초) 뒤.
-  다리 차기 65.9초에 발이 화면을 넘은 뒤부터 2.5초에 걸쳐 넓힘 (그 사이 발끝 걸림 - 동작 -> 카메라). 잘림 1-5% 59순간.
-- 8판: 사용자 "너무 줌아웃이 많이 되면 안돼 8:2 (캐릭터 : 여백)까지만 허용 그이상은 허용하지 않음, 25~27초는 잘 처리 했는데 27~28혹은29초반은
-  일반적인 경우 ... 다시 줌인을 해서 여백을 최소화 한 다음에 진행 하다가 왔다갔다 하는 경우에는 다시 천천히 줌아웃".
-  FILL 0.8: 몸 높이 · 너비 중 더 꽉 찬 쪽이 그 프레임 화면의 80% 밑으로 못 가게 (구간 안은 오간 폭). 넓힌 배율 쥐는 시간 2.5 -> 0.5초.
-  따라가기가 목표를 지나치지 않게. 검사: 채움 최소 0.800 (0.8 밑 0프레임) · 구간 밖 가운데값 0.883 · 가로 +5프레임 뒤 · 1800프레임.
-  차기 끝(67.2초) 뒤 0.4초에 풀샷으로 당겨짐 (8:2 가 당긴다).
-
-## 2026-10-01 Dance(C:D) Solo Shorts 프리셋 (카메라 동적 이동)
-- 사용자: "춤을 더 역동적으로 보여주기 위해 카메라를 활용 (대부분의 경우 비트에 맞춰서 줌인, 아웃, 순간적인 확대, 축소등) -> 움직임이 적은 경우
-  Dance(C:S) Solo Shorts를 베이스로 하되 추가적인 센스가 요구됨 베이스 : 센스가 3:7정도". 참고: VzGBBlqDzqA · 52qgpnCjxcU · pPZ3raGlOh0 (docs/dance_cd_refs, 사용자 허락으로 받음).
-- 잰 것 (프레임마다 배경 기준 닮음변환): 컷 배율 들어갈 때 x2.0 / x2.7-3.3, 나올 때 x0.5-0.67 (pPZ3 계단 2.01 · 3.27 · 2.01 · 2.02),
-  밀기 4.5-4.9박 x2.1-3.3, 빼기 1.4-2박 x0.45-0.5, 풀샷 시간 14-49%. 순간 확대는 pPZ3 0.08초 x1.1 봉우리 5번뿐 (짐작에 가까움).
-  컷이 박에 맞는지는 증명 못 함 - 온셋이 초당 4-6개라 아무 시각이나 3프레임 안에 걸린다. 52qg 는 누적 배율이 흘러 시간 몫 근거로 못 씀.
-- 만든 것: presets/damui-dance-cd-shorts (C:S 를 extends, camera.mode "dynamic") · tools/dance_beats.py (박 · 마디 · 샷 계획) ·
-  dance_camera.py stats 에 머리 꼭대기 (몸 가운데 띠) · 상반신 무게중심, 컷마다 키를 끊음.
-- 시험 러브어택260921.mp4 (1726x1080, 31초, 편 폴더 edit/러브어택): 112.2 BPM · 15마디 · 컷 9 · 센스 61% (상반신이 샷에 안 들어가는 마디를 빼서 70% 못 채움) ·
-  샷 시간 풀샷 36 · 순간 확대 3 · 밀기 14 · 상반신 14 · 허벅지 위 26 · 빼기 7%. 컷 앞뒤 프레임 봄 (한 프레임에 바뀜).
-- 첫 판에서 고친 것: 마디 끝 프레임이 컷 자리라 클로즈업에 넣으면 컷이 한 프레임 줌이 됐다 (몸 88% 잘림) · 센스 마디가 뒤 9마디에 몰려 18초 내내 클로즈업
-  (덩이 최대 3마디) · 참고본 배율 x2 를 그대로 걸면 러브어택에선 이미 상반신 (샷 크기를 몸 몇 할로 - 0.65 / 0.40, 눈대중) ·
-  3.6-5.8초 상반신 컷이 하늘만 찍음 (발은 안 움직여도 상반신이 옆으로 크게 오감 -> 오간 폭이 샷에 들어갈 때만, 머리는 화면 15-85% 안에 붙잡음) ·
-  같은 크기끼리 컷 (점프 컷 -> 한 샷으로 붙임).
-- 이 원본은 오디오가 영상보다 0.021초 먼저 시작 (박 시각 1프레임 안쪽 차이, 그대로 둠).
-- 2판 (허니하트260921.mp4, 2.5-25.85초 - 앞 2.46초는 방송 얼굴 화면이라 뺌): 사용자 "머리 위에 여백이 너무 많이 남고 어디 부분에 동작이 많은지 봐야 해 /
-  기본적으로 얼굴은 나오는게 좋지만 손동작이 다이나믹한데 잘리고 얼굴만 나오면 이상하잖아". 머리 위 0.14 -> 0.04 (참고본 0-5%, 장면 모음 눈대중).
-  어디가 움직이나: 윤곽 차 (XOR) 는 트윈테일 · 옷이 같이 흔들려 못 씀 (0.2초마다 1600점, 폭이 허리 위 샷 너비와 같음), 살색도 못 씀 (손이 조명에 하얗다)
-  -> mediapipe pose_landmarker_full (사용자 허락으로 받음, ~/.cache/mediapipe) 손목 · 검지 끝 0.2초마다 (편 폴더 pose.npz). 3D 모델에서 잘 잡음 (6장 눈으로 봄).
-  샷 크기 두 단계 -> 마디마다 머리 + 빠른 손이 들어가는 가장 작은 것 (몸의 0.40 / 0.50 / 0.65 / 0.80). 결과: 106.9 BPM · 11마디 · 컷 6 · 센스 42%
-  (손 빠른 시간 76% 인 춤이라 7.2 · 18.7 (옆으로 크게) · 20.9 (팔을 넓게) · 23.2초 (위아래) 마디는 풀샷) · 샷 풀 56 · 확대 2 · 밀기 10 · 얼굴 5 · 중간 23 · 빼기 5%.
-  DANCE_DEBUG=1 이면 마디마다 맞는 샷 · 손 담김 · 오간 폭을 찍는다.
-
-## 2026-10-01 댄스 파이프라인 속도 (사용자 "이거 파이프라인 전부 최적화 해줘")
-재 보니 (허니하트 23.4초, i7-1260P · Arc A350M): 카메라 첫 판 158초 = isnet 윤곽 115 (장당 0.97초, CPU 가 이미 꽉 참 - 스레드 · 세션 수를
-바꿔도 0.90-0.97) + Farneback 23 + 포즈 7. 굽기 74초 = 본편 44 (조각 18개 - QSV 인코더를 켜는 데만 조각마다 ~2초, 6프레임 2.17초 · 180프레임 2.38초)
-+ 렌더 28 (자막 · 효과 0 인데 창을 다시 인코딩) + 나머지.
-- 광학 흐름: 구간마다 필요한 흐름을 스레드 8개로 먼저 (19.8 -> 5.0ms/장). 키 310개 그대로 같음.
-- 본편: 카메라 조각을 3초 · 키 40개가 아니라 keep 의 1/3 (+1초) 마다 - 컷은 조각 안에서 그 프레임에 뛰는 점 (gte), 컷 앞 1프레임 멈춤도 조각이 아님.
-  긴 식은 -/vf 파일로 (명령줄 32K). 식은 균형 트리로 더한다 - a+b+c... 는 ~97항부터 ffmpeg 가 "Cannot allocate memory".
-  perspective 앞에 경로가 지나는 범위만 crop (전체 1726x1080 의 3-10배 일을 했다, 2.28 -> 0.70초/3초).
-  perspective 앞에 fps=60: 식은 입력 프레임 번호로 세는데 OBS 녹화가 18.807초에 한 장 빠뜨려 뒤가 한 프레임 늦게 그려졌다 (8px).
-  검은 배경 캐시 (굽을 때마다 6초). 18조각 -> 3조각, 44 -> 17.6초.
-  검사: 프레임마다 식을 계산해 키와 0.25px 안 (1401장), 기준 그림 (원본을 같은 상자로 직접 자른 것) 과 1px 안 (출력 px, 14장). 옛 판은 컷 앞 프레임이 4-5px 어긋나 있었다.
-  화질: 중간 해상도가 1726 폭 -> 잘라 낸 크기라 라플라시안 선명도 ~10% 낮음 (눈으로 구별 안 됨).
-- 렌더: 오버레이가 모든 프레임 한 장 · 완전 투명 (alphaextract YMAX 0) · 창 = 화면 전체 · 창 효과 없음이면 조각을 안 굽고 window.mkv 그림을 복사. 28 -> 5초.
-- CLI: render.mjs (Remotion) 를 render · build · still 때만 불러온다 - cuts 1.7 -> 0.3초, node_modules 없이 cuts · body · scene 이 돈다.
-- 보통 편 (봉누도2귀신, 자막 24 · 효과 7) 은 고치기 전 코드와 같은 환경에서 비트 단위로 같은 영상 (PSNR inf).
-- isnet 윤곽을 외장 GPU 로 (사용자 허락): 이미 깔려 있던 OpenVINO 2024.6 으로 Arc A350M 0.070초/장 (CPU 0.97, 내장 Iris Xe 0.23).
-  onnxruntime-directml 은 안 깔았다 - onnxruntime 은 faster-whisper 가 쓴다. 반정밀도지만 윤곽 IoU 0.9994-1.0000 (6장),
-  카메라 키는 컷 같음 · 상자 가운데값 0.1px (최대 9.6px 한 곳). GPU 가 없으면 onnxruntime CPU 로 떨어진다. 컴파일 캐시 ~/.cache/openvino.
-  카메라 첫 판 158 -> ~40초 (컴파일 캐시가 처음 생기는 판은 ~70초).
-
-## 2026-10-01 대시보드 출력 방식 (사용자 "출력을 편집 영상에 따라 따로 편집 할지 아니면 여러 영상을 한 개로 출력할지 정할 수 있게")
-- 스타일 적용 탭 "출력 예정" 옆에 [따로 | 하나로] (대상 영상이 둘 넘을 때만 보임). 하나로 = 대상 영상을 드랍 순서 (폴더 안은 목록 순서) 대로 이어
-  결과 한 편 (언어마다 한 편), 이름은 폴더 하나면 폴더 이름 아니면 첫 영상 + _합본. 이어 붙일 순서를 결과 아래에 보인다.
-- 작업 JSON outputMode ("each" | "merge") + outputs[].sources, 프롬프트 "## 출력" 에 출력 방식 · 순서 (shortsmith 는 keep 의 { "source" } 로 잇는다).
-- 프로젝트 ai.outputMode 로 저장 (core.js 기본값 · 저장, projects.js 새 프로젝트, app.js 불러오기). 서버는 ai 를 거르지 않는다.
-- 검사 (워크트리 대시보드 8898, 상태에 영상 3개를 넣고): 버튼으로 바꾸기 · 언어 2개면 결과 2편 · 스타일 적용 작업 파일 (json · md) · 저장 후 다시 열기 · 콘솔 오류 0.
-
-## 2026-10-01 합본을 한 편으로 (사용자 "왜 피드백에 안뜨지?" -> "한 편으로 다시 묶기")
-- 대시보드 작업 (D(C:S)SS test, 출력 방식 하나로): 사준완 2.67- · 제로투 3.53- · 터미널 4.32-끝 (춤 동작 바로 앞 박). 처음엔 편 셋을 따로 굽고
-  완성본을 이었는데, export_shortsmith 는 편 하나 = 프로젝트 하나라 피드백 탭에 못 띄웠다.
-- 그래서 edit/260921_합본: 세 구간을 이은 중간 원본 src_merged.mkv (1726x1080 60fps, 터미널 970 -> 1080 으로 키워 좌우 98px 자름,
-  x264 crf 12) + keep 세 구간 (이음매 27.783 · 38.200초). 소리는 구간마다 고정 이득 +15.80 / +13.70 / +13.70 dB (렌더와 같은 식) 을 구워 둠 -
-  이어 붙인 뒤 재면 큰 쪽만 재진다. 터미널은 피크 때문에 -20.5 LUFS (나머지 -16).
-- dance_camera.py: keep 이 여럿이면 구간 첫 프레임에서 카메라 상태 (따라가기 · 흔들림 무시 · 배율 · 0.5초 유지 창 · 왔다 갔다) 를 새로 시작하고 컷,
-  구간 첫 키는 keep 시작 시각에 (키 격자 1/30초라 한 프레임 늦었다). 이어 붙은 keep 의 경계 프레임은 뒤 구간에만. mkv 길이는 format 에서.
-  keep 하나인 편은 키가 그대로 (제로투로 확인).
-- export_shortsmith.py: 자막 파일 · 제목이 없는 편 (댄스) 도 내보낸다.
-
-## 대시보드: 스타일이 첫 항목으로 바뀌던 것 · 숨은 탭에서 서버가 내려가던 것 (2026-10-01)
-- 스타일 고르기: 프로젝트를 열면 selectedStyleId 가 비는데, 서버가 안 붙은 채로 목록을 그리면 이름(styleSel)으로 찾지 않고
-  목록 첫 항목으로 떨어뜨리고 그 이름을 styleSel 에 덮어써 자동 저장했다 (D(C:S)SS test 가 맨 위 Dance(C:D) 로 바뀌었다).
-  이제 언제나 이름 · aliases 로 찾고, 못 찾으면 "없음 · 골라 주세요" 를 띄우고 이름은 지우지 않는다. 첫 항목은 이름이 빈 새 프로젝트만.
-  목록을 다시 읽기만 한 것은 저장 안 됨으로 만들지 않는다. 확인: 사본 프로젝트로 서버 붙음 · 끊김 · 없는 이름 · 새 프로젝트 넷.
-- 서버 꺼짐: git pull 탓이 아니었다 (pull 없이도 꺼졌다). 숨은 탭은 브라우저가 핑 타이머를 1분에 한 번까지 늦추는데 서버는 12초 안 들리면
-  닫혔다고 봤다. 이제 핑에 hidden 을 싣고 (visibilitychange · freeze 때 바로), 숨은 페이지는 2시간 기다린다. 탭 닫기는 bye 로 그대로 바로 내려간다.
-  확인: 핑을 멈춘 채 숨김 = 25초 뒤 살아 있음, 보임 = 28초 뒤 내려감.
-
-## 댄스 C:S 카메라: 트래킹 다시 (2026-10-01, 합본 피드백 "늦게 따라가거나 점프할 때 안 올라간다 · 발목 아래를 자른다")
-같은 종류 지적이 두 번째 ("트래킹을 하라고") - 따라가는 방법 자체를 바꿨다. 원인은 넷이었다 (measured 260921 합본):
-1. **윤곽 시각이 0.083초 미래**: ffmpeg `fps=5` 는 0.2초 칸의 마지막 장을 내놓는다. 윤곽 장 (0.2초마다) 은 미래, 그 사이 흐름은 제 시각이라
-   몸 자리가 앞섰다 돌아왔다. `fps=5:round=up` (IoU 가장 큰 장이 21.2/21.4/21.6 -> 21.30/21.50/21.70 이었는데 이제 같은 시각, 0.92-0.96).
-   dance_beats.py 의 포즈도 같은 버그 - 같이 고침 (pose.npz 다시 뽑힌다).
-2. **세로 배율 버그**: 윤곽은 480x270 으로 늘여 두는데 y 도 SW/MW 로 늘였다. 합본 원본이 1726x1080 이라 몸이 10% 줄어 발이 105px 위로 잡혔다
-   -> 실제 발 기준 90% 프레임에서 발목 아래가 잘렸다 (16:9 원본인 다른 편은 영향 없음).
-3. **알림 그림을 몸으로**: 터미널 45-51초에 isnet 이 구독 알림 치비 그림만 (또는 몸과 붙여) 잡았다. check_masks: 앞 몸과 자리 · 넓이가
-   안 이어지면 앞 몸 둘레만 잘라 다시 잡고, 그래도 아니면 비운다 (합본 32장 - 25장 다시 잡음, 7장 비움).
-4. **따라가기 한도**: 참고본 속도 한도 (가로 0.31 · 세로 0.07 h/초) + 흔들림 무시 띠 - 세로 0.9초 늦었다. 이제 자리는 one-euro 거르개
-   (가만히 1Hz, 속도 h/초마다 +3Hz) 로 같은 프레임에, 그래도 넘으면 그 프레임에 밀어 넣는다. 배율은 줌인만 천천히 (0.10/초), 줌아웃 0.6/초.
-결과 (합본 1609프레임): 늦음 가로 1 · 세로 0 프레임, 발 잘림 176 -> 0, 머리 11 (1% 안), 위로 뻗은 손끝 8. 세로 속도 99% 0.55 h/초 (전 0.07) - 몸과 같이 오르내린다.
-- 합본 원본 38.200초 (터미널 이음매) 에 프레임이 하나 빠져 있어 그 자리에서 시작하는 조각이 한 프레임 짧았다 (3215장, 뒤로 그림이 17ms 이르게).
-  body.mjs `fps=..:start_time=0` - 첫 장이 비면 다음 장을 늘인다. 3216장.
-- 허니하트 (C:D) 는 새 코드로 돌기만 확인 (edit.json 안 씀).
-
-## 댄스 C:S 카메라: 사용자 정답에 맞춤 (2026-10-01 셋째, "이동, 확대 축소 전부 이상해 ... 답 있으니까 다시 분석해")
-정답 = 사용자가 손으로 다시 잡은 Damyui-n152-1.mov · Damyui-n153-2.mov (원본 -0.mov, 같은 시간축 - n153-2 는 0-120초만, 뒤는 덧붙인 것).
-10fps 마다 SIFT + RANSAC (비례 · 이동) 으로 원본 속 상자를 되찾고 (회전 0.01도 안, 인라이어 150-280), 이 도구의 몸 측정 (_ref_n152 · _ref_n153 편 폴더) 과 맞댔다.
-- 정답: 배율 같은 값 91% · 87% 시간 (849 · 910 이 대부분, 바꿀 때 1-2초 직선 램프), 세로 멈춤 86% · 84%, 가로 멈춤 39% · 46%, 가로 늦음 0, 가로 어긋남 높이의 0.01.
-  몸 세로 가운데가 화면 가운데 (0.50-0.53), 몸 높이 가운데값 / 화면 0.78-0.87, 손 포함 꼭대기 여백 1 백분위 0.041 · 0.042.
-  큰 점프 (n153 59.5-60.2초) 만 머리를 따라 올라갔다 제자리. 넓히기 초당 9% (933 -> 1053), 당기기 초당 3.4%.
-- 앞 판 (같은 프레임 트래킹): 세로 멈춤 46%, 배율 바뀜 초당 0.34번 (정답 0.05), 배율 0.89-0.94 배 (더 당김).
-- 새 판: 구간마다 배율 · 세로 제자리 고정, 넘칠 때만 넓힘 / 위 여백 0.045 를 파고들 때만 올라감 / 가로 띠 0.01 + 떨림 거르개.
-  정답과: 배율 1.00 · 1.04 배, 세로 멈춤 80% · 84%, 배율 멈춤 87% · 96%, 가로 멈춤 45% · 49%, 가로 어긋남 0.012 · 0.013 (전과 같음), 몸 잘림 0.7% · 0.9% (전 1.0 · 1.9).
-- 합본에 다시 걸고 구움 (키 594, 잘림 0, 3216장). 허니하트 (C:D) 는 돌기만 확인.
-- 대시보드 "재생 누를 때마다 영상 크기가 바뀐다" 는 재현 못 함 (재생 · 멈춤 6번, 1600x900 에서도 플레이어 · 영상 크기 그대로) - 사용자에게 다시 물음.
-
-## 댄스 C:S 카메라: 세로 뚝뚝 (2026-10-01 넷째, "점프하거나 조금이라도 앉으면 카메라가 너무 부자연스럽게 뚝뚝 움직여")
-- 원인: 세로는 제자리에 서 있다가 몸 꼭대기 · 발이 여백 선에 닿는 프레임에 몸 속도로 바로 따라갔다 (합본 20.3초 발이 0.06h 내려가자 0.15초에 35px,
-  21.4-22.4초 점프에 아래 -> 위 -> 제자리 지나 아래 -> 제자리). 제자리 여백도 위 0.07 · 아래 0.06 뿐이라 조금 앉아도 닿았다.
-- 고침: 여백 선 0.04h 앞부터 2차 곡선으로 붙는 knee, 세로 one-euro (1Hz · 1.5), 그 뒤 잘림 선 (머리 · 발 0.005h - 손끝은 한순간 잘려도 둔다).
-  FILL0 0.86 -> 0.82. 다섯 가지를 합본 · 정답 둘에 돌려 고름:
-  합본 세로 꺾임 (가속 8 h/초² 넘는 프레임, 이음매 뺌) 51 -> 5, 방향 바뀜 초당 0.22 -> 0.09, 머리 · 발 잘림 0.
-  정답과: 세로 멈춤 87% · 85% (정답 86 · 84), 배율 1.05 · 1.04.
-- "재생 누를 때마다 영상 크기가 바뀐다" 는 대시보드에서 다시 재현 못 함 (재생 · 멈춤 3번 동안 0.1초마다 75번 잼 - 플레이어 544x967 그대로).
-  합본 배율은 곡 안에서 바뀌지 않는다 (0-27.8초 바뀌는 프레임 0%). 곡 이음매 두 곳에서만 바뀐다 (곡마다 몸이 화면의 0.82 를 채우게).
-
-## 피드백 탭: 미리보기 화면 크기가 바뀌던 것 (2026-10-02, "재생 버튼 누를 때 마다 영상 크기가 계속 변해" + 화면 두 장)
-- 사용자 두 장: 같은 0:01.62 인데 한 장은 화면 상자가 544x967 (9:16), 다른 장은 534x967 - 너비만 10px 줄어 9:16 이 깨지고,
-  플레이어가 그 안에 9:16 으로 맞추느라 위아래 검은 띠 + 그림이 작아졌다.
-- 원인: 화면 상자는 fitStage 가 px 로 정하는데 불러올 때 · 칸 나누기를 끌 때만 돈다. 그 뒤 둘레 칸이 좁아지면 (스크롤바 등 - 영상 칸이 overflow:auto)
-  CSS max-width:100% 가 너비만 깎았다. 칸을 10px 좁히니 534x967 (0.5522) 로 사용자 화면과 똑같이 재현.
-  무엇이 칸을 좁혔는지는 이 창에서 재현 못 함 (스크롤바 숨김 브라우저) - (짐작) 영상 칸 스크롤바.
-- 고침: .fb-stage-wrap 에 ResizeObserver -> fitStage, fitStage 는 padding 을 읽어 쓴다, 영상 칸 overflow:hidden.
-  확인: 칸 10px 좁힘 -> 534x949 (0.5627), 되돌리면 544x967.
-
-## 2026-10-02 가시나0 (하늘머리만, 대시보드 프로젝트 안 만듦)
-
-- `dance_camera.py` 에 `camera.region` - 둘이 나란히 추는 원본에서 띠 안만 윤곽을 잡는다. 검은머리 왼끝 최소 0.450 (measured 10fps), 띠 [0.1, 0.45].
-- 배율 고정 h 917, 키 120, 25.15초 1509프레임. 완성본 `edit/가시나0/out/short.mp4`. 오른쪽 끝에 검은머리 머리칼이 몇 장 살짝 걸린다 (배율 그대로면 못 피함).
-- 둘째 판 "여백이 너무 많잖아 / 동작은 많은데 카메라는 너무 정적": 발이 원본 아래 끝이라 화면이 끝에 밀려 머리 위 여백 0.155 (아래 0.004). 원본 끝에 대고 위 여백 0.09 로 당김 (h 843, 몸 0.91). C:S (`out/short_CS.mp4`, `edit_cs.json`) 와 C:D (`out/short_CD.mp4` = short.mp4, 지금 edit.json) 둘 다 구워 고르게 함. C:D: 124.4 BPM, 클로즈업 32% · 밀기 23% · 풀샷 28%.
-- 셋째 판 "C:S 팔이 화면 밖 (왼쪽 여백 많은데) 7/10 / C:D 기계적 · 인위적 3/10, VzGBBlqDzqA 느낌":
-  - 팔: region 띠로 잘라 윤곽을 잡아 띠 (0.45) 밖으로 뻗은 팔 (0.49) 을 몰랐다 -> 전체 화면에서 잡고 띠에 가장 많이 든 덩이. 그래도 몸 가로 끝 99.5 백분위가 손끝을 뺐다 (가는 팔은 점의 1% 미만) -> 끝에서 k 번째 점. 12초 화면 끝 913 -> 937 (손끝 941).
-  - C:D: 참고본을 5fps 로 보니 앞 12초 컷 없음, 밀기 0-2.4초 (작은 풀샷 -> 허벅지 위) · 천천히 빼기 2.4-8초 · 다시 밀기. 배경 닮음변환은 배경이 거의 민무늬라 0 으로 읽혀 못 씀, 포즈 몸통 길이도 자주 놓쳐 못 씀.
-    첫 판 2fps 비교: 우리는 머리-가슴 클로즈업 2-3초 고정 + 풀샷 3-4초 고정. -> plan_flow (컷 0, 배율 움직이는 시간 67%, 넓음 26 · 중간 41 · 허벅지 위 33%). 가로 방향 바뀜 1.79 -> 0.20/초 (흔들림 띠 + 손 담기를 거르개 앞에서), 손 · 머리 잘림 126장 중 1장 1%.
-  - 옛 C:D 프리셋은 previousVersion 에 적어 둠 (dance_beats.plan 코드는 남김).
-- 넷째 판 "C:D 넓은 샷 여백이 너무 많아 / C:S 는 뚝뚝 끊기는 거 빼면 많이 괜찮아졌어":
-  - C:S 꺾임 (0.1초에 0.15 h/초 넘게): 가로만 5곳 (11.7-12.7 · 21.1초, 팔 뻗기) - 손끝을 거르개 뒤에서 딱 붙잡아 팔 따라 툭. 손 담기를 거르개 앞 + 뒤는 가속 한도 3 h/초² (참고본 99% 1.1 의 3배). 한도 없음 · 1.5 · 3 · 6: 꺾임 최대 0.68 · 0.17 · 0.18 · 0.24, 손끝이 나간 px 4 · 17 · 15 · 12. -> 0.68 -> 0.18, 팔 뻗는 0.2초만 손끝 15px.
-  - C:D: 넓음 0.74 -> 0.88. 꺾임을 하나씩 잡음 - 마디마다 코사인 새로 시작 (속도 0 으로 끊김) -> 용수철 둘 · 손 폭 배율을 용수철 뒤에서 max (9.2 · 11.1초 툭) -> 목표 안으로 · 발 넣기 스위치 (c<0.5) + 몸이 안 들어가는 샷에서 발 넣다 머리 선에 걸림 -> 몸이 들어갈 때만 서서히 · follow 가 목표를 지날 때 속도 0 -> snap=False · 끄덕이는 머리를 따라 내려감 -> 지난 0.6초 최고점.
-    배율 꺾임 26 -> 0, 세로 12 -> 3, 가로는 한도 (0.2) 안, 손 · 머리 나감 31 -> 6장 (11.8초 손가락질 39px - 0.3초짜리라 배율이 못 따라감, 한도를 4 로 올려도 34px).
-
-## 2026-10-02 프리셋에서 분석 출처 지움
-
-- 사용자: "프리셋에 보면 ~프로젝트, 영상 이름이 적혀져있는데 어디서 혹은 어떤 영상으로 분석했는지 지워줘". 프리셋 9개 (비공개 7 · 공개 2) 에서
-  sources.measuredFrom · portedFrom 목록을 빼고, 설명 · basis · guidance 안의 프로젝트 이름 · 영상 파일 이름 · 유튜브 주소 · 참고 reframe 파일을 "an earlier edit" · "a published solo short" · "a reference short" 처럼 바꿈.
-  남긴 것: 렌더가 쓰는 자산 경로 (배경 · 아웃트로 · LongBG · 채팅 아이콘), 글꼴, 진행자 이름 · 이름표, 스타일 별칭, 번역 예시 낱말 (고구마 = 답답함).
-  어느 영상에서 쟀는지는 이 파일의 그 날짜 항목과 tools/*.py 주석에 그대로 있다. 9개 모두 loadPreset 통과.
-
-## 2026-10-02 카덴라이브로 넘기기 (첫 판)
-
-- 사용자: 다빈치 리졸브 무료판은 연결은 되지만 컷 · 자막을 원하는 대로 못 고침 -> 다른 프로그램. 이미 만들어진 편집기 소스는 쓸 만한 것이 없었다 (오픈컷: 처음부터 다시 만드는 중, 디자인콤보: 엔진이 다름, 리모션 편집기 시작판: 유료 · 엔진 잇기가 큼) -> 카덴라이브 26.08.1 설치 (사용자 허락, 검사값 일치).
-- tools/export_kdenlive.py. 퍼리취향으로 시험: 조각 12 · 1918 프레임 (완성본과 같음) · 자막 18줄 · 전체 이득 +17.20 dB.
-  카덴라이브 렌더 (자막 뺀 판) 와 완성본을 견줌: 창 · 배경 · 이름표 자리 같음. melt 렌더 (자막 포함) 네 장면: 자막 자리 · 글꼴 · 색 (슬픔 · 부분 강조) 같음, 설명 상자 두 줄. 화면으로 열어 40초 살아 있음.
-  고친 것 순서: 프로필 이름 없음 (720x576 25fps 로 구움) -> 자르기 값 기준 (카덴라이브만 확대) -> 자막 있으면 죽음 (시퀀스 id · kdenlive_id; 끝내 --render 자체 버그로 확인) -> 조각마다 반올림 (2프레임 짧음).
-  근사한 것: 강조 (이중 테두리 -> 안 테두리 한 겹), 발끈 (그라데이션 -> 아래 색 한 가지).
-- 다음: 제목 · 그림 · 채팅 같은 얹는 것을 투명 영상 층으로, 사용자가 고친 프로젝트를 다시 읽기 (양방향), 댄스 카메라 움직임을 키프레임으로.
-
-## 2026-10-02 사용자 편집 탭 (컷 직접 조작)
-
-- 사용자: 카덴라이브 "ui 나 컨트롤이 어려운데" -> "github 소스 코드로 효과나 오디오 같은거 구현 작업만 하고 차라리 새로 ui 를 만드는게 낫겠어" -> "컷 직접 조작부터 하고 피드백 탭 옆에 사용자 편집 탭을 추가하고 ... ui 스타일은 다빈치 리졸브처럼".
-- 만든 것: dashboard/js/useredit.js (625줄) · css/useredit.css · index.html 탭 · app.js 단축키 연결 · feedback.js (sceneFor · basePlan · userClips 를 계획으로) · server.py (userClips 저장) · apply_review.py (userClips 굽기, 자막 없는 편도).
-- 확인 (시험 대시보드 8898, 합본 사본 프로젝트, 실제 마우스): 클립 누름 -> 고름 · 선 275px 그대로 / 오른 끝 끌기 -> 27.78 -> 20.37초, 뒤 당김, 선 그대로 / Ctrl+B 10.02초 자름 / Delete 리플 / Ctrl+Z / 맨 앞으로 끌기 (처음엔 가운데 기준이라 첫 클립 뒤로 감 -> 놓은 시작점 기준) / 칼 도구 / 리플 끔 -> 1.93초 틈, 겹치면 안 놓음 / 새로 읽어도 그대로 (서버 저장).
-- apply_review 사본 시험: 합본 4클립 -> edit.json keep 순서 그대로, captions.csv 안 건드림. 퍼리취향 (조각 3 빼고 조각 5 를 앞으로): 조각 11 · 29.24초, 옮긴 자막 "아 맞다 나 담비지" 4.18초로, 뺀 조각 자막 2줄 버림, 제목 끝 29.24.
-- 다음 (사용자 계획 순서): 소리 (파형 · 클립 크기 · 효과음 · 배경 음악) -> 색 -> 전환 · 움직임. 자막 줄 끌기도 이 탭으로.
-- 둘째 판 "자막도 인스펙터에 표시하고 단어별 추가 제거도 인스펙터 / 전사 자막 / 렌더 탭 3개로 ... 피드백 탭에는 추가소스, 프롬프트, 메모 리스트 영역, 편집 버튼만":
-  - 사용자 편집 오른쪽 탭 셋. 자막 줄을 누르면 인스펙터에서 글 · 화자 · 디자인 · 시작 · 끝 (이 타임라인 시각 -> 구운 편집 시각 s2/e2 로 되돌려 적음). 설명 딱지 (장면 l0) 도 review.captions 설명 줄로 찾아 고침.
-  - 전사 자막: 낱말이 클립 목록을 바로 고친다 (정본 하나). 시험: 퍼리취향 사본 "풀려서" 빼기 9.57-10.41 -> 31.97 -> 31.10초, 되살리기 -> 원래대로 (이어지는 클립은 합침). 줄 바꿔 겹친 자막, 글 고침 + Ctrl+Z 확인 (실제 마우스).
-  - 처음엔 "어 잠깐만" 이 영상에 있는데 빠진 것으로 보였다: 이 편 전사는 낱말 시각이 1초쯤 이르다 (잠깐만 7.97-9.07, 조각 8.72~). keep 이 정본 - 조각 밖 · 걸친 keep 낱말 덩이를 조각 안으로 옮겨 잼. 빠진 낱말 35 (파이프라인 keep 아님 36).
-  - 피드백 탭: 추가 소스 / 메모 (왼쪽), 프롬프트 + 편집 단추, 영상. 영상 칸은 쪽지를 그리는 곳이라 남겼다 (사용자가 안 적었지만 메모가 거기 붙는다).
-- 셋째 판 (2026-10-02) "미디어 · 클립 부분 -> 소스 폴더 추가로 변경, 사용자 편집도 피드백 처럼 레이아웃 사이즈 변경 가능하게, 피드백 탭과 사용자 편집 탭의 영상은 공유 / 피드백에서 미리보기 변경 사항도 사용자 편집에서 적용, 사용자 편집 - 오디오 부분에 파형 적용 비디오의 경우 일정부분마다 썸네일 캡쳐해서 클립에 적용, 전반적인 테마 맞춰줘 - 사용자 편집 테마에 맞게 색상 변경".
-  - 영상 공유: 사용자 편집은 제 플레이어를 버리고 피드백 탭 화면 (.fb-stage-wrap - 영상 · 쪽지 · 화살표) 을 탭이 보일 때 뷰어로 옮겨 오고 떠날 때 돌려놓는다. 재생 위치 · 장면 · 쪽지가 같다.
-    클립을 고치면 review.userClips -> 피드백 계획 -> D.Feedback.livePreview(keepT) (그 탭 타임라인 시각을 지킨다). 시험: 12.5초 -> 피드백 탭 0:12.50, 거기서 20초 -> 편집 탭 00:00:20:00, 클립 하나 지우니 31.97 -> 28.02초 · 시점 그대로.
-  - 소스: 왼쪽 칸이 폴더째 넣는 소스 목록 (첫 묶음은 이 편 원본 사본). 서버가 폴더를 읽어 고르는 창을 띄운다 (/api/media/browse · list · poster) - 브라우저는 진짜 경로를 안 준다.
-    review.srcFolders (server.py 저장 칸에 넣음) · 편집 (AI) 글에 [소스 폴더]. 클립 목록은 뺐다 (타임라인에 다 보인다). 아직 소스를 타임라인에 끌어 넣지는 못한다 (원본 하나만 굽는 구조).
-  - 썸네일: /api/media/thumbs 가 원본 사본에서 0.5초마다 (300초 넘으면 600장 안으로) 한 장씩 20열 격자 jpg 하나로 (퍼리취향 123초 246장, 처음 한 번 수 초). V1 클립에 칸마다 그 자리 원본 시각 그림.
-    파형: review.wave 가 없는 옛 편은 /api/media/wave (src_wave.py 와 같은 식). 둘 다 서버 임시 폴더 kirinuki_media (경로 · 크기 · 수정 시각 열쇠). V1 · A1 높이는 타임라인 칸 높이를 나눠 갖는다.
-  - 칸 크기: 손잡이 셋 (소스 | 뷰어 | 인스펙터 너비, 타임라인 높이) - split.js 에 .ue-grid, 칸 사이에 떠 있는 띠 (.ue-gut). 더블클릭 기본값.
-  - 테마: base.css 토큰을 리졸브 중성 회색 (--bg #141417 · --panel #232328 ...) 으로, 다른 css 의 남색 · 푸른 회색 (초록 · 보라 기는 그대로) 을 같은 밝기 회색으로 기계로 바꿨다 (87곳).
-    켬 상태 (토글 · 탭 아이콘 · 거터) 는 주황 --on #f39c38, 주 단추는 리졸브 파랑 #3a6fd0.
-## 2026-10-02 렌더는 마지막에 한 번 · 자막으로 컷 고치기 · 클립 높이
-
-- 사용자: "클립 높이가 너무 긴데 줄여줘", "피드백 방식 자체도 매번 렌더링 할게 아니라 마지막에 한 번만 렌더링하고 그 전까지는 미리보기에서만 ... 렌더링 시간이 오래 걸리잖아 토큰도 더 많이 먹고,
-  특히 자막에 의해 컷 추가 / 삭제 할 때 미리보기에서 바로 볼 수도 없지".
-- 클립 높이: V1 · A1 을 타임라인 칸 높이로 나눠 갖게 했던 것 (셋째 판) 을 50px 고정으로.
-- `shortsmith preview`: cuts + scene 만 (몸통 길이는 estimateBody - 조각 길이 합, 창 높이는 buildBody 와 같은 식). body.json · 완성본은 안 건드린다.
-  `tools/preview_update.py`: preview + export_shortsmith.py. 퍼리취향 사본에서 keep 하나 빼고 돌리니 1.1초 (렌더는 50초 넘게). src_preview.py 는 window.mkv 가 옛것이면 전 사본 이득을 그대로 쓴다 (다시 안 구움).
-  export_shortsmith.py: review.unbaked = 완성본이 scene.json 보다 옛것. feedback.js planNow 는 unbaked 면 고친 것이 없어도 계획 (원본 사본) 으로 튼다.
-- AI 판이 사용자 고침을 지우는 길 막기: apply_review.py 가 applied_review.json (userClips · 낱말 빼기/되살리기 표의 sha1) 을 남기고, preview_update.py 가 프로젝트의 지금 표와 다르면 멈춘다.
-  시험: userClips 를 넣은 채 돌리면 멈춤 -> apply_review 뒤 통과, 25.50초 (사용자 컷과 같음).
-- 자막으로 컷: 인스펙터 원본 시작 · 끝 (os2 · oe2). "나 믿는다" 원본 시작 23.40 -> 22.40 이면 그 앞 0.92초를 되살려 25.50 -> 26.42초, Delete (이 줄 컷에서 빼기) 23.68초, Ctrl+Z 26.42초.
-  렌더 쪽 (apply_review) 도 그 줄을 4.14-6.87 에 써서 미리보기 (4.14-6.869) 와 같다.
-- 작은 고침: export_shortsmith · src_preview 저장소를 KIRINUKI_PROJECTS 로 바꿀 수 있게 (시험용), 다른 드라이브 편 폴더에서 relpath · commonpath 가 죽던 것.
-- 편집 (AI) 단추가 넘기는 글 첫 줄에 [방식] 세 단계 (apply_review -> 고침 -> preview_update, 렌더 금지).
-## 2026-10-02 트랙 (비디오 위 · 오디오 아래) · 소스 끌어 넣기 · 덧 클립 소리 · 색 · 페이드
-
-- 사용자: "소스 파일 타임라인으로 끌어 넣기도 해줘 / 타임라인에서 y축 가운데를 기준으로 아래는 오디오 영역 위는 비디오 영역(자막 포함)이고 비디오는 기준에서부터 위로 1,2,3,4,... 스크롤 가능,
-  오디오는 기준에서부터 아래로 1,2,3,4,... 스크롤 가능 / 그리고 나머지 오디오나 효과나 기타 등등도 계속 진행해줘".
-- 타임라인: 머리 · 줄을 비디오 칸 (아래 붙임, 위로 넘김) / 가운데 선 / 오디오 칸 (위 붙임, 아래로 넘김) 으로. 트랙 수 = 쓰인 것 + 빈 것 하나 (최소 2).
-- 덧 클립: 소스 줄을 끌어 놓으면 /api/media/info 로 길이 · 크기 · 소리를 읽어 만든다. 영상 = V + A 묶음 (같이 옮기고 자르고 고른다), 겹치면 빈 트랙으로 (settle). 칼 · Delete · Ctrl+Z.
-- 시험 (퍼리취향 사본, 진짜 마우스 끌기): bg.mp4 -> V2, c_13.2.png 같은 자리 -> V3 로 비켜 섬, clip_17_23.mp3 -> A2 (파형). 미리보기 12.3초에 V2 영상 · 50% 그림 보임.
-  렌더 (ss 사본에서 build): 같은 자리 같은 크기, 자막은 위. 섞인 소리: 출력 4.92초부터 6초와 mp3 의 상관 0.64 (지연 -0.003초) / 다른 자리 0.05.
-- 미리보기 묶음 다시 만듦 (src/parts/Layers.tsx). render.mjs 의 창만 있는 편 빠른 길은 덧 영상이 있으면 안 탄다. 청크 열쇠에 덧 클립 · 파일 서명.
-- 아직: 원본 (V1) 클립 색 · 전환 (디졸브 등) · 움직임 (키프레임) · 뷰어에서 끌어 위치 잡기.
-## 2026-10-02 원본 색 보정 · 전환
-
-- 사용자: "자막만 보이고 왜 영상이 안보이지? 채팅 아이콘도 안보이고 원래 있던 프리셋 비디오도 적용이 안됐어 / 그리고 남은 거 계속 진행해줘 원본 색 보정이랑 전환".
-- 영상이 안 보인 것: 사용자가 본 것은 내가 시험 뒤 서버를 끈 시험 탭 (localhost:8897) 이었다 - 화면은 남아 있는데 서버가 없어 영상 · 배경 · 채팅 그림이 못 불러지고 자막만 그려졌다.
-  본 대시보드 (8899) 는 모캡영도랜디 피드백 · 사용자 편집 둘 다 정상. **시험이 끝나면 시험 탭을 닫는다** (같은 화면을 사용자가 본다).
-- 원본 색: 조각마다 eq (대비 · 채도) + colorchannelmixer (밝기) - 조각 캐시 열쇠에 들어가 바뀐 조각만 다시 굽는다. 미리보기는 CSS filter.
-- 전환: 컷 가운데, 양쪽 손잡이로 xfade 조각을 따로 굽고 렌더 합성에서 창 위에 얹는다. 길이 · 자막 그대로.
-- 시험 (퍼리취향 사본): 3번 클립 채도 0 + 앞 클립에서 디졸브 1초 (7.78초 컷). 렌더 화면 (덧 클립 밖 창 띠) 채도 6.9초 57.9 -> 7.4초 53.0 -> 7.78초 31.1 -> 8.15초 11.5 -> 8.6초 6.1.
-  미리보기 7.78초: 앞 클립 불투명 1 + 흑백 클립 0.50. 렌더 뒤 다시 열어도 전환 · 색 남음. tsc 통과 (ss 사본).
-## 2026-10-03 덧 클립 움직임 (키프레임) · 뷰어에서 끌기
-
-- 사용자: "계속 진행해줘" (지난 보고의 남은 것: 움직임 · 뷰어에서 끌어 위치 잡기 · 덧 클립 사이 전환 · 댄스 편 전환).
-- 렌더: ffmpeg scale 의 eval=frame 으로 크기를 바꾸면 overlay 가 첫 프레임 크기로 굳는다 (t=1.5초에 250 이어야 할 폭이 100). perspective (sense=destination, eval=frame) 는
-  변수가 in · on 뿐 (t 없음) - in/fps 로 시각을 만들고, 가장 큰 상자로 줄인 그림을 투명 여백 (2px) 안에 두어 가장자리 늘림이 투명이 되게 했다. 시험 그림에서 x 200 · 폭 250 정확.
-- 시험 (퍼리취향 사본): 키 둘 (0초 270,693 540x569 -> 4초 40,200 270x284, 부드럽게) 렌더 7.85 · 9.78 · 11.9초 프레임이 예상 상자와 겹침.
-  대시보드 (진짜 마우스): 뷰어 상자가 미리보기 그림과 같은 자리 (처음 3px 어긋남 = 플레이어 가운데 맞춤 여백, 고침), 끌어 옮기기 270 -> 662 (저장 · 새로고침 뒤 남음),
-  키 추가 -> 11.5초로 옮겨 왼쪽 위 모서리 끌기 -> 키 2개, 오른쪽 아래 고정 (1202, 1452), 10초에 776 · 폭 425 (계산 776.5 · 425.5), ◀ 로 8.5초 키, Ctrl+Z · 다시 하기.
-  Ctrl+B 가 고른 그림이 아니라 V1 을 잘랐다 -> 덧 클립을 골라 두면 그것만 자르게. 자른 뒤 앞 조각 끝 키 = 뒤 조각 첫 키 (777,1004 425x448).
-- 작은 고침: 소리 없는 영상 (bg.mp4) 파형 요청이 500 이던 것 -> 없음으로 답.
-- 덧 클립 사이 디졸브: 같은 트랙 맞닿은 두 클립 (V3 그림 두 조각, 뒤 조각 채도 0, 1초). 미리보기 9.58초 뒤 조각 0.08 · 10.23초 0.73 (계산 0.083 · 0.733),
-  렌더 그림 자리 채도 9.3초 29.7 -> 9.75초 22.5 -> 10.0초 15.4 -> 10.25초 8.2 -> 10.7초 2.4 (곧은 1초 디졸브 계산 22.3 · 14.9 · 7.4).
-  인스펙터 길이 칸이 칸 밖으로 넘쳐 있으면 마우스가 타임라인을 눌렀다 (시험 중 실수, 기능 문제 아님).
-- 아직: 댄스 (카메라 경로) 편 전환, 덧 클립 디졸브 말고 다른 전환, 키 사이 곡선 고르기 (지금은 곧게 / 부드럽게 둘).
-## 2026-10-03 댄스 편 전환 · 덧 클립 전환 다섯 가지
-
-- 사용자: "남은 것도 계속 진행해줘 댄스 편 전환이랑 다른 전환".
-- **고친 사고: #23 뒤로 덧 클립이 없는 편은 렌더가 죽었다** ("Cannot read properties of null (reading 'filter')") - render.mjs visLayers 의 첫 계산 조건
-  (EFF_OF !== scene.layers) 이 덧 클립 없음 (undefined === undefined) 에서 거짓이라 EFF 가 null 로 남았다. 댄스 시험 사본에서 드러남. !EFF 를 더했다.
-- 댄스 (카메라) 전환: body.mjs 전환 조각의 양쪽 손잡이를 그 원본 시각의 카메라 경로로 (cameraSpans · pathVf, 조각과 같은 식). 가시나0 사본 (0-9 · 11-25.15, 디졸브 1초):
-  완성본과 window.mkv 의 평균 차이가 전환 첫 끝 8.52초 1.5 · 마지막 끝 9.48초 1.2 (전환 밖 1.1, 0.1초 떨어진 프레임끼리 10-12) - 경로를 그대로 따라간다. 가운데 9.0초 11.8 (두 장면 섞임).
-- 댄스 미리보기에 카메라: src_preview.py 가 review.srcPreview.camera (키 277개) -> planScene -> plan.camera -> Window.tsx camBox (body.mjs 와 같은 계산).
-  대시보드 (진짜 마우스) 0 · 5.02 · 12.02초 원본 사본 위치가 계산과 같음 (-887.2/-502.1/4306, -1694.2/-947.3/6350.7, -985.3/-655.3/4578.2 vs -985.2/-655.1/4577.9), 9.02초 뒤 구간 0.52 (계산 0.517).
-  전에는 굽지 않은 미리보기 (사용자 편집 탭은 늘 그렇다) 에서 카메라가 안 보였다.
-- 덧 클립 전환 다섯 가지 (원본 클립과 같은 목록): 닦아내기 · 밀어내기 = 투명 클립과 ffmpeg xfade (wipeleft · slideleft, 투명 채널 됨 - 시험), 상자 안에서만, 밀어내기는 앞 클립도 밀려 나감.
-  검은 · 흰 화면 거쳐 = 컷 너머를 안 쓰고 앞 끝 h · 뒤 처음 h 를 fade color=. **rgba 위 fade color= 는 투명 채널까지 내려 클립이 비쳐 보였다** (검은 화면 대신 아래 영상) - yuva444p 로 바꾼 뒤 건다 (rgba [0,0,254] -> yuva444p [0,0,0]).
-  렌더 프레임 4×5 (컷 -0.6 · -0.25 · 0 · +0.25 · +0.6초) 모두 예상대로. 미리보기 13.23초 닦아내기 76.67% (계산 76.7), 16.73초 밀어내기 -293 · +107px (-293.3 · +106.7), 19.23초 검정 0.47 (0.467), 22.75초 흰색 0.50.
-- render.mjs VERSION 6 -> 7 (합성 식이 바뀌었는데 조각 열쇠가 같아 옛 조각이 돌아왔다 - 2.1초 만에 "done"). 다음 렌더는 모든 편이 합성 조각을 한 번 새로 굽는다.
-## 2026-10-03 사용자 편집 넷째 판 (타임라인 조작 · 인스펙터 · 색 · 변형 · 그룹)
-
-- 사용자: 인스펙터 비디오/오디오 구분, 소리 슬라이더 + 숫자, 색 rgbw · 커브 그래프 · 밝기 대비 채도 탭 · 초기화, 트랙 이동 (V1 <-> V2) + 소리 같이/따로 아이콘,
-  자르기 c, i · o 구간 (밖 어둡게), 소스 / 이펙트 탭, 바퀴로 칸 세로 넘김 (Ctrl = 지금 넘김), 끌어 여럿 고르기, 우클릭 그룹, 1차 편집도 렌더 안 함 + 화면을 눈으로 고칠 수 있게
-  (모든 비디오 · 자막 클립 이동 · 확대 · 회전, X · Y 슬라이더 + 보기용 숫자), 로그 창 제거, 피드백 탭을 AI 편집 탭에 합치기, 렌더 탭 설정 (코덱 · 화질, 영상 방향에 맞는 비율),
-  스타일 적용에 화면 비율 고르기.
-- 이 판 (첫 묶음): C · I · O · 바퀴 · 상자 고르기 · 연결 아이콘 · 그룹 · 인스펙터 탭 · 슬라이더 · RGBW · 커브 · 원본 클립 / 덧 클립 / 자막 변형. 나머지는 다음 묶음.
-- 시험 (퍼리취향 사본, 페이지 안 이벤트 - 창이 가려져 화면 캡처가 안 됐다): 확대 150% -> 원본 사본 폭 2025 -> 3040px, 회전 10°. 커브 (0.5 -> 0.7) · B 게인 -40 -> SVG 표 R(0.5) 0.70, B(1) 0.775 (계산과 같음).
-  상자 고르기 8 클립, 그룹 "앞부분" -> 클립 2 채도 0 이 그룹 원본 클립 셋에 (덧 클립은 갈래가 달라 안 바뀜), 저장됨. I · O 구간 26.4 -> Delete 15.6초 -> Ctrl+Z.
-  바퀴: 그냥 = 비디오 칸 100px 세로, Ctrl = 가로 100, Alt = 확대. 렌더 프레임: 1.5배 · 10° · 노란 기운 (채도 0 뒤 게인), 딱지 -200 · -15°, 자막 +100 · 8°, 그룹 클립 흑백.
-- **사고 하나:** 설명 딱지를 고치게 되자 server.py 의 "시작 시각이 가장 가까운 줄에 얹기" 가 같은 0.05초에 시작하는 "어? 잠깐만" 줄 글을 딱지 글로 덮었다
-  (렌더가 "fx.json: no caption 어? 잠깐만" 으로 멈춰 드러남). 글 (orig) -> 화자 -> 가까운 줄 순으로 고쳤고, 시험 사본은 되돌렸다.
-
-## 2026-10-03 트랙 사이 옮기기 (V1 <-> V2, 연결 켬 / 끔)
-
-- 사용자: "트랙 이동 기능 예) v1 <-> v2등등 , 오디오도 같이 움직일건지 따로 움직일 건지 선택 가능하게 아이콘" - 아이콘은 넷째 판의 연결 (고리) 단추를 그대로 쓴다.
-- 원본 클립 -> 덧 영상: AI 크롭 (조각 crop) 을 창 비율로 맞춘 원본 px 영역 + tf (이동 · 확대 · 회전) 를 상자로. 연결 켬이면 소리 덧 클립도 (vol = 클립 dB + 조각 이득), 끔이면 V1 클립에 vhide.
-- 시험 (퍼리취향 사본, 대시보드 8897): 우클릭 · 끌기로 올리기 / 내리기 네 가지, 다시 열어도 vhide · crop 남음, 내리기에서 앞 클립과 0.2px (몇 ms) 겹쳐 막히던 것 -> 두 프레임 안은 붙임.
-  세로로만 끌면 움직임으로 안 치던 것 -> 옮기기는 세로 6px 도 받음. 렌더: 5.5초 (연결 켬, 그룹 채도 0 따라감) · 16.5초 (화면만, V1 검정 위 덧 영상) 둘 다 V1 과 같은 화면.
-
-## 2026-10-03 이펙트 탭 (소스 / 이펙트)
-
-- 사용자: "소스 / 이펙트로 탭 분리 , 이펙트 카테고리 별로 정리해서 드래그 -> 클립에 적용 가능하게".
-- 화면 효과는 이미 있던 scene fx (zoom · push · shake · blur) 를 클립에 붙인다 - 새 필터식 없음. 렌더 push 식 (scale eval=frame 을 검은 판 위에 overlay) 은 크기가 바뀌는지 따로 시험했다 (1 -> 1.5배, 됨 - 덧 클립 때 안 됐던 것은 overlay 뒤에 또 겹친 경우).
-- 시험 (퍼리취향 사본): 끌어 놓기 여섯 가지 (덧 클립에 화면 효과는 거절), 미리보기 창 변환 (확대 1.2 · 다가가기 1.135 진행 중), 저장 -> apply_review -> fx.json user 넷 -> 렌더 프레임 (확대 · 흐림 보임),
-  내보내기 -> review.clips fx -> 다시 열기 배지 셋 (화면을 위로 옮긴 클립은 배지 안 그림).
-- 고친 것: 끌어 놓은 클립 말고 직전에 고른 클립에도 같이 걸리던 것 (놓은 클립이 고른 것일 때만 같이), 전환 표 아래 클립을 못 찾던 것 (elementsFromPoint).
-- **덤으로 찾은 버그:** 사용자 편집 탭이 보이는 채로 프로젝트를 다시 열면 load 가 멈췄다 - viewerMsg 가 알림을 지울 때 같은 class 의 #ueEmpty 까지 지웠다.
-- 알아 둘 것: 페이지를 새로 고치면 디스크 시각 (diskAt) 이 비어 자동 저장이 "폴더 쪽이 더 새것" 으로 건너뛴다 (원래 안전장치) - 시험은 Projects.open 으로 다시 연 뒤에.
-
-## 2026-10-03 렌더 설정 · 스타일 화면 비율
-
-- 사용자: "렌더 탭에서 렌더 버튼은 맨 아래, 렌더 시 필요한 모든 설정 커스텀 가능하게 변경 코덱 설정, 화질 등등 영상에 맞게 세로 영상은 세로 영상 비율만, 가로 영상은 가로 영상 비율만, 스타일 적용 시에 화면 비율 선택 란 추가".
-- 조각 캐시를 깨지 않으려고 설정은 마무리 (finish) 에서만 먹는다 - 바뀐 것이 있으면 이어 붙인 그림을 한 번 더 인코딩 (화질 한 세대 더 거침, 기본이면 그대로 복사).
-- 시험 (퍼리취향 사본): HEVC · 화질 24 · 720x1280 · 30fps · 128k · -14 LUFS -> hevc_qsv 고름, ffprobe hevc/hvc1 720x1280 30/1 · aac 130k, 마무리 3초 (조각 0/14 새로 구움).
-  -14 LUFS 는 -15.2 에서 멈춤 - 고정 이득이 최고점 한도 (-1.5 dB) 에 걸렸다 (리미터를 안 거는 규칙 그대로). 소프트웨어 = libx264 slow · libx265 medium.
-- 컨테이너 (mp4 말고 mov · mkv) 는 안 넣었다 - 완성본 경로가 내보내기 · 피드백 탭 영상 찾기에 박혀 있어 확장자를 바꾸면 그쪽이 못 찾는다 (짐작 아님: export_shortsmith.py FINAL).
-
-## 2026-10-03 AI 편집 탭에 피드백 탭 합침 · 로그 칸 제거 · 1차 편집도 렌더 안 함
-
-- 사용자: "로그 창 제거, 피드백 탭을 AI 편집 탭과 합칠 것 -> 1차 편집에서도 영상 위에 지시가능하게 탭이름은 AI 편집",
-  "첫번째 편집때도 렌더는 진행하지 않을 것 -> 실제로는 원본을 직접 건드리지는 않으나 원본을 수정 하는 느낌으로 ... 1.5배 확대 하고 싶은데 1.6배 확대 시킨 경우 변경 불가".
-- 지시 칸은 하나 (#fbPrompt = review.prompt) - 1차 편집 (스타일 적용) 과 재편집이 같이 쓴다. ai.js 는 작업을 만들 때 그 칸을 읽는다 (promptNow).
-- 1차 편집 전 영상: 편집 대상 첫 영상을 blob 으로 튼다. 새 프로젝트는 review 가 없어 저장이 안 됐다 - dump 가 지시 · 쪽지만 담아 보낸다 (서버는 옛 review 가 없으면 그대로 받는다).
-- 시험 (대시보드 8897): 새 프로젝트에 원본 놓기 -> 가로 배치로 바뀜, 쪽지 3.2초 (처음엔 0 - 지난 프로젝트 PLAN 이 남아 있었다, 고침), 새로 고친 뒤에도 쪽지 남음,
-  스타일 적용 작업 글 (보내기 가로채 봄) 에 화면 비율 16:9 · 지시 · 쪽지 둘, 다른 프로젝트로 옮기면 원본 비율이 남아 세로 화면이 가로로 잡히던 것 (고침),
-  사용자 편집 탭으로 영상 칸이 갔다가 돌아옴. shortsmith preview 배경: 퍼리취향에서 bg_preview 를 치우고 돌려 540x960 60초 2.3초.
-- 1차 편집 작업 글의 실행 원칙이 옛 파이프라인 (render/body.py · make_scene.py) 을 가리키고 "렌더링은 마지막에 한 번" 만 적혀 있었다 - shortsmith 와 preview_update 로 바꿨다.
-
-## 2026-10-03 타임라인 다섯째 판 · README · 가이드
-
-- 사용자: 트랙은 쓰는 데까지만 · 자막은 비디오 트랙에 · 자막 추가 단추, 끌면 한 트랙씩 추가 · 오디오도 트랙 이동 · 내릴 때 주황 표시, Ctrl+Z 로 설정값 · 선택 유지,
-  미리보기에서 색 확인 불가, 전환만 고르기 · 끌어 길이, 설명 글 지우고 단어로 · 초기화 이름 통일, 이펙트 더, AI 편집 "렌더 전 미리보기 ..." -> 미리보기, 바깥 파일 끌어 넣기, README · 가이드.
-- 시험 (대시보드 8897, 퍼리취향 · 모캡영도랜디 사본):
-  - 트랙 V1 · A1 만 + 자막 V2 · V3, 끄는 동안 V4 · A2 생김
-  - 오디오 내리기 / 올리기와 양쪽 주황 표시, 자막 V2 -> V3
-  - 자막 추가, 되돌리기 뒤 선택 남음, 전환 1 -> 2.85 초 · 되돌리기
-  - 바깥 그림 두 장 (타임라인 · 소스 칸)
-  - 렌더: 번쩍 · 비네트 · 좌우 반전 · 밀기 ↑ 프레임, 새 자막 구워짐, 소리 내린 구간 window.mkv -91 dB · 완성본 -28.7 dB (A2 소리)
-- 내릴 때 주황 표시가 안 보인 까닭: xMove 가 표시를 그린 뒤 draw() 가 레인을 새로 만들어 지웠다.
-- **"미리보기에서 색 확인 불가" 는 재현이 안 됐다** - 사용자 프로젝트 사본에서 채도 0 이 바로 흑백, RGBW 프리셋도 같은 프레임을 캔버스에 그려 재 보니 빨강 165 -> 155 · 파랑 245 -> 251.
-  정적 파일은 no-store (캐시 아님). 고른 클립이 재생 위치에 없으면 뷰어에 그 클립이 안 나오는 것과 헷갈렸을 수 있다 (짐작) - 사용자에게 상황을 물어봄.
-- 덤: 새로 고친 뒤 자동 저장이 계속 건너뛰어지던 버그 (app.js freshenFromDisk 가 같은 시각이면 diskAt 을 안 채움).
+| 허츄의 뒤를 잇는 2대 곡예사 (rap) | no | -0.050 | - | 84% | +0.24 |
+| 일본에서 화상 입은 유이 | yes | -0.060 | 0.050 (3f) | 82% | +0.16 |
+| 집에서 미끄러져서 응급실간 유이 | yes | -0.045 | 0.067 (4f) | 85% | +0.03 |
+| 유이가 말아주는 러브송 (song) | no | -0.060 | 0.000 (0f) | 66% | +0.01 |
+
+**Captions appear 0.05 s (3 frames) before speech is heard - regardless of animation.** Line changes happen at **the end of the dip**
+between words (next speech 0.00-0.09 s after the change). A caption is never switched off before the speech ends.
+
+The current pipeline **pins captions to speech** (0.00 to +0.15). To change it, subtract 0.05 s from what `make_csv.cue()` returns - cuts
+are untouched, so only captions need re-rendering. **Not applied yet (awaiting the user's decision).**
+
+A misreading worth recording: looking only at one animated reference I said "the settle moment is the speech start", but across four
+references the settle moments scatter and **the appearance starts cluster.** Setting a rule from one reference mistakes that reference's
+animation length for the rule.
+
+## 냉면 - first edit (2026-09-13)
+
+`냉면.mp4` 70 s -> **31.9 s**, 25 captions (3 outbursts), 14 pieces. No speed change. Style 담유이 1인 일반 쇼츠; the `edit/피곤해` pipeline
+was carried over.
+
+- **Transcription rule changed (user instruction):** the first edit runs one transcription without asking. Only additional ones are asked
+  about (recorded in CLAUDE.md).
+- **`probe.py` runs Whisper = an additional transcription.** Misjudged by name as a sound-only tool, three spans were run without asking.
+  Now gated with `ai_budget.require`.
+- Audio: -16.1 LUFS / -0.7 dBFS. Band track room tone p90 0.0066, speech p50 0.0380 -> thresholds 0.014/0.011 unchanged (70 blobs).
+- Transcript times 0.4-0.9 s early -> all group and caption boundaries from waveform blobs.
+- Removed: "고맙습니다" (looks like thanks for a donation; guess), two gaps over 8 s, "원 투 쓰리".
+- Crop x=468 (face 960-1000, chat column 1580). No chat cards (not instructed).
+- **Captions appear 0.05 s before sound (make_csv.LEAD)** - the first project applying the four-reference measurement.
+- Three outbursts (instruction "here and there"): "물냉면은 진짜 내가", "아 뭔 물냉면이야", "너네는 뭐 먹었는데?" - chosen by p85 among the arguing
+  lines.
+- Guessed words: "불냉면은", "물냉면은 비냉이지", "왕만두의 비냉이".
+- Checks: cuts 0, gaps 0, sync 0. Two timing flags on lines split without a gap ("뭐 먹었는데요?" 64.35 guessed, "말해봐" 66.41 level dip).
+- **`build_ass.py` main rebuilds captions from the transcript** - building ASS from the CSV is `rebuild_from_csv.py`. Running main drags in
+  cut-off speech like "말해봐 원".
+
+**냉면 - first feedback (same day)**
+- User: "for the first time the speech and caption timing is perfect" - **waveform blob cuts + cue() + LEAD 0.05 is the reference
+  combination.** The next project is carried over from edit/냉면.
+- 5 caption edits (captions_user.json; no orig, but the times matched the CSV exactly, so they were matched that way): 땡기는데? -> 땡기네,
+  먹는거지 -> 먹는거임~, 물냉면은 비냉이지 -> 냉면은 (my guess was wrong), 물비빔면 -> 물비빔은, 것이 -> 것이~. The other two lines had the same
+  text and speaker - nothing changed.
+- drop 63.44-66.84 = the closing "여러분들은 ... 말해봐". Cutting with the drop's LAG 0.25 gives 63.69 and leaves the head of "여러분들은", so
+  the group end was set directly to the end of the previous blob, 63.51. The third outburst went too, leaving two. **28.5 s** (below
+  targetTotalSec 30).
+- **seg_durs.json ordering trap:** when the piece count changes, timeline computes TOTAL_DUR from the old seg_durs and the CSV is wrong. Run
+  make_csv **again** after build_edit.
+- rebuild_from_csv got shrinkOverLongLine: lines over by less than 6% shrink `\fs` to stay one caption (a 1050 px line was about to be split
+  by character count).
+
+**냉면 - second feedback (same day)**
+- "It only plays up to 인정입니, needs the '다' at the end" - last group end 63.51 -> 63.71. **The blob boundary was in the wrong place:** "다"
+  (peak 63.55) and the following "여러분들은" were one blob from 63.54, so removing the latter needed **the dip in the 5-frame average level**
+  (63.70, 0.022), not the blob end. When cutting right before a removed passage, do not trust blob boundaries; look for the dip.
+
+**냉면 - closed (same day)**
+- The user closed it after the second feedback version. Final 28.7 s, all checks 0. Remaining guessed words: "불냉면은", "왕만두의 비냉이"
+  (no user comment).
+
+## 삼성 - first edit (2026-09-13)
+- Scripts carried over from edit/냉면 (the combination whose timing was "perfect"). One transcription (default).
+- 103 s, -14.1 LUFS, -0.5 dBFS. Thresholds 0.014/0.011 unchanged (room p90 0.0091).
+- **The donation speech was not in the transcript.** Asked the user: "아 끝나는 줄 알았는데 왜 안 끝남?" - the only speech the transcript missed in
+  the middle was 64.4-66.4, so that was taken as it and removed (guess). How it was found: sound above THR_HI not covered by transcript words
+  (+0.2 to +1.0 s), collected over 0.5 s.
+- Speech totals 51.6 s, so to reach 30-40 s **I chose overlapping lines to remove** (timeline header "for length"). The user can restore them.
+- Splitting captions within a line: transcript word times on this source wobble 0.3-1.1 s per span and cannot be used - estimate by dividing
+  blob length by syllable count + 5-frame dips.
+- **The first line splits were one phrase late** (all 10 verify_sync flags heard the neighbouring phrase). Syllables were divided over the
+  transcript blob range, and that range was wrong. Dividing by **the speaking time of the pieces left after cutting** and snapping to piece
+  heads / dips left 1 flag (a caption crossing a cut and hearing the next piece's "여러분도"). If two dips are adjacent and produce a 0.14 s
+  caption, merge or split differently ("솔직히 업무 / 환경에서 쓰려면은").
+- 1.5 s of sound not in the transcript (3.78-5.32) after the first line was removed for length (not verified).
+  Final **40.00 s**, cuts / gaps / caption starts 0, one sync suspect (above).
+
+**삼성 - first feedback (same day)**
+- "한 달" and "솔직히" were inaudible: group heads 25.95 -> 25.50, 33.37 -> 32.74. **In the first edit the dip in continuous speech was taken
+  as the head, and that dip came after the first syllable** - only the transcript blob range was looked at, never where the previous line
+  ended. Counting peaks at 50 ms level showed separate silences before (25.05-25.55, 32.72). When cutting a head, **go back to the silence
+  before it** and check the syllable peak count matches the word.
+- "아무리 어? / 뒤를 구르고 앞으로 구르고 / 옆으로 구르고 날아다녀도": "어?" (36.10-36.20) was not in the transcript. Syllable estimates cannot know
+  about missing words, so they go wrong.
+- The user's 0:27.45 and 0:31.45 are **final times of the current version, so they were converted to source times (51.45, 63.13) before
+  moving cuts.** Both were piece heads - the syllable estimate ran late across the piece boundary.
+- Partial emphasis «word|blue» brought over from 악성메일단 (build_ass, rebuild, export).
+- drop.json 81.4-84.14 = the whole "근데 아이폰 14년 썼으면은..." group.
+- 3 caption edits (captions_user.json): "삼성폴드가 더 좋죠?", "삼성? 연락주세요", "아무리 어? 뒤를 구르고" (followed the split in feedback_prompt).
+
+**삼성 - second feedback (same day, in progress at the time)**
+- **Dashboard saves were dropping speakers.** The log showed "caption 6 speaker: 담유이발끈" but captions_user.json and project.json had the old
+  speaker. The review merge in server.py save_project carried only text and by from edited captions -> now speaker, s2 and orig too.
+  **Needs a server restart to take effect.** This round's three speakers were read from feedback_prompt.
+- Partial emphasis colour per word: 승자 yellow, 1년 뒤 sky (#6FCFF5), 구형 핸드폰 brown, 삼성 폴드 8 lavender, 삼성? blue (#7FA8FF). Fill values
+  were picked from the names alone (guess).
+- The fourth column of make_csv LINES also accepts a speaker name ("담유이강조").
+- **Emphasis design** (user instruction; unified for whole-line and partial emphasis, font and size unchanged): fill = emphasis colour, inner
+  outline = white if the fill is bright, black if dark, outer outline = a darker shade of the fill. Drawn as two layers (build_ass
+  emph_layers). Widths 7/16, luminance threshold 0.35 and darkening 0.5 are eyeballed from captures (guess). The gradient outburst is not
+  used under this unified design.
+
+**삼성 - third feedback (same day)**
+- **Outbursts taken out of the emphasis design** - "outburst and emphasis must look different / the outburst is right as it was".
+  Outburst = gradient (emph_lines), emphasis design = 담유이강조 + «word|colour». One round earlier, "unify all emphasis (whole-line and
+  partial)" was read too broadly, with "whole-line emphasis" stretched to include outbursts.
+- Emphasis outer outline 0.5 -> 0.75x ("too dark"). Emphasis text 140 -> 130 ("looks bigger than normal captions" - because of the two
+  outlines). Yellow #FFE27A -> #FFC83D ("hard to see"), Samsung blue #7FA8FF -> #7384CA (logo #1428A0 with 45% white). All values are
+  guesses.
+- Caption edit: "330만원 실화냐~". Split: "솔직히 / 업무 환경에서 / 쓰려면은".
+
+**삼성 - fourth feedback (same day)**
+- **"The emphasis outer outline looks like a shadow (3D)"** = my bug. In the third round the emphasis text shrank to 130, but the upper
+  layer (inner outline) of partial-emphasis lines only made the emphasised part transparent and did not return the size to 140. The two
+  layers ended up with different line widths, the \an5 centring disagreed and the outer outline stuck out on one side. **Captions drawn
+  as two stacked layers need identical size and font tag flow in both layers** - including the transparent parts. Whole-line emphasis was
+  fine because both layers were the same.
+- It was checked on a sheet with four lines scaled down and missed there. Check outline shapes **cropped at full size.**
+- Partial outburst «진짜|balkkeun»: in the outburst layer (emph_lines) only that word is visible, in the ordinary layer only that word is
+  transparent - the same line drawn twice.
+- Colours: 담유이강조 #6FCFF5 -> #45B4EA ("a bit stronger"), 삼성? = logo (20,40,160) hue at value 0.75, saturation 0.78 (pastel). Caption
+  edits: "256GB가?", "삼성 폴드가 더 좋죠?".
+
+## 담유이 테스트 쇼츠 - reference channel analysis (2026-09-14)
+- User: "analysis only", "it's the first time, don't apply the preset". The 삼성 copy and the preset were untouched.
+- Prepared only: project "삼성 사본" (pmu0vhh61j3b1) got its own work folder edit/삼성_사본 and final name 삼성_사본_ko.mp4, and the export
+  target id was pinned (it shares the source file with the original, so finding by name picks the original). Preset copy:
+  dashboard/styles/담유이_테스트_쇼츠.json.
+- Results, scripts and images: docs/테스트쇼츠_참고분석/ (분석.md). Top 5 by views each from 형독, 미도미도 마요, 라코코 and 자석사냥꾼 정타비,
+  downloaded at 360p (with permission; yt-dlp updated to 2026.8.19) and measured.
+- Gist: the energy comes **from the source inside the window changing about every second**, not from camera moves (라코코 48-91 per minute,
+  median 0.34-0.96 s). Letterbox + hook title with a coloured word is common to all four. Slow zooms are rare. Sound effects and music
+  could not be separated numerically and were not checked.
+
+## 삼성 사본 - screen energy, first pass (2026-09-14)
+- User: "apply it to 삼성 사본 and edit". Caption arrangement and preset unchanged.
+- **Shared module assets/fx/fxlib.py** (for other projects too): cards, chapter titles, focus brackets, crown, spinning arrow, sliding arrow,
+  hook title (ASS), window zoom, image pop (ffmpeg filters).
+- **Per-project effect table edit/삼성_사본/fx_plan.py**: effects attach by caption text (no hard-coded times).
+  33 picture size changes (W/1.25/1.55, cut right at line changes), 28 ASS effects, 2 original chat captures (삼성 안써요 1.2 s, 광고
+  받으셨나 99.6 s - only where speech and time match). rebuild_from_csv adds the fx styles and events, and the hook title replaces the old
+  top caption. apply_captions applies zoom and images before captions.
+- Picture motion 0.4 -> 1.9 (reference channels 2.0-12.5).
+- Three accidents: (1) Bash heredoc ate backslashes and the patch did not apply - write patches with Write and use chr(92). (2)
+  cv2.imwrite fails **silently** on Korean paths - use imencode + open().write. (3) ffmpeg cannot open image inputs at absolute Korean
+  paths - use paths relative to the work folder. Also the -loop image input was long and made the final 1 s longer - add -t FINAL_DUR to
+  the output.
+- All guesses (before user confirmation): hook title text, card text, zoom scales, chapter split. Internet images (product photos, logos,
+  いらすとや people) in the second pass with permission.
+
+**삼성 사본 - second pass (same day)**
+- User: "drop things like 1. price, 2. who bought first and do the second pass". Chapter titles removed (fxlib.chapter kept).
+- User: "if you need images of people, mostly from いらすとや (free)". The terms were checked: free for commercial use, but **21 or more in
+  one work is paid** (duplicates count once). This work uses 9. The list and sizes were shown and downloaded with permission.
+- **Shared source folder assets/irasutoya/** (+ SOURCES.md: source URLs, summary of terms). Transparent PNGs, no cut-out needed. No Korean in
+  the path, so ffmpeg reads absolute paths. Images containing Japanese text (POP) were not chosen.
+- Images go on the left by the hair, avoiding the card (top right). At first 230-380 wide they looked like small stickers; enlarged 1.25x.
+  The "안 할 듯" image overlapped a focus bracket corner, so the bracket shrank to 560 and the image moved top right.
+- Picture motion 1.9 -> 2.0 (still images barely raise the number).
+
+**삼성 사본 - third feedback (same day)**
+- Prompt: "real images for products that exist, いらすとや only for people". Seven notes on the video: money -> Korean money / remove
+  "お断りします" / focus brackets only when focusing on the face / rolling -> a person animation / side arrow -> image / exchange rate image
+  -> a real chart / the price arrow points up -> down.
+- **The arrow direction was my bug:** in ASS `\frz` positive is counter-clockwise, so 90 on a right arrow points up. ffmpeg rotate is the
+  opposite, positive clockwise - noted in fxlib.
+- The "iPhone fold" was announced on 2026-09-09 as **iPhone Duo** (Apple Newsroom). Damyui also calls it "아이폰 듀오".
+- Downloaded (with permission; sources in each SOURCES.md): assets/products (Apple Newsroom press photos, Samsung product page KV),
+  assets/photos (Unsplash 10,000-won note - the original was mostly grey floor, so only the note was cropped), assets/irasutoya (+ rolling,
+  two balloons), assets/data (FRED DEXKOUS). Samsung Newsroom blocks bots. **The FRED CSV body was downloaded once while checking its size -
+  before permission; the user was told.**
+- New shared tools: fxlib.image_move_filter (spin while crossing, float), image_pop_filter border (photo cards),
+  assets/fx/make_rate_chart.py (draws the chart from public data - no screenshots of other people's charts).
+- Both focus brackets removed (judged not to be moments that need the face - guess).
+
+**삼성 사본 - larger hook title (same day)**
+- User: "make the title bigger overall", "key words slightly bigger than the normal title text".
+- fxlib.hook_title got size and key_size (shared). 삼성 사본: 92 -> 124, key words "삼성 폴드8" 142 (about 1.15x). Widths measured with
+  textwidth: line 1 833 px, line 2 906 px. Line centres at y 195 / 335 to fit in the top band (0-407).
+
+## 담유이 테스트 쇼츠 - second reference analysis + 모캠 밀림 copy (2026-09-14)
+- User: 15 more each from 정타비 and 로션욤, including caption design. "Too much like generic mass-produced shorts". And "not the 삼성 copy -
+  make a 모캡 밀림 copy and apply it there". Analysis: docs/테스트쇼츠_참고분석/분석2_정타비_로션욤.md.
+- Gist: in the reference channels **captions look different for each use** (dialogue small, stage directions in parentheses pale yellow,
+  chat as character-coloured pills / mascot labels, only punchlines large). The cam stays, and things are added only when needed. Colours
+  come from the character. Our videos looked mass-produced with one caption template + zoom on every line + black cards + stock images
+  (guess).
+- Accident: the list file had CRLF line ends, so the first download of 30 videos all failed (recorded in memory). Downloaded resolution is
+  608x1080.
+- 모캠 밀림 copy: projects/pmu0z5vpip86u, edit/모캡밀림_사본 (final 모캡밀림_사본_ko.mp4, export target id pinned). Only fx wiring was added to
+  the old pipeline (09-09) - captions and cuts as the user fixed them three times.
+  **At 1.1x, effects are rendered on the pre-speed timetable (TOTAL_DUR) and only the output is cut at FINAL_DUR.**
+- New fxlib parts (shared): stage_note (parenthesised stage directions), chat_pill (character-coloured double-outline pill),
+  question_ripple, mono_filter (only the window in black and white), push_filter (slow zoom - a resizing image placed on black and cropped).
+- First render of the 모캠 밀림 copy: the question ripple and "(기대 중)" did not show. **fx_plan.L matched by partial text**, so "먼저" hit
+  "제일 먼저" (2.69 s) and "나는" hit "나는 내가" (0.08 s), and the end came before the start. Fixed with L(..., exact=True). In videos where
+  the same word appears in several lines, match effect keys exactly.
+- The slow zoom seemed not to work, but **it did** (eye width 125 -> 180 px, about 1.45x). Misjudged by eye on a scaled-down sheet - compare
+  sizes by measuring the same spot.
+
+## 담유이 테스트 쇼츠 style overhaul + 다음생 copy (2026-09-14)
+- User: "the style is too different? It's not about restraint, the style itself is the problem", "the caption types are too monotonous",
+  "keep only the cut-editing parts of the current preset and change / add everything else to fit the style", "make a 다음생 copy and apply
+  it", and "why only 로션욤?" - **my design had drifted towards 로션욤 (a consistent template that yields clean numbers).** The original
+  instruction weighted 라코코 and 정타비. Re-mixed around 정타비 and 라코코 with some 로션욤 and 형독.
+- Preset dashboard/styles/담유이_테스트_쇼츠.json: kept only cut, audio, pacing and verify; rewrote caption, video and notes (caption type
+  table, screen frame, effect rules).
+- Shared style assets/fx/refstyle.py: black letterbox (top 0-290 title / window 290-1429 / bottom credit), seven caption types - line (라코코,
+  Gmarket Bold), hand (Nanum Brush Script), char (Damyui colour), punch (라코코 red, Black Han Sans), react (Jalnan), label (형독 white box),
+  note (로션욤 parentheses) - title (large + key words larger), credit (정타비), checklist. Text shrinks when wider than 1000 px (PIL width
+  converted on an ascent+descent basis).
+- 다음생 copy: projects/pmu135i3ixdks, edit/다음생_사본. build_edit background is lavfi black, Y_TOP 290. rebuild_refstyle.py instead of the old
+  CookieRun rebuild_from_csv. fx_plan: chat pill (original "그래도 다음생에 유이로 태어나줄거죠?"), condition checklist, 4 parenthesised
+  directions, 4 zooms, a slow zoom (resolve), shake (scream), black and white (GG), a living-room photo, いらすとや stomach ache.
+- In the first render all text was small (dialogue at 80 looked much thinner than 라코코) -> 1.15-1.35x. Nanum Barun Pen looked like a gothic,
+  so the handwriting became Nanum Brush. **Decide whether a font name works by rendering the candidate names on one sheet** (both English and
+  Korean names worked).
+- The Unsplash stone photo could not be found (the search page structure differed) and was dropped. Credit date = source file time (guess).
+- User: "use cookierunotf instead of plain gothic and put the video preset in / the rest is better than before". refstyle default font
+  CookieRunOTF Black (handwriting, punch and reaction unchanged), background back to DamuiPreset, window y 407, credit removed (the preset
+  has a name plate). Title in the top band 0-407 at 124 / 142. Preset JSON fixed too.
+- User: "the basic captions are a bit small, make them a little bigger, the gap to the big captions is too large". refstyle line 96 -> 112
+  (outline 9), char 98 -> 114. punch 132, reaction 150, handwriting 124 unchanged.
+- User: "make the big captions a little smaller". refstyle punch 132 -> 122 (with its white outer layer), react 150 -> 138.
+
+## 담키니 - first edit (2026-09-15, 담유이 테스트 쇼츠)
+- Job: "edit with the focus on the outfits, and include every risqué situation / word". 137.6 s -> 40.5 s.
+- Pipeline: cuts and caption timing from edit/냉면 (waveform cuts + cue + LEAD 0.05), caption templates and effects from refstyle + fx_plan
+  (rebuild_refstyle.py, fx filters in apply_captions). Background DamuiPreset, default font CookieRun.
+- The birthday planning (0-23 s) has nothing to do with outfits and was removed. A sound heard as "빅뱅빅댄스" has 8 syllables but 3 peaks, so
+  it was taken as humming and removed (guess). "뭘 안 늦어" has 4 syllables and 10 peaks - the transcript missed words - removed. Of the
+  repeated "그건 그냥 가을이라서" only the later one was kept.
+- Guessed words: "유인이라 하지 맘대로 떳니", "겨울에 벗어주세요란 걸?" (matched to chat), "산타걸이요", "에바네", "호초 언니".
+- Chat pills only for chats visible before Damyui reads them (checked at 29, 36, 80.5, 95.8, 114.2 s).
+- Images: いらすとや swimsuit and Santa (with permission). For the nurse the user said "don't use that, find another online" -> a Smithsonian
+  CC0 cap photo was chosen, then the user provided a costume photo directly (assets/photos/nurse_costume_user.jpg, source not checked).
+  **Attaching photos of real people to risqué passages was avoided** - which is why the NLM 1960s nurse photo was dropped. The original
+  Smithsonian page showed a bot check (CAPTCHA) and was not entered.
+
+## 담키니 - second pass (2026-09-15, feedback)
+
+- Sources changed: swimsuit -> the user's "허츄 수영복.png" (assets/photos/huchu_swimsuit_user.png), Santa -> the user's "산타걸.png"
+  (santa_costume_user.png). Both transparent PNGs, source not checked (SOURCES.md)
+- Top caption: the test-shorts two-line title was removed for the solo-shorts TopTitle (BM JUA 190, MarginV 229), one line "담키니" -
+  rebuild_refstyle.py takes the style line from build_ass.HEADER. Text from the CSV title row
+- 3 drop.json spots = lines matching transcript words exactly: "성인 / 유인이라 하지 맘대로 떳니", "스타일리스트... / 다녀오려면...", "일을 하지
+  마" -> three groups removed entirely
+- _with_drop: if the shifted (+0.25) end lands inside a sound blob, it is moved outside the blob - the 87.08 drop nearly ate the tail of
+  "하는 거예요?" (sound 86.81-87.80)
+- "this caption appears a bit late": 왜 벗어요 83.45 -> 82.89 (where sound resumes, 0.56 s late), 껴입어야지 84.91 -> 83.75, 뭔 소리 86.24
+  -> 85.45 (the blob gap nearest the transcript word start)
+- Caption edits (captions_user.json): 호초 -> 허츄 x2, "뭔 소리 하는 거예요?", "에바네.."
+- **Trap:** running make_csv before build_edit after a cut change made timeline mix lengths from the old seg_durs.json (25 pieces), giving
+  TOTAL_DUR 27.92 (actual 33.91). After cut changes: build_edit -> make_csv, or run make_csv once more
+- Result: 33.91 s, 23 lines, checks cuts/gaps/sync/timing all 0, -16.5 LUFS, pushed to the dashboard
+
+## 담키니 - third pass (2026-09-15, feedback)
+
+- Caption edit: "어머 유이 너 벗을래?" -> "어머 유이도 벗을래?" (make_csv + four keys in fx_plan: type, zoom, shake, parenthesised direction)
+- Note at 0:06 "make it bigger and centre it on the x axis": 허츄 swimsuit image width 330 -> 480, centre (210,850) -> (540,880)
+- "brighten the Santa girl slightly": fxlib.image_pop_filter got pre (colour correction on the image only). colorlevels white point 0.88
+  (about 14% brighter). eq works in yuv and loses the PNG alpha, so it was not used
+- Two mistakes: (1) checks run before make_csv hit the old CSV and raised KeyError, (2) a conditional precedence bug in the pad expression
+  dropped pre for borderless images - fixed with parentheses
+- drop.json same as the second pass (nothing new removed)
+- **Correction:** brightening with colorlevels (pre) broke the Santa image into horizontal bands on every other frame (seen in a 5 fps strip
+  - the single +0.4 s frame on the review sheet looked fine). Baked into a file instead: assets/photos/santa_costume_user_bright.png
+  (RGB/0.88, alpha kept). After re-rendering, all 9 frames of that span are clean. fxlib's pre argument remains but must not be used on
+  moving images - bake colour corrections into the file
+
+## 봉누도2 귀신 - first edit (2026-09-17, 담유이 테스트 쇼츠)
+
+- Job: 봉누도 = 봉누도2, focus on the conversation between Damyui and chat, Damyui is not taking part in 봉누도2 -> explanatory remark at
+  the start. 109.9 s -> 29.75 s
+- Project edit/봉누도2귀신 (담키니 scripts copied). Crop x468 and face (540,920) unchanged - same picture, same screen frame
+- Audio -19.8 LUFS, band track gain 0. 12 speech islands, 30.0 s - only the empty time waiting for chat was removed, no speech at all
+- Whisper times are 0.1-1.2 s earlier than the sound (4.70 vs 5.94). Line splits proportional to syllables in sound blobs (scratchpad
+  bn_split.py)
+- verify_sync put "아니요" in the previous line, boundary 33.27 -> 32.86 (the sound blob 32.86-33.23 is 아니요). One "그래?" flag is due to
+  an early transcript time (sound 93.30-93.61, transcript 92.68-93.30) - left
+- Guessed words: 봉누도 (transcribed 복무도 / 복노도), 유이님 (유인님), "님 그거 유령임" (요령임), "헷갈릴 정도임..." (chat text), "약간 비슷한
+  느낌이"
+- The three chat-reading lines at 57.86-62.49 have 38 syllables in 4.6 s - fast. Split at the only pause, 60.03|60.45 (guess)
+- 10 chat pills: text read from crops at 3.5, 19.5, 29, 40, 55, 68.5 and 89 s as is. "귀신 ㄷㄷㄷ" and "유사품에 주의하세요.." were reactions on
+  screen at 90 s - when they were posted was not measured
+- Opening explanation: white label "※ 담유이는 봉누도2 참가 안 함" (0 to 제가요?)
+- Title: solo-shorts TopTitle, one line "봉누도2 귀신" (following the 담키니 second-pass instruction - the preset JSON has a two-line title;
+  the mismatch needs checking)
+- Effects: zoom 1.2 on 예? and 제가요?, 1.35 on 귀신임 and 그 정돈가?, slow zoom on 안타깝게~, shake + black and white on "그거 귀신임 귀신". No
+  images (a ghost image needs download permission)
+- Audio: peak -1.1 dBTP, so the fixed gain is -0.4 dB -> -19.6 LUFS (cannot reach -16 without filters)
+- Checks cuts 0, gaps 0, sync 1 (그래? above), timing 0. Dashboard projects/pmu56rn62sahe
+
+## 봉누도2 귀신 - second pass (2026-09-17, feedback)
+
+- drop.json 41.46-43.32 = "다같이 잠이 덜 깼나봐" -> group head 41.80 -> 44.70. Caption "오늘도" -> "봉누도" (captions_user)
+- "뭔소리?" chat and "결론 나옴" stage direction removed
+- Timing of "비슷한 소리 들었으면 / 그거 귀신임 귀신": 7 syllable peaks at 72.16-73.60 = "혹시 저 같은 비슷한", pause 73.60-74.05. After the big
+  blob 74.10-74.88 (저는 말), pause 74.90-75.05, then small at 75.10-75.85 -> "그거 귀신임" at 75.05 (first pass 74.43, 0.6 s early). The
+  final "귀신" was removed from the text as the user said (the small sound at 75.54-75.85 is outside the cut)
+- Chat pills -> cards modelled on the user's "채팅 자막 예시.png" (chat_cards.py): rounded box with mint outline + the black icon cut from the
+  example + GmarketSans Bold (font is a guess). Scale 0.80 for all, a card shrinks only if wider than 1000, y 640
+- いらすとや young female ghost ① 笑顔 ② 笑った顔 downloaded (with permission, 151 KB and 152 KB) + faces composited from the expression folder
+  "놀리는 유이.png" and "크게 웃는 유이.png" (ghost_faces.py, expression choice is a guess). The ghost head was removed, the face cut to the
+  chin at 0.90/0.95 placed on it, edges blurred 5%. The triangular headband was removed at the user's "take it off"
+  - the teasing ghost during "님 그거 유령임", the laughing ghost during "그거 귀신임", window left (225-240, 1030)
+- Result 27.91 s, checks cuts 0, gaps 0, timing 0, sync 1 ("봉누도" - a user edit, so differing from the transcript is correct), -19.7 LUFS
+
+## 봉누도2 귀신 - third pass (2026-09-17, feedback)
+
+- Label "※ 담유이는 봉누도2 참가하지 않음" (user edit). Chat card font GmarketSans Bold -> CookieRunOTF Black (user)
+- "잘못 들으신 듯 -> the 듯 is inaudible": after the dip at 62.51 there is a 0.010 blob at 62.69-62.84 (transcript also has 듯) -> below the
+  threshold (0.011), so the piece was cut at 62.57 (guess). Extended to 62.90 with timeline.EXTEND_TO
+- "check whether it's 그거 귀신임 귀신": after the dip at 75.49 (0.002) there is a 0.010-0.014 blob at 75.52-75.85, and the transcript also has
+  "귀신" -> taken as spoken (guess, not checked by ear). Piece 75.54 -> 76.05 (0.2 s of tail - which also addresses "goes by too fast"), text
+  back to "그거 귀신임 귀신"
+  - In the second pass the user's "the last 귀신 is inaudible" was read as a wrong text and only the text was removed, but really the cut
+    clipped a quiet sound (guess). "Inaudible" may mean the sound was clipped - check the piece end before the text
+- verify_gaps flags the two tails as DEAD AIR (62.49-62.90, 75.46-76.05) - intentional, quiet speech below the threshold
+- "혹시 저 같은  비슷한" in captions_user.json differs only by a double space - treated as a mistake and kept with one space (guess)
+- Result 28.75 s, cuts 0, timing 0, sync 2 (봉누도 user edit, 그래? early transcript time), -19.8 LUFS
+
+## Pipeline switch: React + ffmpeg (2026-09-17)
+
+- Instruction: ffmpeg -> React (captions, design, animation) + ffmpeg (cuts, hardware encoding), save tokens, caption fixes visible
+  immediately in the feedback preview, a source file field in style apply. Goal: one 30 s short with a preset within 20% of a session
+- `render/` (Remotion 4.0.525, React 19). body.py, make_scene.py, render.mjs, still.mjs, preview/entry.tsx, src/
+- Tried on 봉누도2귀신: fx_plan table -> fx.json. Compared side by side with the old final at 1.0, 4.5, 18.8, 24.2 and 25.2 s - nearly
+  identical (by eye)
+  - Only the title (BM JUA) was 9% wider, so cssPerAss 0.93 (measured on ink width at 13.9 s). Other font ratios are the PIL getmetrics
+    values as is - not compared on ink
+- Speed (measured): body.py first render 2 min 32 s (21 pieces, mostly source seeking and QSV session setup - guess), cached 2.5 s.
+  render.mjs total about 50 s (186 overlays / 1725 frames), one caption fix 10 s
+- The GPU is an Intel Arc A350M (no NVENC) -> h264_qsv. 10 s of 1080x1920 60 fps: x264 medium 36 s / QSV 16 s
+- Dashboard: scene preview in the feedback tab (dampreview.js), server.py also serves scene*.json, otf and ttf, style apply tab "source
+  files / folders" (job.assets, listed in the prompt)
+- Audio: one fixed gain as before (-0.4 dB; peak -1.1 dBTP so -16 cannot be reached)
+- Not yet: existing episodes stay on the old pipeline. Multilingual (scene_en.json with only captions changed) and wiring the dashboard
+  "render" button not done. Font paths are tied to this computer's user font folder (damui.ts FONT_DIR)
+
+## Public package shortsmith + presets in English (2026-09-17)
+
+- Instruction: polish the presets (English unless a special case or proper noun) so others can use them (distribution, sharing). User's
+  choice: both CLI and skill, general presets public, Damyui presets private
+- `render/` -> `shortsmith/`. The Python scripts (body.py, make_scene.py) were ported to Node, so a recipient needs only Node 18+ and ffmpeg
+  - lib: cuts (port of audio.py), body (three pieces in parallel), scene, render, preset (lookup, fonts, extends), encoder (tries NVENC >
+    QSV > AMF > VideoToolbox > x264 by actually encoding)
+  - React reads only the preset JSON (no hard-coded Damyui values or C:/Users paths). Font ratios are measured in the browser when missing
+  - Skill `skills/edit-short/SKILL.md`, plugin `.claude-plugin/`, README, `schema/preset.schema.json`. License not decided yet (UNLICENSED)
+- Verified (measured): cuts.mjs = audio.py (same 8 ranges). The 봉누도2귀신 CLI build = the earlier React render (only a few px at chat card
+  edges differ, mean difference under 1.4, cause not investigated).
+  One still with the basic-shorts preset (Pretendard missing, fallback font). The dashboard preview loads the new bundle
+- Added edit.json and cuts.json (timeline.PIECES as is) to the episode folder edit/봉누도2귀신. The final edited/봉누도2귀신_ko.mp4 unchanged
+- Accident: style names became English, so the dashboard autosaved the 봉누도2 귀신 project's style as the first entry (Video-donation) ->
+  fixed to find old names via aliases and restored to "담유이 Test Shorts". Other projects checked in the files - unchanged
+- Not yet: React rendering of the four legacy-ass presets (outburst gradient, guest name tags, quote captions, longform inserts), a
+  transcription command (the skill calls Whisper separately), multilingual scene, publishing the dashboard itself (Korean UI and a Python
+  server, so only the preview bundle was split out this time)
+
+## AGPLv3 + React rendering of the old presets (2026-09-17)
+
+- License: shortsmith is AGPL-3.0-only. LICENSE is the official gnu.org text (downloaded with permission, 34,523 bytes)
+- Caption engine generalised: a list of layers (look) - z order, shadow offset, outline, blur, vertical gradient; word emphasis design
+  (inner and outer outline); «word|balkkeun» partial outburst; speaker -> kind (speakers, speakerSuffix, guest colours); gap filling;
+  multi-line balloon text
+- Effects: balloon shapes, bouncing images (triangle wave), still-frame inserts from the source (captions hidden while shown), blur. Body:
+  per-piece crop, other files (outro), speed (outro excluded), separate outro loudness
+- The four presets were ported with the old script values and compared with old finals (measured):
+  - solo (냉면): caption ink y 1424-1527 identical, outburst identical. The title was 17 px low, so BM JUA ascent 0.8 -> 0.711 (the
+    봉누도2귀신 title also 240 -> 241, matching the old one)
+  - solo (삼성 사본): partial outburst, yellow word, whole-line emphasis and purple word identical by eye
+  - multi (담아맷돌): 아야 captions identical. Damyui is larger because the preset has 140 + pop-in versus the old episode's 130 and none -
+    the preset's guess was left
+  - donation (고구마): band and title identical, white caption ink within 1 px. **Unlike the old description (black background), the actual
+    edit uses the DamuiPreset background** -> followed the edit
+  - longform (악성메일단): normal, emphasis gradient, word colours, donation inserts, role-play (blur + balloon + bouncing staff) identical by
+    eye. Differences: the old "no grab" inserts were a live picture and are replaced by a still from the middle time; the outro 0.45 s
+    overlap became a straight join (length 126.07 -> 126.48)
+- First longform build 594 s (main 115 s at 60 fps 1920x1080, 64 chunks). First shorts builds 105-158 s
+- Not yet: measuring the multi host size, the donation quoted kind (no episode uses it, guess), live inserts and overlap in longform
+
+## Feedback preview repeating sound (2026-09-17)
+
+- User: "I hear it several times". Measured: in 4 s of playback the preview clock advanced only 0.6 s, the window video ran ahead and was
+  rewound twice with 9 buffering stalls -> the same words were heard again
+- Three causes: Video's pauseWhenBuffering (one video buffering stops everything), re-syncing even on small drift, and server.py's
+  Cache-Control no-store (re-downloading on every rewind)
+- Fix: pauseWhenBuffering removed, the window video re-syncs only when more than 0.3 s off (0.5 froze the sound 0.35 s ahead of the
+  captions, 0.2 rewound once right after play starts), the background is not synced, the server sends no-cache + Last-Modified
+- Checked: 4 s of playback at 2, 12 and 20 s - 0 rewinds, max drift 0.31 s (right after start), within 0.2 s afterwards
+
+## 생일방송컨 first edit (2026-09-18, shortsmith · damui-test-shorts)
+
+- 136.8 s -> 40.5 s, 21 cuts, 22 captions. First build 166 s (Remotion downloaded Chrome Headless Shell, 113 MB, once automatically)
+- Judgements and guesses in `edit/생일방송컨/notes.md` (exported as dashboard editNotes). Audio -16.1 LUFS / peak -1.9, no filters
+- Caption builder `make_captions.py`: measuring each word's overlap with waveform pieces dropped words inside kept speech and pulled in cut
+  sound pieces -> **if the middle of a transcript sentence is inside a keep range, take the whole sentence**; line times within a sentence
+  by character ratio. Bound nouns (건, 거, 적 ...) never start a line
+- Two cut-off sentence ends found on the waveform and keep extended: 9.6 -> 9.9 (tail of "스튜디오?"), 106.1 -> 106.8 ("수준이었어요");
+  "아무튼 그거랑 별개가" was cut by the waveform at 133.15, pinned as raw 131.9-133.45
+- **Shared export `tools/export_shortsmith.py <episode>`** - the per-episode export_project.py made common for shortsmith episodes. Keeps
+  review.notes and user captions, writes project.json.bak, links scene.json
+- Remaining: two いらすとや birthday illustrations (awaiting download permission)
+- **User: "where did the preset source go?"**: the first insert (donation alert) covered the whole screen in black and the DamuiPreset
+  background (HONEYZ 담유이) vanished for 5.7 s. Inserts got `area` - inserts without a background image default to `window` (covering only
+  the video window). Longform (with LongBG) stays `canvas`
+- **Re-edit (8 user points)**: cuts rebuilt as 11 sentence-level raw pieces (waveform cuts split sentences in the middle because of the
+  music). Caption times based on `blobs.py` sound blobs - Whisper is 0.3-1.2 s early **only on the first word of a sentence** and right
+  within +0.3 s inside it. TTS end 7.7 -> 6.3, title "생일 방송", explanation band and cheese image removed, the 언아카 explanation goes into
+  description.txt. A 1 px line above the window: ffmpeg placed the window on an even row (406), so video showed above the insert box (407)
+  -> 2 px margin above and below insert boxes. Export now stashes the previous feedback (feedback_*.json) and clears it
+- **"The video freezes now and then, captions are fine"** (dashboard preview): the final has no freezes (freezedetect). The preview played
+  the two 60 fps 1080 render videos (bg 1080x1920, window 1080x1140, 31 MB) as is and the browser could not keep up - background at 0.4x,
+  window occasionally waiting. body now renders preview-only `window_preview.mp4` (30 fps, 720 wide, g15, 5.7 MB) and `bg_preview.mp4`
+  (30 fps, 540 wide) separately. Measured: both videos at 1.0x, waiting 0
+- **Crossfades at seams (with permission)**: `edit.json` `crossfadeSec: 0.15` (also via preset `audio.crossfadeSec`). Sound only, centred
+  on the cut: the previous piece runs 0.075 s longer while fading out and the next starts 0.075 s early fading in - picture cuts, total
+  length and caption times unchanged. Level difference 30 ms either side of a seam: max 14.6 dB -> 4.2 dB. Comparison file
+  edit/생일방송컨/겹쳐넘기기_전후비교.m4a
+- **Re-edit 3**: 1.1x (captionClock timeline), piece ends +0.3-0.45 s ("sentence ends are cut"), TTS end 6.7, donation alert full width
+  (maxW 1080), the open-armed Yui only during "무슨 모션 스튜디오?", three line splits as the user gave them, "그렇게 축하 받아 본 적이" pulled to
+  95.95 (was late).
+  Audio: peaks are spread evenly (top 8 spots -21.9 to -24.5), so gain alone stops at -16.2 LUFS -> a limiter A/B was made and offered (+2 dB:
+  -14.3 LUFS, only 3 of 82 0.5 s windows lose more than 0.5 dB / +3.5 dB: -12.9, 7 windows, max 1.7 dB)
+- **"The preview is quiet"**: the preview (window_preview.mp4) carried the window audio before the final fixed gain the render applies, 20 dB
+  quieter on this episode. body now applies the same formula (min(-16 - I, -1.5 - TP)) to the preview. Preview -16.2 LUFS = final -16.2 LUFS
+- **Edit / Render buttons split (user instruction)**: feedback tab "edit" (AI) = save + a jobs/ file; "render" (no AI) = server /api/render
+  runs, for episodes with edit.json, apply_review -> shortsmith build -> export --keep-feedback. Test: the user's dashboard edit "끝나는
+  수준이었어서" went in, only one chunk was re-rendered, done in about 35 s, the project reopened with the by-user marks intact
+- Edit button purple (.btn-ai, AI icon), render progress pane (step n/3, bar, elapsed / remaining, last log line). Test: done shown at 24 s.
+  Also fixed: a reload sent the goodbye signal and the server shut down at once ("Failed to fetch") -> it now shuts down only after 10 s
+  with no page
+
+## 2시 first edit (2026-09-21, jobs/20260921_114702 - 114531 was an earlier version of the same request)
+- Source C:/Users/12612/Downloads/Quick Share/2시.mp4 (313 s, 1726x970 letterboxed at y54). Transcription only from 155 s (clip_timestamps)
+- 12 pieces, 38.6 s from 160-251 s, sentence-level raw pieces + crossfade 0.15. Six chat captures as fx images (inserts would cover captions)
+- Captions with make_captions.py (생일방송컨 rules). One guess: "아까부터 2시라고" (transcript "조시라고") - notes.md
+- Final edited/2시_edit.mp4, dashboard pmuan4xqbjnff. Build 143 s (first build, Remotion downloaded headless Chrome)
+- Re-edit 1 (jobs/20260921_121224): piece edges with edges.py (head: start at -25 dB minus 0.06, tail: end at -20 dB plus 0.25), pieces 0+1
+  merged -> 11 pieces, 42.6 s. damui-test-shorts preset got the outburst kind (copied from solo). Build 103 s
+- Re-edit 2 (jobs/20260921_122350): **cause found - source audio start_time 0.450** (video 0). The analysis wav and transcript were 0.45 s
+  early -> sentence ends cut, captions early (raised twice). wav adelay=450.2ms (given in samples it counts at the 48k input rate and only
+  shifted 0.15 s), transcript +0.45. Final offset +0.455 -> +0.010.
+  body.mjs now warns when audio and video starts differ. scene.mjs images got lead (chat -> caption order). 11 pieces, 42.3 s
+
+## 손질 first edit (2026-09-25, jobs/20260925_225918)
+- Source E:/Edit/OBS/손질.mp4 (66 s, 1920x1080, audio start_time 0). Cleaning a crab, edited so that "crab" is never said (user instruction,
+  no illustrations)
+- 8 pieces, 38.5 s. Crop x488 w1024. Two chat captures (무서워, 칼을 입에 넣고 돌려) - the chat at 12 s where the crab is visible is not used
+- make_captions: first line = voice start, following lines = Whisper + snap to syllable start; if it falls in a pause, the next voice start
+  within 0.8 s (Whisper is 0.3-0.5 s early on this source). The first line also follows the words and advances j (otherwise a later line
+  attaches to the same word in an earlier line - "배를 똑 따준")
+- Final edited/손질_edit.mp4, build 108 s
+- 손질 re-edit 1 (jobs/20260925_231326): 1.1x, 34.75 s. Every caption time checked against speech blobs - 2 lines and 2 piece heads fixed.
+  Snapping rule: inside speech only ±0.12, in a pause move forward (±0.25 snapped to the previous word). Three いらすとや tool images (with
+  permission; still no crab) + bounce
+- 손질 re-edit 2 (jobs/20260925_233446): shake and bounce removed, scissors (left) / knife (right) only while speaking, rotation on
+  "돌려버리면", a tombstone on "보내줄 수 있잖아요" (R.I.P. engraved by hand - いらすとや has no RIP tombstone). shortsmith got image spin
+  {period, from}
+- 손질 re-edit 3 (jobs/20260925_234943): the three requests (1.1x, tombstone, both rotating) were already applied, but the rotation looked
+  frozen on screen. render.mjs overlaySig lacked the spin phase, so frames reused one PNG (the angle jumped only at caption changes). Added,
+  VERSION 6. **Any new per-frame animation must go into overlaySig too**
+
+## 프젝아 모캡 first edit (2026-09-27, jobs/20260927_114218)
+- Source E:/Edit/OBS/프젝아 모캡.mp4 (80 s, audio start_time 0, quiet at -28 LUFS). 10 pieces, 34.2 s -> 1.1x, 31.1 s
+- **Thresholds re-measured for a quiet source** (-52/-55, syllables -42/-32). Cuts at real pauses, not transcript sentence times (the
+  transcript was up to 0.9 s early)
+- All 24 caption lines checked, only 1 fixed (AT). Five chat captures (a later chat used earlier - allowed by the user). No illustrations,
+  shake or zoom
+- Final audio offset within -0.02 s. Build 131 s
+- 프젝아 모캡 re-edit (2026-09-27, jobs/20260927_1224): 8 pieces, 36.36 s -> 1.1x, 33.05 s, dashboard pmuj7mh4jf2ps
+  - Every cut padding re-measured (edges3.py, speech threshold -38 dB, head 0.22, tail 0.35). Piece 4's tail carried the last burst of
+    "있어요", and piece 8's head was 0.86 s of breathing and silence
+  - **Whisper word times are 0.2-0.4 s early around pauses** - two caption lines floated over silence / breathing (8.72 -> 9.08, 55.30 ->
+    55.96). Worse on quieter sources. Do not use lines not checked against the level
+  - Chat captures use only the balloon cut out (img/cut_bubble.py). A rectangular capture brings the stream background along as a box = the
+    "empty space" the user mentioned
+  - check.py, which inspects only the final, was left in the episode folder. The previous round's check was caught on window edges and gave
+    20 false alarms (check the check itself)
+- 프젝아 모캡 re-edit 2 (2026-09-27, jobs/20260927_170429): user score 3/10. "The timestamps don't match at all, 반팔 is inaudible, there's a
+  caption but the speech is skipped". 7 pieces, 39.14 s -> 1.1x, 35.58 s
+  - **The caption clock was fine.** Verified by measuring the screen in pixels (caption band at 20 fps, where it changes) - +0.09 s versus
+    csv/1.1 (the pop animation). The dashboard preview uses the same clock (export divides by speed). So "doesn't match" came from **speech
+    that was cut out**
+  - **Real cause: cuts ran through the middle of speech.** Cutting at band-track -45/-62 segment boundaries, soft syllables fell below, so
+    "반팔이랑" (14.24-15.48) was cut at 14.72 and "힘들어" (~32.04) at 30.85
+  - speech_map.py (full band -52/-60, 0.30 s) draws the speech map and cuts **only in pauses**. verify_runs.py compares run lengths in the
+    final (all ±0.06 s)
+  - Captions: two user edits ("어? 슈트인가 하셨겠지만" - the sound at 8.71 was that; "하고 있거든요?")
+- 프젝아 모캡 re-edit 3 (2026-09-27, jobs/20260927_171806): 5/10, "captions and speech don't match well". 7 pieces, 34.82 s
+  - **Line times are solved by spreading characters over speech segments** (edit/프젝아모캡/align.py). Segment lengths are measured, character
+    counts are known; DP makes characters per second even. Catches errors Whisper word times cannot ("그래서 이제" was 1.23 s early)
+  - Counting syllable peaks failed (3-5 peaks in an 8-character segment). Solve by segments + character count, not peaks
+  - Cut margins unified at head 0.15, tail 0.25. The caption clock was checked three times and is right (final pixels, project.json, preview)
+- 프젝아 모캡 re-edit 4 (2026-09-27, jobs/20260927_173956): 6.5/10. 14 pieces, 34.54 s -> 1.1x, 31.40 s
+  - **One speech run = one piece.** The pauses left inside pieces (0.38-0.88 s) were the "remaining empty space" the user meant.
+    Gaps between runs unified at 0.30 s, and only where one caption line spans two runs they are joined tighter at 0.20 s **so grouping
+    shows through pauses**
+    (in the previous version the "제가|슈트를" pause was longer than "슈트를|입고", so by ear 슈트를 attached to the next line - user)
+  - Repeated words are dropped too: the first "아~" in "아~ 아 힘들어" (user instruction)
+- 프젝아 모캡 re-edit 5 (2026-09-27, user: "the grouping isn't fixed, 이랑 goes to the next cut"): 10 pieces, 32.91 s
+  - The previous version (a piece per run) was wrong. Trimming pauses creates cuts, and **a cut through the middle of a caption line makes
+    the rest a different scene.**
+  - Rule: **cut only where the caption line changes.** Leave pauses inside a line as in the source, and leave the pause at a line change
+    longer than that (measured in the final: 제가|슈트를 0.60 < 슈트를|입고 0.80, 반팔|이랑 0.36 < 이랑|이렇게 0.50)
+  - Added a check that measures every pause over 0.2 s in the final and marks it as inside a line or between lines
+- 프젝아 모캡 re-edit 6 (2026-09-27): 7 pieces, 34.08 s. **Cuts only between sentences, long pauses at line boundaries.**
+  - A mocap source is always moving, so removing even 0.2 s changes the pose = "next scene" to the viewer. Measured with cutmatch.py
+  - If a pause must be shortened, cut where **the picture jumps least** (제가|슈트를: difference 1.7 = neighbouring-frame level, invisible)
+  - If a line has a pause over 0.45 s in the middle, split the caption there ("그래서 이제" -> "그래서" / "이제 너무 복잡한 이런")
+  - pauses.py: measures every pause in the final and marks inside-line / line-boundary
+- 프젝아 모캡 re-edit 7 (2026-09-27): 10 pieces, 33.01 s. **A word the user puts in quotes is a caption line name** - "'이게' moves to the next
+  scene" was read as a word and the wrong place was fixed (one round wasted). "이게" + "슈트가 아니에요" merged into one line
+  - Space after "하고 있거든요?" 0.80 -> 0.38 (cut point via cutmatch), "제가|슈트를" pause 0.40 -> 0.30
+- 프젝아 모캡 re-edit 8 (2026-09-27): 9 pieces, 33.42 s. The "제가 슈트를" grouping for the fourth round.
+  - **Pause difference made 3x** (0.34 : 0.96). 1.3-1.6x cannot be told apart by ear
+  - **Whether a cut jumps is measured by the cell (8x8) maximum difference, not the average.** A spot recorded as average 3.8 = "invisible"
+    was 21.9 by cells, and the arm really had changed abruptly (the wide background dilutes the average). Neighbouring frames: median 2.0,
+    90% 13.6
+  - Frames were grabbed to see how captions appear on screen - do not say "fixed" from numbers alone
+- 프젝아 모캡 re-edit 9 (2026-09-27): 9 pieces, 33.32 s. **"It's not a padding problem, the problem is the scene changing"** (user).
+  A caption line must sit inside one scene. However well the pauses are tuned, a cut splitting a line ruins it - five rounds were lost
+  adjusting only pauses.
+  scenes.py: checks whether the caption changes at each cut (all 8 now within 0.25 s)
+- 프젝아 모캡 re-edit 10 (2026-09-27): 8 pieces, 33.80 s. **The position of "슈트를" was wrong for five rounds.**
+  Found by fricative (3-7 kHz): 슈 is at 5.92 (level -64, so the band alone reads it as a pause). Whisper spanned it as 4.32-6.38.
+  The caption "입고 있는 게 아니에요" showed at 5.96 **over 슈트를**, with a cut before it -> moved to 6.76 and the cut removed
+  - **Unvoiced fricatives do not show in the band level.** When a word's position is disputed, look at the 3-7 kHz ratio too
+- **프젝아 모캡 retrospective** (2026-09-27): why it took ten rounds is in `edit/프젝아모캡/돌아보기.md`.
+  The check tools moved to `tools/edit_audit/` (speech_map, align, cutmatch, verify_runs, scenes, pauses, check + README).
+  Eight lines of "cuts and caption grouping" rules added to CLAUDE.md
+
+
+## 퍼리 취향 first edit (2026-09-28, jobs/20260928_115551)
+
+Source 122.53 s -> **12 pieces, 19 caption lines, 31.44 s** (speed 1.0). Dashboard pmuknjjx20v5j.
+As instructed: trust in fans -> trust in 담비 (a fan character) -> furry taste. Details in `edit/퍼리취향/notes.md`.
+
+- **Done from the start by the rules set after ten rounds of 프젝아 모캡** (CLAUDE.md "cuts and caption grouping"):
+  runs drawn on the full-band speech map with cuts only between runs, one caption line = one scene, line times by spreading characters over
+  speech segments, four checks after rendering + frames by eye. Finished with all four checks at 0 and no re-edit
+- **At -37.4 LUFS the source is the quietest so far.** The previous episode's thresholds would read the whole source as "speech" - measured
+  speech p90 -34.6 and pause p50 -56 and lowered to -47/-53. `tools/edit_audit/README.md` records the per-episode re-measurement procedure
+  and both episodes' values in a table
+- **Three check tools were wrong and gave 10 false alarms.** All from "values fitted to the previous episode" - mixing the band track only
+  for the source, a hard-coded 1.1x speed, speech threshold p60. Fixed and put back into `tools/edit_audit`.
+  **When fault values lean evenly to one side, suspect the check first** - the rule held again
+- One more transcription was run (with permission) and came out nearly the same. Sentences that looked like repetitions really were -
+  **if the speech map has separate runs, a Whisper repetition is not a hallucination.** Next time look at the speech map before
+  re-transcribing
+- Canonical words (아담이, 담비, 퍼리) were asked of the user by sending clips. Following the rule of asking early where the waveform cannot
+  decide, it took two questions
+- Effects: the donation speech as a capture card (a white border must be baked in or it melts into the background), three preset chat cards,
+  one label card, one 1.2 zoom, one push. A 2D model, so seams look like neighbouring frames and cuts are invisible
+
+### 퍼리 취향 re-edit 1 (2026-09-28, jobs/20260928_160546)
+
+12 pieces, 31.96 s, all four checks 0. Fixes in `edit/퍼리취향/notes.md`, the three caption tracks in `edit/퍼리취향/자막.md`.
+
+- **The caption speaker column became a 'design name' column** (user: "mark it by font design such as basic / outburst / sad / emphasis,
+  not by speaker"). The preset's `captions.speakers` maps name -> kind, and **chat, donation and explanation are null**, so they stay in
+  the list but are not drawn (their pictures come from fx.json). All episodes go this way from now on
+- Partial emphasis «word|sky» (ported from the solo preset's accent design), a new sad caption kind, chat cards default to the middle of the
+  screen
+- **"Zoom in focusing on 담비" was done with a piece crop, not the zoom fx.** zoom looks only at the preset's single face point and cannot
+  target anything else. A crop on the piece gives that scene its own framing (window ratio 0.948 kept)
+- The 0.09 s sliver cut as "filler" in the first edit was **the "고" of "해놓고"** (user: "해놓(speech cut off)").
+  A short sliver at the end of a run can be **a final consonant or last syllable**, not a breath - before cutting, check it against the
+  character count of the previous segment
+
+### 퍼리 취향 re-edit 2 (2026-09-28, jobs/20260928_162411)
+
+Six of nine points were **my misreading of the instructions.** Details in `edit/퍼리취향/notes.md`.
+
+- **"Classify into transcript captions / after cut edit / all captions" meant three separate files.** They were written as three tables in
+  one document and all mixed into captions.csv, which earned "why did you merge them?".
+  Now `captions_전사.csv`, `captions_컷후.csv` and `captions.csv` (everything - the only one rendered)
+- **The speaker column stays the speaker and a new `kind` column was added** (basic, partial emphasis, emphasis, sad, punch ...).
+  Last round the speaker column was overwritten with designs and 담유이 disappeared. scene.mjs, apply_review and export_shortsmith carry the
+  new column
+- **The dashboard preview did not know the preset's "speakers not drawn".** So chat, donation and explanation lines were drawn again as
+  captions, appearing twice and overlapping (fixed in `dashboard/js/feedback.js` to skip them).
+  **A new kind of line in the pipeline needs changes in all three: the renderer, the dashboard preview and the manual edit tab**
+- "An effect like sadness / gloom" was read as black and white (mono), an effect never asked for - removed.
+  **Interpret an ambiguous request as narrowly as possible within what was asked** (here, one caption design)
+- Gap around partial emphasis words `accent.gapEm` (Caption.tsx), chat card scale 1.0, 담비 close-up 1.5x more
+
+### 퍼리 취향 re-edit 3 (2026-09-28, jobs/20260928_164438)
+
+Two caption lines deleted ("왜냐면", "그러니까 난") and three fixed. 31.96 s, all four checks 0.
+
+- **A deleted line's spot stays empty instead of being absorbed by its neighbours.** At first the next line was pulled earlier and the
+  caption appeared over other words ("왜냐면"). Line ends are capped at their own piece end + 0.10 s (just enough not to flicker at a cut)
+- **A screenshot is not a caption** (user: "you can't change its content"). The donation capture was removed from the caption list; chat
+  cards and label cards are text and stay, but **editing them in the preview now updates the card immediately** (feedback.js)
+- **The dashboard render button erased chat text in fx.json.** With a caption line and a chat line at the same time, an empty edit landed
+  on the wrong one. `apply_review.py` now **never copies empty text into fx.json**
+
+### 퍼리 취향 re-edit 4 (2026-09-28) - the "three caption tracks" were dashboard tabs
+
+The same instruction misread three times: three tables in a document -> three csv files -> **the caption tabs in the feedback tab**.
+Checking the screen the user was looking at would have settled it at once.
+
+- `dashboard/index.html` caption pane now has three tabs: **transcript captions, after cut edit, all captions**.
+  There used to be two, and the tab called "all captions" actually showed the transcript (wrong from the name)
+- Caption rows are built once and re-planted per tab (`fillSubs`). Rows got a **design (kind) column** that can be seen and edited. The
+  all-captions tab also shows the title, label cards and chat cards
+- The transcript file is chosen by `"transcript"` in `edit.json` (better for re-transcribed episodes)
+- **When the user asks "why is it split like this", look at the screen the user sees first, not my files**
+
+### Preset renames (2026-09-28)
+
+담유이 Solo Shorts -> **담유이 Solo Shorts I**, 담유이 Test Shorts -> **담유이 Solo Shorts II** (user instruction).
+Ids (`damui-solo-shorts`, `damui-test-shorts`) unchanged. Old names kept at the front of `aliases` - if an old name in a project cannot be
+found, the first style is picked and autosaved (happened once on 봉누도2 귀신). The dashboard reads preset.json each time, so the new names
+show at once (checked).
+
+### Feedback tab caption pane (2026-09-28) - transcript / all captions / timestamps
+
+User: "remove 'after cut edit' and make it transcript captions / all captions, they overlap anyway. Instead add a timestamps tab and write
+timestamps (start ~ end) or clips there; don't write timestamps in the other tabs".
+
+- "After cut edit" removed (it overlaps all captions). Three tabs: **transcript captions, all captions, timestamps**
+- **Times only in the timestamps pane.** The transcript and all-captions panes lost their time column (text only)
+- Timestamps pane: **12 clips** (final start-end, length, source start-end) and **caption lines** (start-end, design, text).
+  Editing start times moved here too (c.s2: keep the text, move only that clip's start). Text can change, so this pane is **redrawn every
+  time it is shown**
+- Clip times are exported by `export_shortsmith.py` as `review.clips` (both source and final times)
+
+### Why empty "첫 프로젝트" projects kept appearing (2026-09-28)
+
+User: "why does 첫 프로젝트 keep appearing? I delete it every time".
+
+`Projects.blank()` **assigned an id up front.** So: with no state saved in the browser, `blank('첫 프로젝트')` -> caught by the 20 s
+autosave (`P.dirty && cur().id`) -> **an empty project appears in the folder.** Deleting the open project did the same via
+`blank('새 프로젝트')`.
+
+- `blank()` **gives no id.** `ensureId()` assigns one when actually saving (creating a new project is a forced save, so that still works)
+- Autosave and `stash()` run **only with an id or some content** (`hasContent()`: clips, captions, notes, prompt, dropped files). Nothing
+  empty is created in the folder
+- The one leftover empty project (`pmukvvm5m0v2p` 첫 프로젝트) is for the user to delete or not
+
+### Timestamps pane at a glance (2026-09-28)
+
+A long list of times made it impossible to see what was what (user: "not intuitive").
+**Clips are headings with the captions starting inside them indented below** - which words are in which piece, and how final and source
+times line up, is visible at a glance. Lines present for the whole video, like the title, are pulled to the top as "whole video".
+
+### All captions = a two-axis timeline (2026-09-28/29)
+
+The timestamps pane was **removed.** The two-axis drawing the user made went into the **all-captions pane** as is (instruction: "remove the
+timestamps pane, apply the current design to all captions, keep transcript captions for now"). The caption pane now has two tabs:
+**transcript captions, all captions**.
+
+Two thin axes on the left (**source**, **edit**), caption text on the right. The "source" / "edit" headers are centred on their axes.
+
+- **Gaps between lines are shown by lines, not words** (instruction: "don't write things like 'joined in edit' ... mark it with a line in
+  between -> a solid line in the active colour -> joined, a dotted line -> blank frames"). Labels like "cut 6.3 s, removed from source"
+  all went
+  - edit axis: **solid (active colour) = joined** (within one frame), **dotted = blank frames**
+  - source axis: parts kept inside a piece are **a continuous band the width of the axis**, only removed spots are **hatched**. The hatch
+    top and bottom touch **the previous piece end and the next piece start** (instruction: "the removed parts must also follow each clip's
+    start and end, not be a simple shape"). Pieces are adjacent on the edit clock (`pk.oe === ck.os`), so that single point is the hatch
+    position - split by the previous piece's tail and the next piece's head length
+- **The selected line gets a blue area.** Text, speaker, design, start and end are edited there. Selecting **moves the video to its start**
+  ("go to video position" button removed - editing moves it by default)
+- **Start and end are horizontal spin boxes** (− value +). Holding speeds up - one frame (1/60 s) at first, five after 1.2 s, ten after
+  2.5 s. Up / down arrows also step one frame
+- **Length cannot be edited** - it derives from start and end (instruction)
+- Edited values are `c.s2`, `c.e2`. `apply_review.py` now **reads s2/e2** when writing captions.csv (before it read only s/e, so times
+  edited in the dashboard never reached the render). They also go into the preview and the text passed to Claude
+- **No number labels** (instruction: "don't show things like clip n, caption n, cut n") - piece numbers, counts and line numbers all removed
+- Lines shown for the whole video (title) are not drawn on the axes ("whole video" at the top). Lines over 4.3 s fold with `≈` (stops one
+  chat card from taking the whole pane)
+
+### Two-axis timeline restored, source / edit separately, undo (2026-09-29)
+
+User: "where did these go?" (hatched triangle + ≈) and "it changed too much from what we discussed" - eleven drawings sent again.
+**Those drawings are canonical.** Only "gaps shown by shapes instead of words" was kept; the rest reverted to the drawings.
+
+- No gap -> the two axis bars **touch** (before: 5 px apart with a solid line). Gap -> **separated by that length** with a dotted line, ≈
+  over 1.2 s
+- Cut -> hatching on the source axis + a **hatched triangle** between the axes (source range -> one edit point) + ≈ on both axes. Edit axis
+  solid in the active colour (joined)
+- A cut inside a caption -> hatching inside the source bar, the edit bar continues. A caption end overrunning the piece end by under 0.15 s
+  counts as tail margin (in this episode every line ends at piece end +0.10 s; without this every line would get a triangle)
+- Overlap (between 담유이 lines) red, gaps shorter than 0.15 s yellow. Gaps are measured from the latest end of previous lines (frontier) -
+  because chat cards float over speech
+- Selected line: both axes and the text in one blue band, dots at both axis ends, source time on the left
+- **Source and edit are edited separately.** Clicking the source bar edits only source time (`os2`/`oe2`), clicking the edit bar or text
+  only edit time (`s2`/`e2`). Only the active axis's dots are filled and draggable. A source edit is **a cut**, so the render button does
+  not apply it - it goes into the text for Claude as `[source time a~b → c~d - cut adjustment]` and `apply_review.py` mentions it
+- **Ctrl+Z undo, Ctrl+Shift+Z (Ctrl+Y) redo.** Caption lines (times, source times, text, speaker, design) and transcript words (kept /
+  dropped) are recorded. Repeated changes to the same thing within 0.8 s (holding a spin, dragging) count as one. Inside a text field the
+  browser's text undo applies
+
+### Caption pane = source / edit (2026-09-29)
+
+User: "where's the display of removed transcript clips on the source, and how can there be so many long-gap skips?",
+"don't split transcript / all captions, make it source and edit ... controlled separately / shown together", "move the timeline further
+left", "source and edit should do what the transcript display does now", "clicking the background deselects".
+
+- Two tabs, **source and edit**. The tab only picks **what is edited**; both axes always show. The transcript caption pane (#subsTrans) is
+  gone
+- Lines are in **source time order**. At each cut a hatched band is laid on the source axis with **the removed speech (transcript) clips**
+  standing in place inside it with red outlines (this episode: 12 spots including the head cut, 12 removed-speech clips). **≈ only for
+  silences over 1.2 s without speech** - before it was attached to every cut
+- Source tab: 담유이 lines show **the transcript words at that spot** instead of caption text, click to drop / restore (what the transcript
+  pane did). Selecting a line shows source time spins
+- Edit tab: caption text, speaker, design, edit times
+- Matching remaining words to lines uses **a word x line DP** (seconds away x 1.5 - character match ratio x 2.5, order preserved).
+  Using time only let words at line ends leak into the previous line because Whisper is early ("어 잠깐만 구독 | 풀려서"). Single-syllable
+  "나" and "아" can still go either way (guess)
+- Words straddling cut boundaries (8 kept words without out) find their edit time from source time
+- Axes moved left (source x=6, edit x=40, text x=64). Source time numbers are written inside the card, not beside the axis
+- Clicking the background deselects
+
+### Caption pane: only the timelines shared, text panes scroll horizontally, word-level transcription (2026-09-29)
+
+User: "showing them together means only the timelines; control the timelines separately with horizontal scrolling", "the start and end of
+removed parts aren't shown properly", "no transcript captions in edit, nothing but transcript captions like chat in source, no timestamp
+editing", "make removed parts polygons that follow the start and end, not triangles", "restoring or removing should show up in edit",
+"clicking the background, not just clips, deselects", "re-run the transcription and from now on timestamp at word level".
+
+- The two timelines on the left are **laid out separately**: source on source time (piece bars, hatched removed spots, **every word**), edit on
+  edit time (caption bars). Kept ranges are bands between them (source range -> edit range), removed spots hatched from a source range to one
+  edit point, touching the piece end and next piece start
+- The text area on the right holds **two pages, source and edit,** scrolled horizontally (tab, horizontal wheel, Shift+wheel). Switching keeps
+  the time in view
+- Source page: transcript words only, click to drop / restore, no time editing. Edit page: captions only (chat and labels faint on the right,
+  a purple line beside the axis)
+- Restores and drops **show on the edit timeline immediately**: kept ranges = pieces - dropped words + restored words. Restored spots green,
+  words to drop orange
+- Clicking empty space (not text, bars, cards or buttons) deselects - the empty part of a text line counts as empty
+- Transcription: `tools/transcribe_words.py` (new). VAD was tried and dropped (words 90 -> 71; "사람은 아직 믿어?" and "아 맞다 나 단미지", both in
+  the edit, went missing). Without VAD, the same model and settings give the same transcript as before, so it was not re-run - only stage 2
+  (spreading characters over speech segments) with `--from word_level_loud.json`.
+  Median difference to caption starts (measured) 0.96 -> 0.52 s. Sentence-initial words are still nearly 1 s early when preceded by sound (a
+  forced-alignment model would fix that - needs a download, not done)
+
+### Synced switching, separate source scale, colours (2026-09-29)
+
+- Why switching was not synced (measured): source 1510 px and edit ~700 px differed in length, so there was no scroll position putting the
+  moment seen in source at the same height in edit and it stuck to the top. -> **the source scale is chosen separately to make both timelines
+  the same length** (keeping one text line's height; if still longer, edit is stretched). Both 858 px in this episode
+- **A yellow playhead line** is drawn across both timelines and joined between them. When switching pages with the playhead on screen, scroll
+  keeps that line at the same height (measured: 300 px -> 300.5 px -> 300 px). Otherwise the time at the centre of the screen is matched
+- Colours: spots where speech was removed red hatching, spots where only silence was removed grey hatching (6 and 6 in this episode), to drop
+  orange, to restore green, kept pieces alternating blue / purple (source bar and band share a colour - follow which band is which piece)
+
+### Two columns on the edit side, a fix button for same-layer overlap, source lines not split (2026-09-29)
+
+- The edit text page split in two: 담유이 on the left (62%), chat / labels / donations in a narrow right column, each at its own time.
+  Right-column items push down when they overlap (measured: 담유이 16, right 7, text box overlap 0)
+- Overlap on the same layer (담유이 with 담유이, same-speaker chats) is an error -> red + a card button "set previous caption end to next
+  caption start". Different layers (a chat card over 담유이's speech) overlap by design and are left alone
+- Source lines are not split by word state - restoring or dropping used to split a line into new lines. Split only by Whisper sentences and
+  pauses over 0.5 s
+
+### Unbaked preview (2026-09-29)
+
+User: "can the added parts be applied in the preview without rendering?" -> "make it".
+- `tools/src_preview.py`: a light copy of the whole source, `src_preview.mp4` (1280 wide, 30 fps, keyframe every 0.5 s, took 21 s, 31 MB) +
+  `review.srcPreview` in project.json and per-piece `crop` and `gain`. Gain = the final's fixed gain (+17.20) + the largest piece gain (+4.0)
+  = +21.20 dB; per-piece differences are reduced by the preview's volume. Called at the end of `export_shortsmith.py`
+- shortsmith `scene.plan` (preview only): kept source ranges played in order as `<Sequence>` + `<Video>` (preloaded 0.6 s). Piece crops are
+  matched by scaling and shifting the full frame (the 담비 zoom piece too)
+- Dashboard: with any restore or drop it switches to this preview automatically (green badge top left). Caption, card and effect times move
+  to plan time, and seeking, notes and the playhead line convert to and from edit time via toVid / nowEdit. Undoing everything returns to
+  the rendered preview
+- Measured: restoring "그런 거 아니지" (17.07-22.43) -> 31.97 -> 37.33 s, plan time 10.48 s plays source 19.2 s. Dropping "사심이라고" gives
+  36.22 s
+- Differences from the render: no crossfade at seams, may stutter slightly at seams (not verified - not listened to)
+
+### Only removals as polygons, empty space inside the blue area deselects, less dense (2026-09-29)
+
+- Polygons between the two timelines **only for removals** (speech removed red, silence removed grey, to drop orange). Kept-range bands are
+  not drawn. Source bars in one colour
+- Inside a selected caption's blue area, clicking anything that is not an input, button or spin deselects
+- Less dense: minimum line height 24 -> 30, text 13 px, line spacing 19, 5 px between source lines, removed words on the source page as faint
+  red strike-throughs without boxes (fainter for fully removed lines), remaining word bars faint (only dropped, restored and to-drop stand
+  out), the right column (chat, labels) one line + …, legend as five colour swatches instead of text lines
+
+### Spins that did not edit (2026-09-29)
+
+User: "even when I extend it, it doesn't change in the edit and doesn't show in the preview". Reproduced: pressing + changed one frame and
+then the card closed. A spin redraws the pane while held, so the pressed button is detached, and the browser fires the following click on
+the empty background -> the just-added "click on empty space deselects" read it as empty space. Fixed to decide by **where the press began
+(mousedown)**. Measured: holding end + for 1.5 s 8.14 -> 8.73 s, the card stays, the caption shows in the preview at 8.44 s, clicking empty
+space still deselects.
+
+### Restored spots as caption lines on the edit side (2026-09-29)
+
+User: "the added part can't even be selected and nothing is added in edit". Restored speech appeared only as a green bar on the edit axis,
+with no line in the text pane, so it could not be selected.
+- Each restored range (restoreRanges) gets **a 담유이 line on the edit side** (with a green + in front). Text is filled from the words there;
+  text, speaker and design are editable. Times follow the restored words (only source time on the card, no spins). Clicking the green bar or
+  text selects it and moves the video there
+- Carried in `R.restoreCaps` with source time (src) (there is no current edit time for that spot, so it cannot go into R.captions). Undoing
+  the restore removes the line. Text edited by the user survives changes to the restored range. Included in undo
+- The unbaked preview shows the caption. The render button does not apply it (the cut comes first); it is written into the text for the edit
+  (AI) as `[restored spot caption - source time]`
+- Measured: restoring "그런 거 아니지" (source 17.07-22.44) -> 1 green line, 1 bar; selecting and editing to "그런 거 아니지!" shows as is in the
+  preview and in the hand-off text
+
+### Restore / drop a whole source line (2026-09-29)
+
+User: "add adding / removing a whole line too". + (restore whole line) and - (drop whole line) at the end of each source line. The same rule
+as clicking words one by one, applied to all words in the line at once, undone in one step. The button with nothing to do is dimmed.
+Measured: "구독 풀릴까봐" + -> 2 words restored, a green line on the edit side, 31.97 -> 37.29 s / "이제 풀렸으니까 구독 안 해도 되겠네" - -> 6 words
+dropped, 34.36 s / two Ctrl+Z back to the start. Also fixed the second line being cut off by the buttons (line width measured 22 px wider).
+
+## 야설 낭독회2 first edit (2026-09-29, jobs/20260929_160658)
+
+Source 야겜낭독회2.mp4, 139.27 s -> **10 pieces, 38.44 s** (speed 1.0). Dashboard pmumc0danb4r3. Details in `edit/야설낭독회2/notes.md`.
+
+- A loud source (-18.5 LUFS) with a high background floor (-40). Speech map -26/-33 and check tool thresholds to match (verify_runs GAIN -0.8,
+  pauses -30)
+- **transcribe_words.py draws runs at a fixed -52/-60 when speech_map.json is missing** - on a source with a -40 floor everything becomes one
+  run and the stage-2 fit goes nowhere. For this episode the speech map was drawn first and only stage 2 re-run with `--from` (no AI). **Next
+  episode: speech map before transcription**
+- Damyui sits at the very bottom corner of the source, so **a large crop makes captions cover the mouth** (seen in frames of the first
+  render). Narrowed to 465x490 (2.3x)
+- Remotion downloaded Chrome Headless Shell (113 MB) by itself during the build (first render)
+- Guessed words: 퉁실이, 비실이 (Whisper 퉁시리, 비시리) - before user confirmation
+
+### 야설 낭독회2 re-edit 1 (2026-09-29, jobs/20260929_163201)
+
+9 pieces, 35.80 s. 퉁실이 and 비실이 confirmed by the user. Two captions fixed, the last piece ("이거 보내놔야겠다") removed.
+- **When Damyui sits at the very bottom of the source, the more you zoom the higher the mouth climbs in the window** (the bottom edge is
+  fixed). User: "zoom in more to reduce the space above and keep more of the lower face" -> 398x420. The first version 626x660 had captions
+  over the mouth, and 465x490 had too much space above
+- Feedback tab: while playing, when the playhead line drops to the bottom quarter the timeline follows down (`follow()`, line put at 30%
+  from the top). Not while paused or within 1.5 s after touching the wheel / scrollbar. Verified by playing in the browser (scroll 0 -> 190
+  -> 380 -> 779)
+
+### The render button bakes restores and drops too, source-side timeline (2026-09-29)
+
+User: "manage cut editing in the preview too" -> **render the cuts heard in the preview, as is, with no AI.**
+- `tools/apply_review.py` rewrites edit.json keep with **the same maths** as feedback.js (plan, toPlanT, planScene's piece splitting)
+  (edit.json.bak). Pieces inherit crop and gainDb; restored gaps take the previous piece's crop and gain 0. Caption and fx.json numeric times
+  move too, caption lines whose speech is gone are dropped (effects pointing to them get that spot's numeric time). Restored-spot captions
+  (restoreCaps) go in as lines
+- The server (`dashboard/server.py` shortsmith_job) runs `shortsmith cuts` first if edit.json changed - **needs a server restart**
+- A rule fixed on both sides: a segment left with no speech after dropping is discarded (dropping a whole line left 0.6 s of piece margin
+  and a caption floated over empty sound); restored words get 0.10 s before and 0.15 s after; caption lines with less than 0.1 s of their
+  source range left are not drawn
+- Crossfades at seams in the preview too (Window.tsx PlanRange, same length as the render - scene.body.crossfadeSec). The picture switches
+  at the frame
+- Test (on a copy of the episode folder, deleted afterwards): drop "오케이 좋은데요 여러분?" + restore "가 될 수도" -> preview 34.51 s, render
+  34.53 s, line order checked on frames
+- Source-side text pane: the edit timeline and polygons removed, the source axis widened to 44 px at scale 1 (18 px/s) - transcript lines sit
+  beside their piece bar at the same height. The edit side keeps two timelines as before (source scaled to the edit length)
+- (Same day) Restored spots did not go to the scrub bar and captions did not show: ① the scrub bar treated video time as edit time and moved it
+  again via seek() - a restored spot has no current edit time, so it went somewhere wrong -> the scrub bar uses video time as is. ② the zIndex
+  given to PlanRange with crossfades put the video above the caption layer, **hiding every caption in the unbaked preview** -> removed.
+  Verified by screenshot. `D.Feedback.sceneNow()` (the scene passed to the preview) is exported for checking
+- (Same day) the +/- buttons at the end of source lines were "hard to see": grey at 55% until hovered -> always green + / orange - (23x21,
+  bold). Only buttons with nothing to do are dimmed to 30%
+- (Same day) +/- glyphs sat low in the button (measured: ink centre 2 px low, due to the font) -> centred SVG lines instead of text.
+  Re-measured 0 px
+- (Same day) line buttons 23x21 -> **17x16** (8 px symbols, top 2 px centred on the first row). Text offset LINEOPS 54 -> 44
+- (Same day) creating a new project opens the AI edit tab first (projects.js create). Opening an existing project or importing a file still
+  goes to the feedback tab
+- (Same day) new project name field: non-existent class inp -> .input (same look as other fields), Enter = create (ignored during Hangul
+  composition)
+- (Same day) the feedback tab's "which final to view" field is hidden in scene preview (captions drawn directly) and with one final or none.
+  It shows only when viewing several language finals as mp4
+
+## 모캡영도랜디 3-second design check (2026-09-29, jobs/20260929_173303)
+
+First use of Basic Shorts (public preset). One piece, 영도모캡랜디.mp4 8.60-11.60, only the first 30 s transcribed. Dashboard pmumey27ghgew.
+Details in `edit/영도모캡랜디/notes.md`
+- **Basic Shorts = 담유이 Solo Shorts II (no background video)** (same day, user instruction). shortsmith/presets/basic-shorts/preset.json was
+  copied from damui-test-shorts v3 with only id, name and visibility changed to Basic's, brand.background null; the old v1 (OFL fonts only)
+  is preset.json.bak. The title is **two lines + a coloured key word at 1.15x** like 다음 생 and 삼성 사본 (Black Han Sans unchanged, 124 /
+  line centres 195 and 335). shortsmith TitleView now takes two lines ("\n" or " / ") and «word|colour» (preset title.centerY, lineGap,
+  keyScale, keyColor). The 3 s of 모캡영도랜디 were re-rendered and checked on frames
+- 모캡영도랜디 3 s, version 3: "sounds like 말 우리가 월말에 ~" - the piece was cut in the middle of the previous run (8.60). Re-measured on the
+  waveform: 9.40-12.40.
+  **Word fitting (transcribe_words stage 2) is off by a whole run on drawn-out words and numbers** (it assumes an even rate; "10" has 0
+  Hangul characters). Cut points are always set from the speech map (pauses between runs) - skipped this time for a 3 s piece, and it bit.
+  transcribe_words.py speech run thresholds became source floor (p10) +7/+14 (the fixed -52/-60 read a source with a -40 floor as one run)
+- Basic Shorts fonts back to OFL (user "let's fix the fonts"): body Pretendard ExtraBold, reaction Black Han Sans, handwriting Nanum Brush
+- Basic Shorts chat: **original chat captures** instead of cards (user: chat design differs per stream). Recorded in the preset guidance and
+  the chat card icon (a local path) removed - zero local paths in the public preset. Text size left as is (instruction). Memory
+  chat-as-capture
+
+## 모캡영도랜디 first edit (2026-09-29, jobs/20260929_173303, Basic Shorts)
+
+Source 영도모캡랜디.mp4 211.77 s -> **11 pieces, 18 caption lines, 37.92 s**. Dashboard pmumey27ghgew. Details in
+`edit/영도모캡랜디/notes.md`.
+- Speech map before transcription (a source with a -39 floor, so -26/-33). The 3 s version's cut through the middle of a run was not
+  repeated
+- **Chat as captures for the first time** (user instruction): pill balloons cut out with img/cut_bubble.py (finds the body by its blue
+  outline); shadows baked in because they melted into the white background
+- Checks: line splits 0, grouping 0; one verify_runs flag is a false alarm (difference per cell equals the gain), one check flag is a ㅎ
+  liaison with no dip
+- Unverified word "푸젯하고"; the title is a guess
+
+## 2026-09-30 모캡영도랜디 version 2 (Solo Shorts II, title "영도 모캡", focus on 영도)
+- 9 pieces, 38.98 s, dashboard pmumey27ghgew. The haptic suit passage shortened, the 영도 dance and birthday mocap explanation (39-74 s) added.
+  Three chat captures.
+- The Basic version is kept as *.basic.* and edited/영도모캡랜디_edit_basic.mp4. Details in edit/영도모캡랜디/notes.md
+
+## 2026-09-30 Ripple on/off switch in the feedback tab
+- User: "make a ripple on/off switch next to the source / edit tab switch" + an explanation of ripple delete and ripple trim in editors.
+  Off: removed spots become gaps (black window, silence) and restored speech overwrites.
+- Changed: dashboard/js/feedback.js (plan returns [source s, e, edit time]; with ripple off, edit time = plan time), index.html and
+  feedback.css (switch), tools/apply_review.py (same maths, {gap} in keep), shortsmith cuts.mjs, body.mjs and util.mjs (gap pieces),
+  Window.tsx (gaps are a black window, bundle rebuilt), export_shortsmith.py and src_preview.py (gap pieces are not dashboard pieces, the
+  ripple setting is kept)
+- Tests: 300 random cases with ripple on = the old maths; ripple off keeps remaining pieces in place, 0 overlaps; JS = Python on 40 cases.
+  In a copy render the 2.94 s gap is -91 dB and a black window, length 38.98 unchanged.
+  In the browser, a test project: on 37.20 s / off 38.98 s, gap shown as a black window; test folder deleted afterwards (the copy render made
+  Remotion download the 113 MB headless Chrome shell again - it does so for every new episode folder)
+
+## 2026-09-30 Height of the selected caption card in the feedback tab
+- User: "when editing captions on the edit side, the clip doesn't need to grow that much; it takes less space than you'd think"
+- Measured: the card content is 119 px for one text line, but CARDH was 150 and multiplied by the edit-side stretch factor (matching the source
+  length; 2.26 for 모캡영도랜디) gave 339 px.
+  -> cardNeed (text line count, 101 + 20/line) divided by the factor and re-measured (up to three times). If it overflows (the overlap fix
+  button), draw and measure once more. Result 122-130 px.
+
+## 2026-09-30 Ripple trim, pushing edit cards down, centred text, save omissions fixed
+- User: "there's no difference on the edit tab between ripple on and off; with ripple on, extending a clip still shows an overlap", captions
+  hidden by the card should go below it, text centred on the clip
+- feedback.js setT: with ripple on, moving the end (e) moves following captions on the same layer (start >= old end - 0.02) by the same
+  amount. Edit-side 담유이 text is centred on the clip and pushed below the card and earlier text (mainFree)
+- Found during testing: the save merge in server.py dropped the word drop / restore table, e2, os2/oe2, kind, ripple and restoreCaps ->
+  now accepted, server restarted.
+  Verified with a test project that the word table, e2, pushed captions' s2/e2 and ripple false stay in the file. app.js mergeUserBits keeps
+  ripple too
+
+## 2026-09-30 Playhead line: fixed, draggable, click the source axis
+- User: "while editing, the playhead line stays fixed whether clips are pushed or shrunk; let the playhead line be dragged; clicking on the
+  source timeline moves there; for a removed part, move to whichever side (start | | end) of the removed clip's middle is closer"
+- feedback.js: setT no longer seeks to the edited time; srcSeek (source time; in a removed spot, by the middle, to the previous range end
+  minus one frame or the next range start); .tl-ph dragging (source line uses srcSeek, edit line ME.t); clicking the source axis. css: .tl-ph
+  grab zone 6 px above and below
+- Test (copied project): removed spot at 20% -> 2.483 (previous piece end), 80% -> 2.50 (next piece start); editing the end time keeps 12.05;
+  dragging with the mouse 12.05 -> 14.75, card stays open
+
+## 2026-09-30 The playhead line did not move during playback
+- User: "it must move during playback even while editing / the playhead line is there to check the absolute position at the current moment;
+  moving it by user action changes the current moment"
+- Measured: during playback timeupdate fired 0 times regardless of the card (the time display froze too). bind in
+  shortsmith/preview/entry.tsx attached to the player only once, two frames after the first draw, and if the player did not exist yet it never
+  reattached (only on the next update()). It now retries every 50 ms until attached. Bundle rebuilt.
+- Verified: after a reload, touching nothing, playing with the card open -> 8.13 -> 9.55 s, line 470 -> 535 px
+
+## 2026-09-30 Fixed line (layout, scale), selecting does not move the line, roll edit on overlap
+- User: "why does the playhead line move when I extend and shrink clips? The clip length should change and the line stay fixed" / "clicking
+  an edit clip must not move the line" / "on overlap, eat the overlapping caption by that much, keeping the total fixed (3:7 to 5:5 or 2:8)"
+- Cause: the selected clip was stretched to the card height (short clips kept the same bar when the end moved), and the edit-side stretch
+  factor (matching the source length) was recomputed on every edit, so the whole view grew and shrank.
+- feedback.js: the selected line does not change layout (card over the text column, following text below the card); the scale is frozen while
+  a card is open (FROZEN); pick does not seek; setKey + roll: the end moves the next line's start when ripple is off, the start always moves
+  the previous line's end (adjacent lines follow when shrinking too; neighbours keep at least one frame)
+- Test (copy): selecting keeps t 9.00; end 10.633 -> 11.367 makes the next line 11.367-11.817 (its end unchanged); shrinking, the next line's
+  start follows; pulling the start earlier, the previous line's end follows; with ripple on the next line keeps its length and is pushed; the
+  line stays at 517.956 px throughout, bars 124 -> 158 -> 121 px
+- The user's project contains the user's own edits (first line end 1.73 -> 1.5 pulled with ripple, ripple off) - not touched
+
+## 2026-09-30 Card only on text click, line fixed on screen (scroll compensation), roll only the adjacent line
+- User: "don't open the card when manipulating clips, only when clicking text" / "the line is fixed and everything else moves - what editor
+  moves the line like this when you control a clip?"
+- feedback.js: CARD flag (bar = select + end handles, text = card); fillSubs measures the line's screen position before and after redrawing
+  (PH_ANCHOR) and compensates the scroll (scroll unchanged if the line is off screen); roll edits only the adjacent line (the 0.02 tolerance
+  exceeded a frame, so continued dragging pulled the start of the line after next)
+- Test (copy, two real mouse drags): line screen position 693 px unchanged, only the adjacent line down to one frame, the line after it at
+  11.817 unchanged, 0 overlaps. Clicking a bar = no card, 2 handles
+- Recorded as a rule in memory timeline-playhead-nle-rules
+
+## 2026-09-30 Edit-side scale linear in time
+- User: "shrinking a clip doesn't shrink it and extending doesn't extend it, only the line moves up and down; and why does it scroll while I
+  control a clip?"
+- Cause (confirmed from the user's project history: first line end 1.50 -> 2.35, "10월 말" one frame): each edit-side line had a minimum text
+  height, so even a one-frame clip kept its bar, and instead everything after was pushed and the line moved, then the scroll compensation made
+  the view shake. Dragging was divided by PPS, so the handle moved 2.26x faster than the mouse.
+- feedback.js: edit side ME = straight line (KE px/s, set only by the edit length and the source-side height - unchanged by caption edits),
+  text pushed down by mainFree, dragEdge divides by KE. (First named K, which clashed with the piece list K and briefly broke the tab -
+  renamed KE)
+- Test (copy, real mouse): first line end dragged up 40 px -> handle 473 -> 433 (with the mouse), bar 115 -> 59 px, next line 2 -> 57 px,
+  line at 513 px, scroll 0 unchanged
+
+## 2026-09-30 Roll edit overwrites, clip control first on the selected clip
+- User: "why can it shrink but not extend? And on the clip being manipulated, prioritise clip control over dragging the line"
+- Cause: roll kept neighbours at one frame, so once a neighbour was one frame it could not extend further (the user's first line was in that
+  state); the line (z 7) covered the handle (z 6)
+- feedback.js: when a neighbour is fully eaten it is overwritten to length 0 (struck-through faint text, .is-eaten) and the next line keeps
+  shrinking; pressing the line over the selected clip (±8 px) drags the nearer end. css .tl-dot z 8. apply_review.py: zero-length lines are
+  dropped from the render (fx references get that spot's time)
+- Test (copy, line placed over the first line's end, real mouse): extend 2.35 -> 3.683 ("10월 말" eaten, next line rolled), shrink -> 1.433
+  (next line follows), line at 473 px, playback 2.35, scroll 0 unchanged
+
+## 2026-09-30 Ctrl+click on the edit timeline = move the playhead
+- User: "make ctrl+click on the edit timeline move the line" (first written as source, then corrected)
+- feedback.js: capture-phase mousedown / pointerdown / click on the edit-side stage - Ctrl (Cmd)+left click blocks bar, text and handle actions
+  and sets the playhead to ME.t(y)
+- Verified (user project, playhead only): on text -> 4.53 s (no card), on a bar -> 5.93 s (no selection), nothing edited (dirty false)
+- Note: screenshots of my browser window sometimes show the preview video black - reading video pixels through a canvas shows the picture
+  (window average 216). Taken as a capture issue (guess)
+
+## 2026-09-30 Caption line length and balanced splits (all presets)
+- User: "too many characters in one caption -> the font shrinks, so write only as much as fits without shrinking / split by meaning, but not
+  8:2 - similar numbers of characters - for all presets"
+- tools/edit_audit/fit.py: measures with the preset font (found via lib/preset.mjs) using the renderer's yardstick (size*lineToEm width >
+  maxTextWidth). Matched against browser canvas values: 113/119/99/102% identical. Also flags two lines without a pause skewed beyond 70%.
+  Rules in memory shorts-caption-rules and CLAUDE.md
+- Caught: 모캡영도랜디 6 shrinking, 5 skewed; 야설낭독회2 6 shrinking. Fixing them is asked of the user (모캡영도랜디 has user edits in progress
+  in the dashboard)
+
+## 2026-09-30 Wider edit axis + waveform
+- User: "put the real waveform inside edit clips (vertical, top to bottom, centred on the axis, mirrored left and right)", "stretch all clips
+  on the edit timeline sideways"
+- tools/src_wave.py: source audio 20 ms peak in dB (-60..0) as one byte each (211 s = 10.6 KB, base64 14 KB), cached as wave.json in the
+  episode folder. export_shortsmith.py puts it in review.wave (for 모캡영도랜디 written directly into project.json - user edits untouched)
+- feedback.js: edit axis width EXW 44 (source axis stays 22, X_SIDE and X_PAGE shifted), drawWave: maps source time to edit time through the
+  keep ranges [s,e,at] and draws the per-pixel-row peak left and right from the axis centre. Piece gain added. The scale runs per source from
+  the floor (bottom 10%) to loud (top 0.5%) - with a fixed -60 dB, a -39 dB-floor source filled half the bar even in pauses
+- Verified: canvas 44x2079, bar 44 px, pauses and speech visibly distinct
+- 2026-10-01 feedback tab edit timeline: "make clip boundaries more visible / the gap-compression mark between clips shouldn't be blue
+  (confusing when controlling clips)". Clip bars shrunk 1 px top and bottom for a 2 px gap (scale and end grabs unchanged), border white .36
+  -> .62, the waveform also clears 3 px at clip boundaries. The join line where something was removed (tl-join) from blue (the selected clip
+  colour) -> pink #ff5fa8 (every other colour already has a meaning). 2 px gap and pink verified in the browser.
+- 2026-10-01 continued: "the gap-compression mark -> a barely visible colour, clip joins fully continuous". The 2 px gap and the waveform break
+  were reverted (boundaries shown only by the .62 border; the waveform canvas lowered to z 1 so the border shows above), tl-join pink -> white
+  .14. Zero gap verified in the browser.
+- 2026-10-01 repository: E:\Edit\Claude connected to github seoldam82/Kirinuki-Edit (public). .gitignore excludes projects, episode folders,
+  videos, private presets, Damyui styles, image assets, davinci-resolve-mcp and .mcp.json. E: does not record file owners, so git needs a
+  safe.directory exception.
+
+## 2026-10-01 Dance(C:S) Solo Shorts preset (static camera moves)
+- User: "when the character looks like leaving the frame, mostly (not always) move to keep a full shot, or so the character's centre is in the
+  middle, without much space on any side. A slight zoom in / out when needed". References: 4 YouTube videos + Damyui-n152-1.mov (the portrait
+  rework of -0.mov).
+- Measured (-1.mov, camera every 0.1 s, body box every 0.25 s): above the head 0.073h, below the feet 0.053h, sides 0.18w; 30 pans wider than
+  0.1 at 0.85 s and 0.116h/s; 4 single-frame jumps; scales 0.787 / 0.842. 4 YouTube videos: body centre 0.50, body height 74-95%. R14ZVrYoWSs
+  challenge 19.2-23.2 s upper-body cut-in (0.14 above the head).
+  -1.mov follows a little every 0.3 s, so as the user said "only when about to leave", SIDE was narrowed (guess).
+- Subscription / donation alert chibi images were taken as the body (n152 7.9-14.2 s) -> large blobs outside the body are excluded.
+- Made: presets/damui-dance-cs-shorts, tools/dance_camera.py, shortsmith body.mjs camera.keys (holds = crop, moves = perspective).
+  Fixed: two keys at the same time -> a 0 s piece joined as a broken file and 2.7 s vanished (one boundary now). perspective's in starts at 1
+  -> moves were one frame early (in-1).
+- Test (source 40-70 s, temporary work folder): 15 moves, 2 cuts, scales 880/968, length 30.003 s, audio offset from source 0, ±0.3 dB at 27
+  piece boundaries, positions during moves within ±1 px of the plan, viewed side by side with the reference. Moments where 2-6% of the toes are
+  cut (leg kicks) are left.
+- Remotion downloads Chrome into the working directory (E:\Edit\Claude\.remotion appeared at 521 MB and was deleted; added to .gitignore).
+  Every episode folder already holds 521 MB - raised as a separate task.
+- Version 2 (same day): user "far too unnatural / follow the character's centre as continuously as possible, like tracking".
+  Matching the -1.mov camera against the body's centre of mass: horizontally it follows the centre smoothed with σ 0.2 s with no lag (RMS
+  16.5 px, 90% of differences within ±0.05 width), vertically σ 2 s. Ported as is: a key every 0.2 s, scale on the 80th percentile + up to 10%
+  only when it does not fit. body.mjs renders consecutive linear keys as one 3 s piece with a perspective path (clip per segment). Test 40-70 s:
+  10 pieces, 95% within 1.4 px of the plan, no jumps at piece boundaries, audio at boundaries -0.15 to 0.01 dB, nearly identical side by side
+  with the reference. Toes cut 11-18% during leg kicks are left.
+- Version 3: user "use zoom in and out so the whole body shows as much as possible". The 10% zoom-out limit removed; scale = the height at
+  which the widest spread of the body (height and width) within ±0.6 s fits with margins (σ 0.4 s, up to the source height). If it still does
+  not fit, centre on the range (following the centre of mass cut only the kicking side).
+  Test 40-70 s: cut-off 18% -> 2% (65.8-67.2 s leg kick, body width 578-639 px equals the 608 px width of a crop of the full source height -
+  cannot fit more), scale h 850-1080, plan differences x 1.4, h 1.7 px (95%). The reference cuts the feet at the same spot.
+- Version 4: user "the camera must not move before or after the character". The σ 0.2 s Gaussian and the ±0.6 s window made the camera move
+  before the body.
+  The body is measured every 1/30 s with isnet silhouettes every 0.2 s + optical flow in between (Farneback 480x270, propagated forward and
+  backward and blended), and the camera uses the same frame (only jitter smoothing σ 0.05 s). Scale widens on the frame the body spreads and
+  pulls in only at 0.5h/s. Flow estimate vs directly measured centre of mass: 9 of 10 spots within 18 px, 38 px at the 67.2 s kick.
+  Camera vs body horizontal speed lag 0 frames. body.mjs: up to 40 points per piece (32K command line), camera pieces with -frames:v (1797
+  -> 1800 frames, 30.000 s). Audio offset 0, 17 boundaries -0.15 to 0.10 dB.
+- Version 5: user "big zoom in / out repeating over and over is dizzying, so in such cases zoom out slowly instead (like around 25-27 s), the
+  rest is good". If zoom peaks (rising more than 8%) follow each other at under 1 s intervals two or more times -> a repeating span: from the
+  foot of the first peak, over 1 s, to the widest scale in the span, held until the last peak, then out at the same speed. Test 40-70 s:
+  only 64.8-67.2 s caught (5 peaks -> 1), the rest unchanged. Cut-off not increased, 1800 frames.
+- Version 6: user "refer to the video on my computer I gave as an example of how it's handled / still far too dizzying ... big changes should
+  move slowly instead ... during back-and-forth, zoom out slowly to the maximum width -> then proceed normally". -1.mov's camera re-measured
+  (99th percentile): horizontal speed 0.314h/s, acceleration 1.10h/s², vertical 0.072, scale change 0.099/s (median 0.002 - nearly fixed); the
+  64-70 s leg kick widens 7% over 2.5 s and holds.
+  Camera = ignore narrow jitter (horizontal 2.5% of width, vertical 2%, scale 3%) + follow within these limits (speed, acceleration, slowing by
+  stopping distance, past values only) + scale = widest over the last 2.5 s. Back-and-forth = more than four turns or zoom peaks within 0.6 s
+  of each other (one in the test, 64.9-67.2 s) -> aim slowly at the whole swept width.
+  Result (reference): horizontal speed median 0.023 (0.037), 90% 0.203 (0.153); scale change median 0 (0.002), 90% 0.053 (0.015). 1-6%
+  cut-off in 30 moments (due to slow following).
+- Version 7: user "(in cases like 25-27 s) the zoom-out is too fast, and it must not zoom out before the character moves (until the motion
+  leaves the frame) / motion -> camera or motion == camera (depending on the case; usually motion == camera), camera -> motion is strictly
+  forbidden".
+  The previous version aimed at the whole back-and-forth span's width (including the future) from the start of the span and sped up, plus a
+  σ 0.05 s two-sided smoothing. Fixed: inside a span only the width swept so far; zoom aims wider only when the body exceeds the current frame
+  (1% margin); pulling in only when the full shot of the last 2.5 s is more than 3% smaller (never inside a span); zoom speed at the reference
+  limit; no smoothing. Check: 0 frames zoomed out to a size the body has not yet exceeded; horizontal +5 frames (0.17 s) behind the body.
+  At the 65.9 s leg kick it widens over 2.5 s after the foot leaves the frame (toes clipped meanwhile - motion -> camera). 1-5% cut-off in 59
+  moments.
+- Version 8: user "it must not zoom out too much; allow only up to 8:2 (character : space), no more; 25-27 s was handled well, but 27-28 or
+  early 29 is the normal case ... zoom back in to minimise space and proceed, and zoom out slowly again when it goes back and forth".
+  FILL 0.8: the fuller of body height and width cannot drop below 80% of that frame (inside a span, the swept width). Hold time of a widened
+  scale 2.5 -> 0.5 s. Following does not overshoot the target. Check: minimum fill 0.800 (0 frames below 0.8), median outside spans 0.883,
+  horizontal 5 frames behind, 1800 frames. 0.4 s after the kick ends (67.2 s) it pulls in to the full shot (8:2 pulls it in).
+
+## 2026-10-01 Dance(C:D) Solo Shorts preset (dynamic camera moves)
+- User: "use the camera to show the dance more dynamically (mostly zoom in / out on the beat, sudden punch-ins and pull-outs) -> when there's
+  little movement, base it on Dance(C:S) Solo Shorts but with extra flair, base : flair about 3:7". References: VzGBBlqDzqA, 52qgpnCjxcU,
+  pPZ3raGlOh0 (docs/dance_cd_refs, downloaded with permission).
+- Measured (per-frame similarity transform against the background): cut scale on entry x2.0 / x2.7-3.3, on exit x0.5-0.67 (pPZ3 steps 2.01,
+  3.27, 2.01, 2.02), pushes over 4.5-4.9 beats x2.1-3.3, pulls over 1.4-2 beats x0.45-0.5, full-shot time 14-49%. Punch-ins: only five 0.08 s
+  x1.1 peaks in pPZ3 (close to a guess).
+  Whether cuts land on beats could not be proven - with 4-6 onsets per second any time falls within 3 frames of one. 52qg's cumulative scale
+  drifts, so it cannot support time shares.
+- Made: presets/damui-dance-cd-shorts (extends C:S, camera.mode "dynamic"), tools/dance_beats.py (beats, bars, shot plan), dance_camera.py
+  stats got the head top (central body band) and upper-body centre of mass; keys break at every cut.
+- Test 러브어택260921.mp4 (1726x1080, 31 s, episode folder edit/러브어택): 112.2 BPM, 15 bars, 9 cuts, flair 61% (bars where the upper body does
+  not fit a shot were excluded, so 70% was not reached), shot time full 36, punch 3, push 14, upper body 14, above thighs 26, pull 7%. Frames
+  around cuts checked (changes in one frame).
+- Fixed in the first version: the last frame of a bar is the cut point, so putting it in a close-up turned the cut into a one-frame zoom (88%
+  of the body cut off); flair bars clustered in the last 9 bars, giving 18 s of close-up (max 3 bars per block); applying the reference's x2 as
+  is was already upper-body on 러브어택 (shot sizes as fractions of the body - 0.65 / 0.40, eyeballed); a 3.6-5.8 s upper-body cut filmed only
+  sky (the feet stay but the upper body sways widely -> only when the swept width fits the shot; the head is held within 15-85% of the frame);
+  cuts between equal sizes (jump cuts -> merged into one shot).
+- This source's audio starts 0.021 s before the video (under a frame of beat time difference; left as is).
+- Version 2 (허니하트260921.mp4, 2.5-25.85 s - the first 2.46 s are the stream face screen and were excluded): user "too much space above the
+  head, and you need to see where the motion is / the face should generally show, but if the hand moves are dynamic and get cut off while only
+  the face shows, it looks wrong". Space above the head 0.14 -> 0.04 (references 0-5%, eyeballed on a scene sheet).
+  Where it moves: silhouette difference (XOR) is useless because the twin tails and clothes swing too (1600 points every 0.2 s, as wide as an
+  above-waist shot), and skin colour too (the hands are white under the lights)
+  -> mediapipe pose_landmarker_full (downloaded with permission, ~/.cache/mediapipe): wrists and index fingertips every 0.2 s (episode
+  pose.npz). Tracks the 3D model well (6 frames checked by eye).
+  Shot size from two levels -> per bar the smallest that contains the head + fast hands (0.40 / 0.50 / 0.65 / 0.80 of the body). Result:
+  106.9 BPM, 11 bars, 6 cuts, flair 42% (a dance with fast hands 76% of the time, so the bars at 7.2, 18.7 (wide sideways), 20.9 (arms wide)
+  and 23.2 s (up and down) are full shots), shots full 56, punch 2, push 10, face 5, medium 23, pull 5%.
+  DANCE_DEBUG=1 prints per bar the fitting shot, hand inclusion and swept width.
+
+## 2026-10-01 Dance pipeline speed (user "optimise this whole pipeline")
+Measured (허니하트 23.4 s, i7-1260P, Arc A350M): camera first run 158 s = isnet silhouettes 115 (0.97 s per frame, CPU already saturated -
+changing thread or session counts gave 0.90-0.97) + Farneback 23 + pose 7. Rendering 74 s = body 44 (18 pieces - just starting the QSV encoder
+costs ~2 s per piece: 6 frames 2.17 s, 180 frames 2.38 s) + render 28 (re-encoding the window with zero captions and effects) + the rest.
+- Optical flow: flows needed per span computed first on 8 threads (19.8 -> 5.0 ms per frame). The 310 keys are identical.
+- Body: camera pieces split per third of the keep (+1 s) instead of 3 s / 40 keys - a cut is a point jumping on that frame inside a piece (gte),
+  and the one-frame hold before a cut is not a piece either. Long expressions go into -/vf files (32K command line). Expressions are summed as a
+  balanced tree - a+b+c... makes ffmpeg fail with "Cannot allocate memory" from ~97 terms. Before perspective, crop to just the range the path
+  covers (it did 3-10x the work of the full 1726x1080; 2.28 -> 0.70 s per 3 s). fps=60 before perspective: the expressions count input frame
+  numbers, and an OBS recording dropped a frame at 18.807 s, drawing everything after one frame late (8 px). Black background cached (6 s per
+  render). 18 pieces -> 3, 44 -> 17.6 s.
+  Checks: per-frame evaluation of the expressions is within 0.25 px of the keys (1401 frames), within 1 px (output px, 14 frames) of a reference
+  image (cropped directly from the source with the same box). The old version was 4-5 px off on frames before cuts.
+  Quality: the intermediate resolution is the cropped size rather than 1726 wide, so Laplacian sharpness is ~10% lower (not distinguishable
+  by eye).
+- Render: if the overlay is a single fully transparent image for all frames (alphaextract YMAX 0), the window is the full screen and there are
+  no window effects, the pieces are not re-rendered and the window.mkv picture is copied. 28 -> 5 s.
+- CLI: render.mjs (Remotion) is loaded only for render, build and still - cuts 1.7 -> 0.3 s, and cuts, body and scene run without
+  node_modules.
+- An ordinary episode (봉누도2귀신, 24 captions, 7 effects) gives a bit-identical video (PSNR inf) to the code before the change in the same
+  environment.
+- isnet silhouettes on the discrete GPU (with permission): the already installed OpenVINO 2024.6 gives 0.070 s per frame on the Arc A350M (CPU
+  0.97, integrated Iris Xe 0.23). onnxruntime-directml was not installed - onnxruntime is used by faster-whisper. Half precision, but
+  silhouette IoU 0.9994-1.0000 (6 frames); camera keys have the same cuts, median box difference 0.1 px (max 9.6 px in one spot). Without a GPU
+  it falls back to onnxruntime CPU. Compile cache ~/.cache/openvino.
+  Camera first run 158 -> ~40 s (~70 s on the run that first builds the compile cache).
+
+## 2026-10-01 Dashboard output mode (user "let me choose whether outputs are edited separately per video or several videos output as one")
+- [separate | combined] next to "planned output" in the style apply tab (shown only with more than two target videos). Combined = target
+  videos joined in drop order (list order inside folders) into one result (one per language); the name is the folder name if there is one
+  folder, otherwise the first video + _합본. The join order is shown under the results.
+- Job JSON outputMode ("each" | "merge") + outputs[].sources; the prompt's "## 출력" states the output mode and order (shortsmith joins with
+  { "source" } in keep).
+- Saved as project ai.outputMode (core.js default and save, projects.js new project, app.js import). The server does not filter ai.
+- Checks (worktree dashboard 8898, three videos put in state): switching by button, two languages give two results, the style apply job file
+  (json, md), save and reopen, 0 console errors.
+
+## 2026-10-01 A compilation as one episode (user "why doesn't it show in feedback?" -> "re-bind it as one episode")
+- Dashboard job (D(C:S)SS test, output mode combined): 사준완 from 2.67, 제로투 from 3.53, 터미널 from 4.32 to the end (the beat just before the
+  dance moves). At first the three were rendered as separate episodes and the finals joined, but export_shortsmith treats one episode as one
+  project, so it could not show in the feedback tab.
+- So edit/260921_합본: an intermediate source src_merged.mkv joining the three ranges (1726x1080 60 fps; 터미널 scaled 970 -> 1080 with 98 px
+  cropped on each side; x264 crf 12) + three keep ranges (seams at 27.783 and 38.200 s). Each range's fixed gain +15.80 / +13.70 / +13.70 dB
+  (same formula as the render) is baked in - measuring after joining only measures the loud part. 터미널 is -20.5 LUFS because of its peaks
+  (the others -16).
+- dance_camera.py: with several keep ranges, the camera state (following, jitter ignore, scale, 0.5 s hold window, back-and-forth) restarts at
+  the first frame of each range with a cut, and the first key of a range is at the keep start (the 1/30 s key grid made it one frame late). The
+  boundary frame of joined keeps belongs only to the later range. mkv length taken from format.
+  Episodes with one keep keep identical keys (checked on 제로투).
+- export_shortsmith.py: also exports episodes without a caption file or title (dance).
+
+## Dashboard: style falling back to the first entry, server shutting down behind a hidden tab (2026-10-01)
+- Style selection: opening a project empties selectedStyleId, and drawing the list before the server connected did not look up the name
+  (styleSel) but fell back to the first entry, overwrote styleSel with its name and autosaved (D(C:S)SS test became the top entry, Dance(C:D)).
+  It now always looks up the name and aliases; if not found it shows "none - please choose" and keeps the name. The first entry is used only
+  for a new project with an empty name. Merely re-reading the list does not mark the project unsaved. Verified with a copied project in four
+  cases: server connected, disconnected, missing name, new project.
+- Server shutting down: not caused by git pull (it shut down without a pull too). Browsers slow ping timers in hidden tabs down to once a
+  minute, while the server took 12 s of silence as closed. Pings now carry hidden (sent immediately on visibilitychange and freeze), and hidden
+  pages are waited on for 2 hours. Closing a tab still shuts it down at once via bye.
+  Verified: pings stopped while hidden = alive after 25 s; visible = shut down after 28 s.
+
+## Dance C:S camera: tracking again (2026-10-01, compilation feedback "it follows late or doesn't rise on jumps, it cuts below the ankles")
+The same complaint a second time ("I told you to track") - the following method itself changed. Four causes (measured on the 260921
+compilation):
+1. **Silhouette times were 0.083 s in the future**: ffmpeg `fps=5` emits the last frame of each 0.2 s slot. Silhouette frames (every 0.2 s)
+   were in the future while the flow between them was on time, so the body position jumped ahead and back. `fps=5:round=up` (the
+   highest-IoU frames were at 21.2/21.4/21.6 -> 21.30/21.50/21.70; now the same times, 0.92-0.96).
+   dance_beats.py poses had the same bug - fixed too (pose.npz is regenerated).
+2. **Vertical scale bug**: silhouettes are stretched to 480x270, and y was also scaled by SW/MW. The compilation source is 1726x1080, so the
+   body shrank 10% and the feet were placed 105 px high -> below the ankles was cut in 90% of frames by the real feet (other episodes with
+   16:9 sources were unaffected).
+3. **Notification graphics taken as the body**: at 터미널 45-51 s isnet caught only the subscription alert chibi (or joined it to the body).
+   check_masks: if position and area do not continue from the previous body, re-detect cropped around the previous body; failing that, leave
+   empty (compilation: 32 frames - 25 re-detected, 7 emptied).
+4. **Following limits**: the reference speed limits (horizontal 0.31, vertical 0.07 h/s) + a jitter-ignore band - vertical lagged 0.9 s. Position
+   now uses a one-euro filter (1 Hz at rest, +3 Hz per h/s of speed) on the same frame, and if still exceeded it is pushed in on that frame.
+   Scale zooms in slowly only (0.10/s), zooms out at 0.6/s.
+Result (compilation, 1609 frames): lag horizontal 1, vertical 0 frames; feet cut 176 -> 0, head 11 (within 1%), raised fingertips 8. Vertical
+speed 99th percentile 0.55 h/s (before 0.07) - it rises and falls with the body.
+- The compilation source drops a frame at 38.200 s (the 터미널 seam), so the piece starting there was one frame short (3215 frames, picture
+  17 ms early after it). body.mjs `fps=..:start_time=0` - an empty first frame is filled by stretching the next. 3216 frames.
+- 허니하트 (C:D) was only checked to run with the new code (edit.json not written).
+
+## Dance C:S camera: fitted to the user's answers (2026-10-01 third, "the moves and the zoom are all wrong ... you have the answers, analyse again")
+Answers = Damyui-n152-1.mov and Damyui-n153-2.mov, re-framed by the user by hand (source -0.mov, same timeline - n153-2 only 0-120 s, the rest
+appended).
+At 10 fps, SIFT + RANSAC (scale + translation) recovered the frame box inside the source (rotation under 0.01°, 150-280 inliers) and it was
+compared with this tool's body measurements (_ref_n152 and _ref_n153 episode folders).
+- Answers: scale at the same value 91% and 87% of the time (mostly 849 and 910, changing with 1-2 s linear ramps), vertical still 86% and 84%,
+  horizontal still 39% and 46%, horizontal lag 0, horizontal offset 0.01 of height.
+  Body vertical centre at the frame centre (0.50-0.53), median body height / frame 0.78-0.87, top margin including hands at the 1st percentile
+  0.041 and 0.042. Only a big jump (n153 59.5-60.2 s) followed the head up and back. Widening 9% per second (933 -> 1053), tightening 3.4% per
+  second.
+- Previous version (same-frame tracking): vertical still 46%, scale changes 0.34 per second (answers 0.05), scale 0.89-0.94x (tighter).
+- New version: per span, scale and vertical position held fixed, widening only on overflow / rising only when digging into the 0.045 top
+  margin / horizontal band 0.01 + jitter filter.
+  Against the answers: scale 1.00 and 1.04x, vertical still 80% and 84%, scale still 87% and 96%, horizontal still 45% and 49%, horizontal
+  offset 0.012 and 0.013 (same as before), body cut 0.7% and 0.9% (before 1.0 and 1.9).
+- Re-applied to the compilation and rendered (594 keys, 0 cut, 3216 frames). 허니하트 (C:D) only checked to run.
+- The dashboard's "the video size changes every time I press play" could not be reproduced (6 play / pause cycles, at 1600x900 too, player and
+  video size unchanged) - asked the user again.
+
+## Dance C:S camera: vertical judder (2026-10-01 fourth, "when she jumps or crouches even slightly the camera judders very unnaturally")
+- Cause: vertical position stood still and then followed at body speed on the frame the head top or feet touched the margin line (compilation
+  20.3 s: the feet dropped 0.06h and it moved 35 px in 0.15 s; the 21.4-22.4 s jump went down -> up -> past rest -> down -> rest). The rest
+  margins were only 0.07 top and 0.06 bottom, so even a small crouch touched them.
+- Fix: a knee that joins with a quadratic curve from 0.04h before the margin line, a vertical one-euro (1 Hz, 1.5), then a cut-off line (head
+  and feet 0.005h - fingertips may be cut for a moment). FILL0 0.86 -> 0.82. Five variants run on the compilation and both answers to choose:
+  compilation vertical kinks (frames over 8 h/s², seams excluded) 51 -> 5, direction changes per second 0.22 -> 0.09, head and feet cut 0.
+  Against the answers: vertical still 87% and 85% (answers 86 and 84), scale 1.05 and 1.04.
+- "The video size changes every time I press play" again not reproduced in the dashboard (75 measurements every 0.1 s over 3 play / pause
+  cycles - player 544x967 throughout). The compilation scale does not change within a song (0% of frames change in 0-27.8 s); it changes only
+  at the two song seams (so the body fills 0.82 of the frame per song).
+
+## Feedback tab: preview size changing (2026-10-02, "the video size keeps changing every time I press play" + two screenshots)
+- The user's two screenshots: the same 0:01.62, one with a 544x967 stage (9:16), the other 534x967 - only the width 10 px narrower, breaking
+  9:16, so the player fitted 9:16 inside it with black bands above and below and a smaller picture.
+- Cause: fitStage sets the stage box in px, but runs only on load and when dragging pane gutters. If the surrounding pane narrowed afterwards
+  (a scrollbar etc. - the video pane was overflow:auto), CSS max-width:100% trimmed only the width. Narrowing the pane by 10 px reproduced
+  534x967 (0.5522) exactly as on the user's screen.
+  What narrowed the pane could not be reproduced in this window (a browser with hidden scrollbars) - (guess) the video pane's scrollbar.
+- Fix: a ResizeObserver on .fb-stage-wrap -> fitStage; fitStage reads and uses the padding; video pane overflow:hidden.
+  Verified: pane narrowed 10 px -> 534x949 (0.5627), restored -> 544x967.
+
+## 2026-10-02 가시나0 (only 하늘머리; no dashboard project)
+
+- `camera.region` in `dance_camera.py` - in a source with two dancers side by side, silhouettes are taken only inside the band. The black-haired
+  dancer's left edge minimum is 0.450 (measured at 10 fps), band [0.1, 0.45].
+- Scale fixed at h 917, 120 keys, 25.15 s, 1509 frames. Final `edit/가시나0/out/short.mp4`. A few frames catch a little of the black-haired
+  dancer's hair at the right edge (unavoidable at this scale).
+- Second version, "way too much space / lots of motion but the camera is too static": the feet are at the bottom edge of the source, so the
+  frame was pushed to the edge with 0.155 of space above the head (0.004 below). Put against the source edge and the top margin pulled to 0.09
+  (h 843, body 0.91). Both C:S (`out/short_CS.mp4`, `edit_cs.json`) and C:D (`out/short_CD.mp4` = short.mp4, the current edit.json) rendered
+  for the user to choose. C:D: 124.4 BPM, close-up 32%, push 23%, full 28%.
+- Third version, "C:S arms go out of frame (with lots of space on the left) 7/10 / C:D mechanical and artificial 3/10, like VzGBBlqDzqA":
+  - Arms: cropping to the region band before detecting missed an arm reaching outside the band (0.45) to 0.49 -> detect on the whole frame and
+    pick the blob mostly inside the band. Even then the 99.5th percentile of the body's horizontal extent dropped the fingertips (a thin arm is
+    under 1% of the points) -> the k-th point from the edge. At 12 s the frame edge 913 -> 937 (fingertip 941).
+  - C:D: watching the reference at 5 fps, the first 12 s have no cuts; push 0-2.4 s (small full shot -> above the thighs), slow pull 2.4-8 s,
+    push again. Background similarity transforms read 0 because the background is almost plain, and pose torso length was lost too often - both
+    unusable.
+    Comparing the first version at 2 fps: ours held head-to-chest close-ups for 2-3 s and full shots for 3-4 s. -> plan_flow (0 cuts, scale moving
+    67% of the time, wide 26 / medium 41 / above thighs 33%). Horizontal direction changes 1.79 -> 0.20/s (jitter band + hand inclusion before
+    the filter), hands / head cut in 1 of 126 frames, 1%.
+  - The old C:D preset is recorded in previousVersion (dance_beats.plan code kept).
+- Fourth version, "C:D wide shots have too much space / C:S is much better apart from the judder":
+  - C:S kinks (more than 0.15 h/s change within 0.1 s): only horizontal, 5 spots (11.7-12.7 and 21.1 s, arm extensions) - fingertips were
+    clamped after the filter, jerking with the arm. Hand inclusion moved before the filter, with an acceleration limit after it of 3 h/s² (3x
+    the reference's 99th percentile 1.1). No limit / 1.5 / 3 / 6: max kink 0.68 / 0.17 / 0.18 / 0.24, fingertip px out of frame 4 / 17 / 15 /
+    12. -> 0.68 -> 0.18, fingertips out by 15 px only during the 0.2 s arm extension.
+  - C:D: wide 0.74 -> 0.88. Kinks caught one by one - restarting the cosine every bar (speed broke to 0) -> two springs; hand-width scale taken
+    as max after the springs (jerks at 9.2 and 11.1 s) -> into the target; a feet-inclusion switch (c<0.5) + in shots where the body does not
+    fit, including the feet hit the head line -> only gradually and only when the body fits; follow's speed went to 0 when passing the target
+    -> snap=False; following a nodding head down -> highest point over the last 0.6 s.
+    Scale kinks 26 -> 0, vertical 12 -> 3, horizontal within the limit (0.2), hands / head out 31 -> 6 frames (39 px for a 0.3 s pointing gesture
+    at 11.8 s - the scale cannot follow; even a limit of 4 leaves 34 px).
+
+## 2026-10-02 Analysis sources removed from presets
+
+- User: "the presets mention ~project and video names; remove where or with which video they were analysed". From 9 presets (7 private, 2
+  public) the sources.measuredFrom and portedFrom lists were removed, and project names, video file names, YouTube URLs and reference reframe
+  files inside descriptions, basis and guidance were replaced with phrases like "an earlier edit", "a published solo short", "a reference
+  short".
+  Kept: asset paths used by the render (background, outro, LongBG, chat icon), fonts, the host's name and name plate, style aliases, translation
+  example words (고구마 = frustration).
+  Which video things were measured on remains in this file's dated entries and in tools/*.py comments. All 9 pass loadPreset.
+
+## 2026-10-02 Export to Kdenlive (first version)
+
+- User: the free DaVinci Resolve connects but cannot edit cuts and captions as wanted -> another program. No existing editor source was usable
+  (OpenCut: being rebuilt from scratch, DesignCombo: different engine, Remotion editor starter: paid, a big engine bridge) -> Kdenlive 26.08.1
+  installed (with permission, checksum matched).
+- tools/export_kdenlive.py. Tested on 퍼리취향: 12 pieces, 1918 frames (same as the final), 18 caption lines, overall gain +17.20 dB.
+  A Kdenlive render (without captions) compared with the final: window, background and name plate positions identical. melt render (with
+  captions), four scenes: caption position, font and colour (sad, partial emphasis) identical, label box two lines. Opened in the UI and alive
+  for 40 s.
+  Fix order: no profile name (rendered 720x576 25 fps) -> crop value basis (zoomed only in Kdenlive) -> crash with captions (sequence id,
+  kdenlive_id; finally confirmed as a bug in --render itself) -> per-piece rounding (2 frames short).
+  Approximated: emphasis (double outline -> one inner outline), outburst (gradient -> the bottom colour only).
+- Next (at the time): overlays such as the title, images and chat as transparent video layers, reading back a project the user edited
+  (two-way), dance camera moves as keyframes. *(Later: not used in the current flow - the user edit tab replaced it.)*
+
+## 2026-10-02 User edit tab (direct cut control)
+
+- User: Kdenlive "the UI and controls are hard" -> "better to implement just effects and audio from GitHub source and build a new UI" -> "start
+  with direct cut control, add a user edit tab next to the feedback tab ... UI style like DaVinci Resolve".
+- Made: dashboard/js/useredit.js (625 lines), css/useredit.css, index.html tab, app.js shortcut wiring, feedback.js (sceneFor, basePlan, userClips
+  as the plan), server.py (save userClips), apply_review.py (render userClips, episodes without captions too).
+- Verified (test dashboard 8898, a copied compilation project, real mouse): click a clip -> selected, line stays at 275 px / drag the right end
+  -> 27.78 -> 20.37 s, following pulled in, line unchanged / Ctrl+B cut at 10.02 s / Delete with ripple / Ctrl+Z / drag to the very front (first
+  measured by centre and went behind the first clip -> now by the drop start) / blade tool / ripple off -> a 1.93 s gap, no drop on overlap /
+  survives a reload (saved on the server).
+- apply_review copy test: compilation with 4 clips -> edit.json keep in the same order, captions.csv untouched. 퍼리취향 (piece 3 removed, piece 5
+  moved to the front): 11 pieces, 29.24 s, the moved caption "아 맞다 나 담비지" at 4.18 s, 2 caption lines of the removed piece dropped, title end
+  29.24.
+- Next (in the user's planned order): sound (waveform, clip volume, sound effects, music) -> colour -> transitions and motion. Caption line
+  dragging in this tab too.
+- Second version, "show captions in the inspector too, add / remove words in the inspector / three tabs: transcript captions and render ... the
+  feedback tab only keeps extra sources, prompt, note list and the edit button":
+  - Three right-hand tabs in user edit. Clicking a caption line edits text, speaker, design, start and end in the inspector (this timeline's time
+    -> written back as baked edit time s2/e2). Label cards (scene l0) are found via explanation lines in review.captions and edited.
+  - Transcript captions: words edit the clip list directly (one source of truth). Test: dropping "풀려서" in a 퍼리취향 copy, 9.57-10.41 -> 31.97 ->
+    31.10 s, restore -> back (adjacent clips merge). Overlapping captions stacked on rows, text edit + Ctrl+Z checked (real mouse).
+  - At first "어 잠깐만" seemed missing although it is in the video: this episode's transcript word times are about 1 s early (잠깐만 7.97-9.07,
+    piece from 8.72). keep is canonical - kept word runs outside or straddling pieces are measured as moved inside. 35 words missing (36 not in
+    the pipeline keep).
+  - Feedback tab: extra sources / notes (left), prompt + edit button, video. The video pane stays as the place to draw notes (the user did not
+    list it, but notes attach there).
+- Third version (2026-10-02), "media / clips -> change to adding source folders, make the user edit layout resizable like feedback, share the
+  video between the feedback and user edit tabs / changes in the feedback preview apply in user edit too, user edit - waveform on audio, for
+  video capture a thumbnail every so often onto the clip, match the overall theme - change colours to the user edit theme":
+  - Shared video: user edit dropped its own player and borrows the feedback screen (.fb-stage-wrap - video, notes, arrows) into its viewer
+    while shown, returning it on leave. Playhead, scene and notes are the same.
+    Clip edits -> review.userClips -> feedback plan -> D.Feedback.livePreview(keepT) (keeps that tab's timeline time). Test: 12.5 s -> feedback
+    tab 0:12.50, 20 s there -> edit tab 00:00:20:00, deleting one clip 31.97 -> 28.02 s with the moment unchanged.
+  - Sources: the left pane is a list of sources added by folder (first group = this episode's source copy). The server reads folders and shows
+    a picker (/api/media/browse, list, poster) - the browser does not give real paths.
+    review.srcFolders (added to the server.py save list), [source folders] in the edit (AI) text. The clip list was removed (the timeline shows
+    everything). Sources could not yet be dragged onto the timeline (the structure rendered only one source).
+  - Thumbnails: /api/media/thumbs takes a frame from the source copy every 0.5 s (under 600 above 300 s) into one 20-column grid jpg (퍼리취향
+    123 s, 246 frames, a few seconds the first time). V1 clips show the picture at each cell's source time.
+    Waveform: old episodes without review.wave use /api/media/wave (same formula as src_wave.py). Both cached in the server temp folder
+    kirinuki_media (keyed by path, size, modified time). V1 and A1 split the timeline pane height.
+  - Pane sizes: three handles (source | viewer | inspector width, timeline height) - .ue-grid in split.js, floating bands between panes
+    (.ue-gut). Double-click = default.
+  - Theme: base.css tokens changed to Resolve's neutral greys (--bg #141417, --panel #232328 ...), and the navy / blue-grey in other css (green
+    and purple accents kept) mechanically changed to greys of the same lightness (87 spots).
+    On states (toggles, tab icons, gutters) orange --on #f39c38, primary buttons Resolve blue #3a6fd0.
+## 2026-10-02 Render once at the end, cutting via captions, clip height
+
+- User: "the clips are too tall, shrink them", "the feedback approach itself shouldn't render every time - render once at the end and use the
+  preview until then ... rendering takes long and costs more tokens, and especially when captions add or remove cuts I can't see it in the
+  preview right away".
+- Clip height: V1 and A1 splitting the timeline pane height (third version) -> fixed 50 px.
+- `shortsmith preview`: only cuts + scene (body length from estimateBody - the sum of piece lengths; window height by the same formula as
+  buildBody). body.json and the final are untouched.
+  `tools/preview_update.py`: preview + export_shortsmith.py. Removing one keep from a 퍼리취향 copy and running it took 1.1 s (rendering takes over
+  50 s). src_preview.py reuses the previous copy's gain if window.mkv is old (no re-render).
+  export_shortsmith.py: review.unbaked = the final is older than scene.json. feedback.js planNow plays the plan (source copy) when unbaked, even
+  with nothing edited.
+- Blocking AI rounds from erasing user edits: apply_review.py leaves applied_review.json (sha1 of userClips and the word drop / restore table),
+  and preview_update.py stops if the project's current table differs.
+  Test: run with userClips present -> stops -> passes after apply_review, 25.50 s (same as the user's cuts).
+- Cutting via captions: inspector source start / end (os2, oe2). Moving the source start of "나 믿는다" 23.40 -> 22.40 restores the 0.92 s before
+  it, 25.50 -> 26.42 s; Delete (remove this line from the cut) 23.68 s; Ctrl+Z 26.42 s.
+  The render side (apply_review) also puts that line at 4.14-6.87, matching the preview (4.14-6.869).
+- Small fixes: the export_shortsmith and src_preview store can be redirected with KIRINUKI_PROJECTS (for tests); relpath / commonpath crashed for
+  episode folders on another drive.
+- The text passed by the edit (AI) button starts with a [method] line of three steps (apply_review -> edit -> preview_update, no rendering).
+## 2026-10-02 Tracks (video above, audio below), dragging sources in, layer sound, colour, fades
+
+- User: "let me drag source files onto the timeline too / on the timeline, below the vertical centre is the audio area and above is the video
+  area (including captions); video goes up from the centre 1, 2, 3, 4, ... scrollable, audio goes down from the centre 1, 2, 3, 4, ... scrollable
+  / and keep going with the rest - audio, effects and so on".
+- Timeline: headers and lanes split into a video area (anchored at the bottom, scrolling up) / centre line / audio area (anchored at the top,
+  scrolling down). Track count = used + one empty (min 2).
+- Layer clips: dropping a source row reads length, size and sound via /api/media/info. Video = a linked V + A pair (moved, cut and selected
+  together); on overlap it moves to an empty track (settle). Blade, Delete, Ctrl+Z.
+- Test (퍼리취향 copy, real mouse drags): bg.mp4 -> V2, c_13.2.png at the same spot -> moves aside to V3, clip_17_23.mp3 -> A2 (waveform). At 12.3 s
+  in the preview the V2 video and the 50% image show.
+  Render (build in the ss copy): same position and size, captions on top. Mixed sound: correlation between output 4.92-6 s and the mp3 0.64 (delay
+  -0.003 s) / 0.05 elsewhere.
+- Preview bundle rebuilt (src/parts/Layers.tsx). render.mjs's fast path for window-only episodes is skipped when layer video exists. Chunk keys
+  include layer clips and file signatures.
+- Not yet (at the time): original (V1) clip colour, transitions (dissolve etc.), motion (keyframes), positioning by dragging in the viewer.
+## 2026-10-02 Original colour correction and transitions
+
+- User: "why do I see only captions and no video? The chat icons are missing too and the original preset video isn't applied / and keep going with
+  the rest, original colour correction and transitions".
+- The missing video: what the user saw was my test tab (localhost:8897) whose server I had stopped after testing - the page stayed but without a
+  server the video, background and chat images could not load and only captions were drawn.
+  The main dashboard (8899) showed both feedback and user edit fine for 모캡영도랜디. **Close the test tab when a test ends** (the user sees the
+  same screen).
+- Original colour: eq (contrast, saturation) + colorchannelmixer (brightness) per piece - part of the piece cache key, so only changed pieces
+  re-render. The preview uses a CSS filter.
+- Transitions: centred on the cut, an xfade piece rendered separately from both handles and laid over the window in the render composite.
+  Lengths and captions unchanged.
+- Test (퍼리취향 copy): clip 3 saturation 0 + a 1 s dissolve from the previous clip (cut at 7.78 s). Render picture saturation (window band outside
+  the layer clips) 6.9 s 57.9 -> 7.4 s 53.0 -> 7.78 s 31.1 -> 8.15 s 11.5 -> 8.6 s 6.1.
+  Preview at 7.78 s: previous clip opacity 1 + mono clip 0.50. Transition and colour survive reopening after a render. tsc passes (ss copy).
+## 2026-10-03 Layer clip motion (keyframes), dragging in the viewer
+
+- User: "keep going" (left over from the last report: motion, positioning by dragging in the viewer, transitions between layer clips, transitions
+  on dance episodes).
+- Render: changing size with ffmpeg scale eval=frame makes overlay freeze at the first frame's size (a width that should be 250 at t=1.5 s stays
+  100). perspective (sense=destination, eval=frame) has only in and on as variables (no t) - time is built as in/fps, and the image is scaled to the
+  largest box and placed inside a transparent margin (2 px) so edge stretching becomes transparent. On a test image x 200 and width 250 exact.
+- Test (퍼리취향 copy): two keys (0 s 270,693 540x569 -> 4 s 40,200 270x284, smooth); render frames at 7.85, 9.78 and 11.9 s overlap the expected
+  boxes.
+  Dashboard (real mouse): the viewer box sits where the preview picture is (first 3 px off = the player's centring margin, fixed), drag-move 270 ->
+  662 (survives save and reload), add key -> at 11.5 s drag the top-left corner -> 2 keys, bottom-right fixed (1202, 1452), at 10 s 776 / width 425
+  (computed 776.5 / 425.5), ◀ to the 8.5 s key, Ctrl+Z and redo.
+  Ctrl+B cut V1 instead of the selected image -> with a layer clip selected, only that is cut. After the cut the last key of the first part = the
+  first key of the second (777,1004 425x448).
+- Small fix: waveform requests for videos without sound (bg.mp4) returned 500 -> now "none".
+- Dissolve between layer clips: two adjacent clips on one track (V3, two image pieces, the second at saturation 0, 1 s). Preview at 9.58 s second
+  piece 0.08, at 10.23 s 0.73 (computed 0.083, 0.733);
+  render saturation at the image 9.3 s 29.7 -> 9.75 s 22.5 -> 10.0 s 15.4 -> 10.25 s 8.2 -> 10.7 s 2.4 (a straight 1 s dissolve computes 22.3, 14.9,
+  7.4).
+  When the inspector's length field overflowed its pane the mouse hit the timeline (a test mistake, not a feature problem).
+- Not yet (at the time): transitions on dance (camera path) episodes, transitions other than dissolve for layer clips, curve choice between keys
+  (now straight / smooth only).
+## 2026-10-03 Dance episode transitions, five layer clip transitions
+
+- User: "keep going with the rest, the dance episode transitions and other transitions".
+- **Fixed accident: after #23, rendering crashed for episodes without layer clips** ("Cannot read properties of null (reading 'filter')") - the
+  first-computation condition in render.mjs visLayers (EFF_OF !== scene.layers) was false with no layers (undefined === undefined), leaving EFF
+  null. Revealed by the dance test copy. Added !EFF.
+- Dance (camera) transitions: body.mjs draws both handles of a transition piece with the camera path at that source time (cameraSpans, pathVf -
+  same formula as the pieces). 가시나0 copy (0-9 and 11-25.15, 1 s dissolve):
+  mean difference between the final and window.mkv 1.5 at the transition's first end (8.52 s) and 1.2 at the last end (9.48 s) (1.1 outside the
+  transition; 10-12 between frames 0.1 s apart) - it follows the path. 11.8 in the middle at 9.0 s (two scenes blended).
+- Camera in the dance preview: src_preview.py puts review.srcPreview.camera (277 keys) -> planScene -> plan.camera -> Window.tsx camBox (same maths
+  as body.mjs).
+  Dashboard (real mouse): source copy positions at 0, 5.02 and 12.02 s equal the computation (-887.2/-502.1/4306, -1694.2/-947.3/6350.7,
+  -985.3/-655.3/4578.2 vs -985.2/-655.1/4577.9), second range at 9.02 s 0.52 (computed 0.517).
+  Before, the unbaked preview (always the case in the user edit tab) did not show the camera.
+- Five layer clip transitions (the same list as original clips): wipe and slide = transparent clips with ffmpeg xfade (wipeleft, slideleft; the
+  alpha channel works - tested), inside the box only; slide pushes the previous clip out too.
+  Through black / white = nothing beyond the cut is used; the last h of the previous clip and the first h of the next get fade color=. **fade
+  color= on rgba also lowers the alpha channel, so the clip turned see-through** (the video below instead of black) - convert to yuva444p first
+  (rgba [0,0,254] -> yuva444p [0,0,0]).
+  Render frames 4×5 (cut -0.6, -0.25, 0, +0.25, +0.6 s) all as expected. Preview at 13.23 s wipe 76.67% (computed 76.7), 16.73 s slide -293 /
+  +107 px (-293.3 / +106.7), 19.23 s black 0.47 (0.467), 22.75 s white 0.50.
+- render.mjs VERSION 6 -> 7 (the composite formula changed but piece keys stayed the same, so old pieces came back - "done" in 2.1 s). The next
+  render of every episode re-renders composite pieces once.
+## 2026-10-03 User edit, fourth version (timeline control, inspector, colour, transform, groups)
+
+- User: separate video / audio in the inspector, sound slider + number, colour RGBW, curve graph, brightness / contrast / saturation tabs, reset,
+  moving tracks (V1 <-> V2) + an icon for moving sound together or separately, blade c, I / O range (dim outside), source / effect tabs, wheel
+  scrolls areas vertically (Ctrl = horizontal), drag to box-select, right-click groups, no render in the first edit either + fix the picture by
+  eye (move, zoom and rotate every video and caption clip, X / Y sliders + read-only numbers), remove the log pane, merge the feedback tab into the
+  AI edit tab, render tab settings (codec, quality, aspects matching the video orientation), aspect choice in style apply.
+- This version (first batch): C, I, O, wheel, box select, link icon, groups, inspector tabs, sliders, RGBW, curves, transforms for original clips /
+  layer clips / captions. The rest in later batches.
+- Test (퍼리취향 copy, in-page events - the window was covered so screenshots did not work): zoom 150% -> source copy width 2025 -> 3040 px,
+  rotation 10°. Curves (0.5 -> 0.7) and B gain -40 -> SVG tables R(0.5) 0.70, B(1) 0.775 (as computed).
+  Box select 8 clips, group "앞부분" -> clip 2 saturation 0 applied to the group's three original clips (layer clips are a different kind and
+  unchanged), saved. I / O range 26.4 -> Delete 15.6 s -> Ctrl+Z.
+  Wheel: plain = video area 100 px vertical, Ctrl = horizontal 100, Alt = zoom. Render frames: 1.5x, 10°, a yellow tint (gain after saturation 0),
+  label -200 / -15°, caption +100 / 8°, group clips in mono.
+- **One accident:** once label cards became editable, server.py's "attach to the line with the nearest start" overwrote the text of the "어?
+  잠깐만" line, which starts at the same 0.05 s, with the label text (revealed when the render stopped with "fx.json: no caption 어? 잠깐만"). Now
+  matched by text (orig) -> speaker -> nearest line; the test copy was restored.
+
+## 2026-10-03 Moving between tracks (V1 <-> V2, link on / off)
+
+- User: "a track move feature, e.g. v1 <-> v2 etc., with an icon to choose whether audio moves with it or separately" - the icon is the fourth
+  version's link (chain) button.
+- Original clip -> layer video: the AI crop (piece crop) fitted to the window aspect in source px + tf (move, zoom, rotate) as the box. With link on,
+  a sound layer clip too (vol = clip dB + piece gain); off, vhide on the V1 clip.
+- Test (퍼리취향 copy, dashboard 8897): four ways of raising / lowering by right-click and drag; vhide and crop survive a reopen; lowering was
+  blocked by a 0.2 px (a few ms) overlap with the previous clip -> within two frames it snaps.
+  A purely vertical drag did not count as a move -> moves now accept 6 px vertical. Render: 5.5 s (link on, group saturation 0 follows) and
+  16.5 s (picture only, layer video over black V1) both look the same as V1.
+
+## 2026-10-03 Effects tab (sources / effects)
+
+- User: "split into source / effect tabs, organise effects by category and make them draggable -> applicable to clips".
+- Screen effects attach the existing scene fx (zoom, push, shake, blur) to clips - no new filter expressions. The render push formula (scale
+  eval=frame overlaid on a black plate) was tested separately for size changes (1 -> 1.5x, works - the layer clip failure was a case with another
+  overlay after it).
+- Test (퍼리취향 copy): six drag-and-drops (screen effects refused on layer clips), preview window transform (zoom 1.2, push-in 1.135 in progress),
+  save -> apply_review -> four user entries in fx.json -> render frames (zoom and blur visible), export -> review.clips fx -> three badges after
+  reopening (no badge on clips whose picture moved up).
+- Fixed: effects also landing on the previously selected clip besides the drop target (only together when the drop target is selected); clips
+  under a transition marker not found (elementsFromPoint).
+- **Bug found along the way:** reopening a project with the user edit tab visible froze load - viewerMsg, when clearing a message, also removed
+  #ueEmpty, which shares the class.
+- Note: after a page reload, diskAt is empty and autosave skips as "the folder is newer" (a safeguard) - test after reopening with Projects.open.
+  *(Fixed in the fifth round - see below.)*
+
+## 2026-10-03 Render settings and style aspect
+
+- User: "in the render tab put the render button at the bottom, make every setting needed for rendering customisable - codec, quality etc. - and
+  match the video: only portrait aspects for portrait video, only landscape for landscape; add an aspect choice to style apply".
+- Settings take effect only in finish so the piece cache is not broken - if anything differs, the joined picture is encoded once more (one more
+  generation of quality; with defaults it is copied).
+- Test (퍼리취향 copy): HEVC, quality 24, 720x1280, 30 fps, 128k, -14 LUFS -> hevc_qsv chosen, ffprobe hevc/hvc1 720x1280 30/1, aac 130k, finish
+  3 s (0/14 pieces re-rendered).
+  -14 LUFS stopped at -15.2 - the fixed gain hit the peak ceiling (-1.5 dB) (no limiter, per the rule). Software = libx264 slow, libx265 medium.
+- Containers (mov, mkv instead of mp4) were not added - the final path is hard-coded in export and in how the feedback tab finds the video, so
+  changing the extension would break that (not a guess: export_shortsmith.py FINAL).
+
+## 2026-10-03 Feedback tab merged into the AI edit tab, log pane removed, no render in the first edit either
+
+- User: "remove the log pane, merge the feedback tab into the AI edit tab -> allow instructions on the video in the first edit too; tab name AI
+  편집", "no rendering in the first edit either -> it doesn't really touch the source but should feel like editing the source ... if I want 1.5x
+  zoom and it zoomed 1.6x, I can't change it".
+- One instruction box (#fbPrompt = review.prompt), shared by the first edit (style apply) and re-edits. ai.js reads it when building the job
+  (promptNow).
+- Video before the first edit: plays the first edit-target video as a blob. A new project has no review and was not saved - dump now sends only
+  instructions and notes (the server takes them as is when there is no old review).
+- Test (dashboard 8897): dropping a source into a new project switches to landscape layout, a note at 3.2 s (first 0 - the previous project's PLAN
+  lingered, fixed), notes survive a reload, the style apply job text (send intercepted) has aspect 16:9, the instruction and two notes; switching
+  to another project kept the old source aspect and framed portrait as landscape (fixed); the video pane goes to the user edit tab and back.
+  shortsmith preview background: with bg_preview removed from 퍼리취향, 540x960, 60 s, 2.3 s.
+- The first-edit job text's execution principles pointed at the old pipeline (render/body.py, make_scene.py) and only said "render once at the
+  end" - changed to shortsmith and preview_update.
+
+## 2026-10-03 Timeline fifth version, README, guide
+
+- User: tracks only as far as used, captions on video tracks, an add-caption button, one more track while dragging, audio track moves too, orange
+  marker when lowering, Ctrl+Z for settings with selection kept, colour not checkable in the preview, select only the transition and drag its
+  length, remove explanatory text and use words, unify reset names, more effects, AI edit "pre-render preview ..." -> 미리보기, drag files in from
+  outside, README and guide.
+- Test (dashboard 8897, 퍼리취향 and 모캡영도랜디 copies):
+  - only V1 and A1 + captions on V2 / V3; V4 and A2 appear while dragging
+  - audio lowered / raised with the orange marker both ways, caption V2 -> V3
+  - add caption, selection kept after undo, transition 1 -> 2.85 s and undo
+  - two outside images (timeline and source pane)
+  - render: flash, vignette, horizontal flip and slide ↑ frames; the new caption burned in; the lowered span -91 dB in window.mkv, -28.7 dB in the
+    final (A2 sound)
+- Why the orange marker did not show when lowering: xMove drew it, then draw() rebuilt the lanes and wiped it.
+- **"Colour not checkable in the preview" could not be reproduced** - on a copy of the user's project saturation 0 turned mono at once, and an RGBW
+  preset measured on the same frame drawn to a canvas went red 165 -> 155, blue 245 -> 251. Static files are no-store (not cached). It may have
+  been confused with the viewer not showing the selected clip when it is not under the playhead (guess) - the user was asked for the situation.
+- Also: autosave kept being skipped after a reload (app.js freshenFromDisk did not fill diskAt when the times were equal).
+
+## 2026-10-03 Dashboard audit (PR #32)
+
+- User: "check optimisation and bugs across the board again, with other projects too; check that feedback notes on the video work properly".
+- Opened 10 projects in a test store (8897): no console errors. Old projects (exported before review.clips existed) show an empty timeline - the
+  message said "open a project" -> now "컷 정보 없음".
+- Notes: note, region, line, arrow and curve all draw, save (autosave 20 s) and reach the job text in time order; clicking a list row seeks; the
+  source mode before the first edit works. Fixed: cancelling (cancel, X, Esc) a freshly drawn note left an empty note -> it is removed (`D.modal`
+  onCancel). Dropping the same file into "edit target" again stacked duplicates -> it replaces (dnd.js, key = path + size).
+- **Ripple closed every gap** (`pack()` laid all clips end to end on any ripple trim, delete or insert), including the gap left when a V1 clip is
+  moved up to V2, so the layer ended up over a different scene. Now `gapsOf` / `pack(G)` keep every gap except the edited one, and `shiftRest`
+  moves layer clips and userCaps by the same amount (Resolve-like). Undo restores layers too (the snapshot is taken from before the drag).
+- **Captions under a clip moved up to V2 were dropped** as "speech gone". Source layers now count as kept ranges for caption mapping only (`PC` in
+  apply_review.py and feedback.js planScene). 야설낭독회2 copy: 4 dropped lines -> 0.
+- Splitting a clip by dropping a word lost its effects and `ahide` -> the halves copy every field.
+- Drag speed: 22 ms per mouse move -> about 11 ms. The inspector and words pane are not rebuilt while dragging, the ruler only when width or
+  scale changes, waveform canvases are reused, and mouse moves are coalesced to one per frame.
+- Renders on copies of 야설낭독회2 (damui-test-shorts: flash, sepia, slide ↑, vignette, track moves with link on and off, new caption) and 260921_합본
+  (dance camera: cine colour, circle transition, horizontal flip), then export: everything survives, the added caption becomes an ordinary caption.
+- Remaining explanatory sentences in the AI tab and project manager reduced to words.
+- Internal docs (this file, CLAUDE.md, dashboard/README.md, tool READMEs, analysis notes) translated to English; user docs (README.md,
+  docs/대시보드_가이드.md) polished in Korean (user: "polish the documents shown to users and write all the internal rule documents in English").

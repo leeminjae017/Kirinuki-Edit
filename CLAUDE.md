@@ -1,307 +1,442 @@
-# 이 폴더에서 일하는 규칙
+# Working rules for this folder
 
-담유이 영상 편집. 자세한 이력은 `PROGRESS.md`.
+Video editing for 담유이 (Damyui). Full history is in `PROGRESS.md`.
+**Talk to the user in Korean** (progress, reports, questions). Internal docs (this file, `PROGRESS.md`,
+tool READMEs) are in English. User-facing docs (`README.md`, `docs/대시보드_가이드.md`) stay in Korean.
 
-## 재전사는 기본 0회
+## Transcription: one pass by default, no re-runs
 
-**1차 편집에서는 전사를 한 번 기본으로 돌린다 - 묻지 않는다** (사용자 지시,
-2026-09-13: "1차 편집에서는 항상 한 번은 기본으로 전사하고 추가 전사 할때만
-질문해"). `ALLOW_AI=1` 을 붙여 바로 돌린다.
+**The first edit always runs one transcription without asking** (user, 2026-09-13: "always transcribe once
+by default on the first edit, ask only for extra transcriptions"). Run it with `ALLOW_AI=1`.
 
-**전사는 낱말 단위로 찍는다** (사용자 지시 2026-09-29: "앞으로는 단어 단위로 타임스탬프 찍어"):
-`ALLOW_AI=1 python tools/transcribe_words.py <편 폴더>` -> `word_level_words.json`, `edit.json` 의 `"transcript"` 로 건다.
-위스퍼 낱말 시각은 쉼을 먹고 늘어나서(퍼리 취향 "거" 2.7초) 그대로 안 쓰고, 말 덩이를 잔 쉼으로 토막 내 글자 수를
-고른 속도로 나눠 담아 다시 잡는다 (자막 시작과의 차이 가운데값 0.96 -> 0.52초). **VAD 는 켜지 않는다** - 조용한 소스에서
-여린 말을 통째로 버렸다 (90 -> 71 낱말). 이미 전사가 있으면 `--from <json>` 으로 2단계만 돌린다 (AI 안 씀).
-대시보드로는 `python tools/export_shortsmith.py <편 폴더> <id> --transcript-only` (자막 고침은 건드리지 않는다).
+**Transcribe at word level** (user, 2026-09-29: "use word-level timestamps from now on"):
+`ALLOW_AI=1 python tools/transcribe_words.py <episode>` -> `word_level_words.json`, wired into `edit.json` as `"transcript"`.
+Whisper word times swallow pauses and stretch (퍼리 취향: "거" lasted 2.7 s), so they are not used as is: speech runs are
+split at short pauses and the characters are spread at an even rate (median gap to caption start 0.96 -> 0.52 s).
+**Do not enable VAD** - on a quiet source it dropped soft speech entirely (90 -> 71 words). If a transcript already
+exists, run only stage 2 with `--from <json>` (no AI).
+For the dashboard: `python tools/export_shortsmith.py <episode> <id> --transcript-only` (leaves caption edits alone).
 
-**그 뒤로는 Whisper 를 돌리지 않는다.** 전사가 이미 있으면(`word_level_*.json`)
-그것만 쓴다. 재전사는 시간도 토큰도 가장 많이 먹는다.
+**After that, never run Whisper again.** If a transcript exists (`word_level_*.json`), use it.
+Re-transcription costs the most time and tokens.
 
-더 돌려야 할 것 같으면 **먼저 까닭을 말하고 물어본다.** 무엇을 확인하려는
-것인지, 전사 말고 다른 방법이 없는지를 한 줄로 적는다.
-`transcribe.py` · `transcribe2.py` · `verify_final.py` 는 `ai_budget.py` 가
-막아 두었다. 허락을 받으면 `ALLOW_AI=1` 을 붙여 돌린다.
+If another pass seems necessary, **say why first and ask.** State in one line what you want to check and
+whether anything other than transcription could answer it.
+`transcribe.py`, `transcribe2.py` and `verify_final.py` are blocked by `ai_budget.py`.
+With permission, run them with `ALLOW_AI=1`.
 
-**전사가 아니라 소리 크기로 답할 수 있는 것들** (재전사가 필요 없다):
-말이 언제 시작하고 끝나는지 · 컷이 말을 잘랐는지 · 자막이 소리와 맞는지 ·
-여백이 어디에 얼마나 있는지. `plan_cuts.py` 와 `probe.py` 가 그 일을 한다.
+**Questions the level meter answers without transcription:**
+when speech starts and ends, whether a cut clipped a word, whether captions match the audio, where the
+gaps are and how long. `plan_cuts.py` and `probe.py` do this.
 
 
-## 소리에는 필터를 걸지 않는다
+## No filters on audio
 
-**사용자가 요청하기 전에는 소리에 아무것도 안 건다.** 잡음 제거(afftdn) ·
-하이패스 · 리미터 · loudnorm 전부 해당한다. 조용한 소스를 들리게 하는
-**순수 이득(`volume=NdB`)만** 쓴다.
+**Nothing is applied to audio until the user asks.** That includes denoise (afftdn), high-pass, limiter
+and loudnorm. Only **plain gain (`volume=NdB`)** is used to make quiet sources audible.
 
-완성본 크기(-16 LUFS)도 loudnorm 이 아니라 **고정 이득 한 번**으로 맞춘다.
-loudnorm 은 크기를 맞추면서 다이내믹을 같이 누른다. `apply_captions.py` 가
-ebur128 로 재서 `min(-16 - I, -1.5 - TP)` 만큼 올린다.
+The final loudness (-16 LUFS) is also set with **one fixed gain**, not loudnorm, because loudnorm
+compresses dynamics while it levels. `apply_captions.py` measures with ebur128 and raises by
+`min(-16 - I, -1.5 - TP)`.
 
-**Why:** 마법의 날(2026-09-07)에서 봉누도불참의 사슬을 소스가 바뀌었는데도
-그대로 물려받았다. 재 보니 `afftdn` 이 **말하는 중에** 3-6kHz 를 8.4dB,
-6-8kHz 를 11.4dB 깎고 있었다 - 치찰음과 공기감이 사는 자리다. `alimiter` 는
-넘침을 막는 게 아니라 눌러서 평균을 0.7dB 올리고 있었다. 사용자가 "필터 안
-낀 게 훨씬 낫다"고 했다.
+**Why:** in 마법의 날 (2026-09-07) the 봉누도불참 chain was inherited although the source had changed.
+Measured, `afftdn` was cutting 3-6 kHz by 8.4 dB and 6-8 kHz by 11.4 dB **during speech** - where sibilance
+and air live. `alimiter` was not catching overs; it squashed and raised the average by 0.7 dB. The user
+said the unfiltered version was much better.
 
-**필터는 소스마다 다시 판단할 것이지 앞 프로젝트에서 물려받을 것이 아니다.**
-정말 필요해 보이면 걸기 전에 대역별 dB 차이를 재서 A/B 로 보여 주고 물어본다.
+**Filters are decided per source, never inherited from a previous project.** If one really seems needed,
+measure the per-band dB difference, show an A/B, and ask before applying it.
 
-컷 검출용 `src_level.wav` 의 대역 제한은 예외다 - 그건 **재는 데만** 쓰는
-트랙이고 완성본에 안 들어간다.
+The band limit on `src_level.wav` for cut detection is the exception - that track is **only for measuring**
+and never reaches the final video.
 
-## 재편집 기준 - 어디까지 다시 보는가
+## Re-edit scope - how much to look at again
 
-| 피드백 | 다시 보는 범위 | 다시 굽는 것 |
+| Feedback | Look again at | Re-render |
 |---|---|---|
-| 자막 낱말 · 번역 고침 | 그 줄만 | 그 자막이 걸린 조각만 |
-| "이 컷이 이상해" (자리 지목) | 그 자리 ±2초 파형 | 그 조각과 뒤 조각 |
-| "여기 여백이 많아" (자리 지목) | 그 구간 파형 | 그 조각 |
-| 화면 잡기 · 배율 | 그 장면 | 그 장면 조각 |
-| **같은 종류 지적이 두 번째** | **방법 자체를 의심. 전체 다시 뽑기** | 전부 |
-| 스타일 · 길이 · 어조 전체 지시 | 전체 | 전부 |
+| Caption word / translation fix | that line only | only pieces under that caption |
+| "This cut is wrong" (spot given) | waveform ±2 s around it | that piece and the next |
+| "Too much gap here" (spot given) | waveform of that span | that piece |
+| Framing / zoom | that scene | pieces of that scene |
+| **Same kind of complaint a second time** | **doubt the method itself; redo everything** | all |
+| Style / length / tone for the whole video | everything | all |
 
-아래 두 줄은 전체를 다시 봐야 하는 자리다. 다만 **시작하기 전에 왜 전체를
-봐야 하는지 한 줄로 말하고 물어본다** (`incremental-rework` 메모).
-"부분만 고쳤는데 같은 지적이 또 왔다"가 가장 흔한 근거다.
+The last two rows require a full pass. Even then, **say in one line why everything must be redone and ask
+first** (`incremental-rework` memory). "I fixed only a part and the same complaint came back" is the most
+common reason.
 
-전체 재분석이라 해도 **재전사는 아니다.** 105초 소스의 파형을 통째로 다시
-훑는 데 0.6초 걸리고 토큰을 안 먹는다 (`plan_cuts.py`). 전체를 다시 본다는
-말은 파형을 다시 훑는다는 뜻이지 Whisper 를 돌린다는 뜻이 아니다.
-비싼 것은 분석이 아니라 **그 결과를 대화에 쏟는 것**과 **다시 굽는 것**이다.
+A full re-analysis is still **not re-transcription.** Re-scanning the whole waveform of a 105 s source takes
+0.6 s and no tokens (`plan_cuts.py`). "Look at everything again" means re-scan the waveform, not run Whisper.
+What is expensive is **dumping results into the conversation** and **re-rendering**, not the analysis.
 
-## 새 편은 shortsmith CLI (2026-09-17)
+## New episodes use the shortsmith CLI (2026-09-17)
 
-공개 배포용 패키지 `shortsmith/` (CLI + React 렌더 + Claude Code 스킬). 편 폴더에 `edit.json` 을 두고:
+`shortsmith/` is the public package (CLI + React render + Claude Code skill). Put `edit.json` in the episode folder:
 
-    node E:/Edit/Claude/shortsmith/bin/shortsmith.mjs build <편 폴더>     # cuts -> body -> scene -> render
-    ... doctor --preset <id> · presets · cuts · body · scene · render · still <dir> <초> <png> · map
+    node E:/Edit/Claude/shortsmith/bin/shortsmith.mjs build <episode>     # cuts -> body -> scene -> render
+    ... doctor --preset <id> · presets · cuts · body · scene · render · still <dir> <sec> <png> · map
 
-- **한 편마다 손으로 쓰는 것은 `edit.json`(keep 구간 · 크롭)과 `fx.json` 뿐이다.** ffmpeg 필터식 · ASS · React 를
-  편마다 새로 쓰지 않는다. 모양이 모자라면 프리셋에 넣는다.
-- **프리셋은 영어 JSON** (고유명사만 한국어). 담유이 프리셋은 비공개라 `presets/` (작업 폴더), 공개 프리셋은
-  `shortsmith/presets/`. 옛 한국어 스타일 파일은 `dashboard/styles/_legacy_ko/` 에 남겨 두었다.
-  잰 값은 `basis: "measured ..."`, 짐작은 `"guess ..."` 로 적는다.
-  **프리셋에는 어디서 · 어떤 영상으로 쟀는지 적지 않는다** (measuredFrom · portedFrom · 영상 / 프로젝트 이름 · 유튜브 주소 - 사용자 2026-10-02).
-  basis 는 "measured on one reference" 처럼 무엇을 쟀는지만. 출처는 PROGRESS.md 와 도구 주석에 남긴다.
-- 담유이 프리셋 다섯 개 모두 React 로 그린다 (2026-09-17). 옛 편을 옮겨 옛 완성본과 픽셀로 견줬다 -
-  냉면 · 삼성 사본 (solo), 담아맷돌 (multi), 고구마 (donation), 악성메일단 (longform). 자막 자리 1-2px 안.
-  옮기는 스크립트는 남기지 않았다 (한 번만 쓰는 것). `renderer: "legacy-ass"` 가 붙은 프리셋은 CLI 가 거부한다.
-- 컷 계산은 `shortsmith/lib/cuts.mjs` (옛 audio.py 이식, 봉누도2귀신 8구간 결과 동일 확인).
-- React 는 투명 오버레이만 그린다 (영상까지 풀면 프레임당 12초). 창 효과 식은 `lib/render.mjs` 와
-  `src/parts/Window.tsx` 둘이 같아야 한다.
-- 속도 (봉누도2귀신 28.75초, 잼): 전체 약 50초, 자막 한 줄 고침 10초. `src/` 를 고치면 번들 묶기 40-80초.
-- **피드백 탭 단추 둘 (2026-09-18):** "편집" = AI (저장 + `jobs/<시각>_재편집.md`), "렌더" = AI 없음 - 서버가
-  `tools/apply_review.py`(대시보드 자막 -> captions.csv, 고친 줄을 가리키는 fx.json 참조도 바꿈, **되살리기 · 빼기는 미리보기와 같은 계산으로 edit.json keep 을 고침** (2026-09-29, 전 판 edit.json.bak)) -> (keep 이 바뀌었으면 `shortsmith cuts`) -> `shortsmith build` ->
-  `tools/export_shortsmith.py --keep-feedback`(프롬프트 · 쪽지 남김). **그래서 captions.csv 에 사용자 고침이 들어 있을 수 있다 -
-  AI 편집 때 편 폴더의 자막 생성 스크립트(make_captions.py 등)를 그냥 다시 돌리면 그 고침이 사라진다.** 돌리기 전에 captions.csv 와 견준다.
-- **트랙 · 덧 클립 (2026-10-02 넷째):** 사용자 편집 타임라인은 가운데 선 위가 비디오 (ST1 자막 · Vn .. V2 · V1 원본), 아래가 오디오 (A1 원본 · A2 .. An), 칸마다 바퀴로 세로 넘김 (Shift 는 가로).
-  소스 칸 파일을 끌어 놓으면 덧 클립 (영상은 소리와 묶음 · 그림 · 소리) - review.userLayers -> apply_review.py 가 edit.json `layers` (출력 시각, src 절대 경로) -> scene.layers ->
-  미리보기는 src/parts/Layers.tsx (Remotion Video · Img · Audio), 렌더는 lib/render.mjs 가 ffmpeg 로 창 위 · React 덧그림 아래에 합성 (layerGraph) 하고 finish 에서 amix (각자 dB · 페이드, 정규화 없음).
-  인스펙터: 위치 · 크기 % (창에 맞춘 크기 기준) · 불투명도 · 밝기 · 대비 · 채도 (렌더는 eq + colorchannelmixer - CSS 와 근사) · 소리 dB · 음소거 · 페이드 인/아웃. 원본 클립 (A1) 도 소리 dB (userClips.vol -> keep gainDb).
-  덧 클립은 원본 리플에 안 밀린다 (놓은 시각 그대로) · AI 가 컷을 바꾸면 자리가 어긋날 수 있다. 내보내기는 edit.json layers 를 review.userLayers 로 되싣는다 (파일 쪽이 정본).
-  미리보기 묶음을 고치면 `NODE_PATH=<본 저장소>/shortsmith/node_modules node <esbuild> preview/entry.tsx ...` 로 다시 묶어 dashboard/js/vendor 에 복사 (작업 사본에는 node_modules 가 없고 E: 는 연결 폴더가 안 된다).
-- **원본 색 · 전환 (2026-10-02 다섯째):** 원본 클립 (V1) 인스펙터에 색 (밝기 · 대비 · 채도) 과 "전환 (앞 클립에서)" - 디졸브 · 검은 화면 거쳐 · 흰 화면 거쳐 · 닦아내기 · 밀어내기, 길이.
-  userClips {color, tin:{type, d}} -> apply_review.py 가 keep 조각에 color (그 클립 모든 조각) · tin (첫 조각) -> cuts.mjs 가 그대로 넘김 -> body.mjs: 색은 조각 필터 (colorVf: eq + colorchannelmixer),
-  전환은 컷 가운데 길이 d 의 작은 조각 (양쪽 클립 바깥 원본 = 손잡이로 ffmpeg xfade, cache/tr_*.mkv, body.json transitions) -> render.mjs transGraph 가 창 위에 얹는다 (확대 · 흔들기 전).
-  길이 · 자막 시각은 안 바뀐다. 손잡이가 모자라면 (원본 처음 · 끝) 짧아진다. 카메라 경로가 있는 편 (댄스, 2026-10-03) 은 전환 조각의 양쪽 손잡이도 그 원본 시각의 카메라 경로로 그린다 (body.mjs camVf = 조각과 같은 cameraSpans · pathVf). 소리 크로스페이드는 그대로 0.15초.
-  미리보기는 PlanWindow 가 같은 계산 (src/parts/Window.tsx) - 전환이 있으면 구운 뒤에도 원본 사본으로 튼다 (window_preview 에는 전환이 없다). 내보내기는 조각 color · tin 을 review.clips 에 실어 다시 열어도 남는다.
-- **움직임 · 뷰어 끌기 (2026-10-03):** 덧 클립 (영상 · 그림) 을 고르고 재생 위치를 그 클립 안에 두면 뷰어에 상자가 뜬다 - 가운데 끌기 = 옮기기, 모서리 = 비율 그대로 크기 (맞은편 고정, Alt = 가운데 고정),
-  붙기 (N) 가 켜졌으면 화면 · 창 가장자리 · 가운데에 붙는다. 인스펙터 "움직임 (키프레임)": ◇ 키 추가 · ◆ 키 지우기 · ◀ ▶ 앞 뒤 키 · 부드럽게 · 움직임 지우기. 키가 생기면 그 뒤로 위치 · 크기를 바꿀 때마다 재생 위치에 키가 생긴다 (리졸브처럼).
-  userLayers[].keys `[{t, x, y, w, h}]` (t = 클립 안 초) · ease -> edit.json layers 그대로. 미리보기 Layers.tsx boxAt, 렌더 render.mjs 는 가장 큰 상자로 한 번 줄이고 투명 여백을 둔 뒤 perspective (eval=frame, in/fps) 로
-  프레임마다 자리 · 크기 - **overlay 는 크기가 바뀌는 그림을 못 받는다** (scale eval=frame 이 첫 프레임 크기로 고정, 2026-10-03 시험). 칼 · Ctrl+B 로 자르면 자른 자리 상자로 키를 나눠 갖고, 앞 끝을 자르면 키도 같이 민다.
-  Ctrl+B 는 덧 클립을 골라 두었으면 그것만 자른다 (아니면 V1).
-  **덧 클립 사이 전환:** 같은 트랙에서 끝이 맞닿은 앞 클립이 있으면 인스펙터 "전환 (앞 클립에서)" 원본 클립과 같은 다섯 가지 · 길이 (userLayers[].tin {type, d}). 디졸브 · 닦아내기 · 밀어내기는 컷 가운데에 걸리고 두 파일의 클립 밖 부분을 쓴다
-  (닦아내기 · 밀어내기는 렌더에서 투명 클립과 ffmpeg xfade wipeleft · slideleft - 상자 안에서만, 밀어내기는 앞 클립도 밀려 나감). 검은 · 흰 화면 거쳐는 컷 너머를 안 쓰고 앞 클립 끝 h · 뒤 클립 처음 h 를 그 색으로 (fade color=, **rgba 에서는 투명해진다 - yuva444p 로 바꾼 뒤**).
-  (건너가는 셋은 h = d/2, 파일이 모자라면 짧아짐 - 인스펙터가 알려 줌, 그림은 늘 됨). 렌더 render.mjs withTrans · 미리보기 Layers.tsx withTrans 가 같은 계산 (앞 클립 h 늘림, 뒤 클립 h 일찍 시작 + 2h 페이드 인 위에).
-- **타임라인 · 인스펙터 넷째 판 (2026-10-03):** 칼 = C (B 아님) · I / O = 구간 (밖은 어둡게, Alt+X 지움, 고른 것 없이 Delete = 그 구간을 V1 에서 빼기) ·
-  바퀴 그냥 = 그 칸 (비디오 / 오디오) 세로 넘김, Ctrl = 가로, Alt = 확대 · 빈 곳 끌기 = 상자로 여럿 고르기 · 고리 아이콘 = 연결 (영상 + 그 소리 같이 고르고 옮김) ·
-  우클릭 = 그룹 만들기 (이름) · 풀기 · 이름 바꾸기 - 클립 g + review.userGroups (server.py 저장 칸), 인스펙터 값은 같은 그룹의 같은 갈래 (원본 / 그림 / 소리) 에 같이 (mates).
-  인스펙터: 비디오 / 오디오 탭, 슬라이더 + 숫자 (X · Y 숫자는 보기만), 색 탭 셋 (밝기 · 대비 · 채도 / RGBW = 리프트 · 감마 · 게인 마다 R G B W / 커브 그래프), 초기화.
-  색 계산은 **shortsmith/lib/color.mjs 하나** (렌더 body.mjs · render.mjs 는 curves=interp=pchip 33점, 미리보기는 같은 표를 SVG feComponentTransfer, 타입은 color.d.mts).
-  변형: 원본 클립 tf {x, y, z, r} = AI 크롭 위에 얹는 이동 · 확대 · 회전 (body.mjs tfCropVf 가 원본에서 다시 크롭 - 화질 그대로, 밖은 검정, 카메라 편은 tfPostVf),
-  뷰어에서 원본 클립도 상자로 끈다. 덧 클립 rot, 자막 · 설명 딱지 tf (captions.csv tf 칸 "x y z r", Caption.tsx 가 렌더 · 미리보기 같이).
-  **server.py 자막 합치기는 글 (orig) · 화자로 같은 줄을 찾는다** - 시작 시각만 보던 때 같은 시각에 시작하는 딱지 고침이 옆 자막 글을 덮었다.
-- **트랙 사이 옮기기 (2026-10-03):** 원본 클립 (V1) 을 끌어 V2.. 에 놓거나 우클릭 "위 트랙 (V2) 으로" = 같은 원본 구간 · 같은 화면 (AI 크롭 창 비율 + 변형 tf -> 상자 · rot, 색 · 그룹 따라감) 의 덧 영상
-  (userLayers kind video, path = review.source, crop {x, y, w, h} 원본 px · w0 h0). 그 칸이 차 있으면 빈 위 칸으로 간다. **연결 (고리) 켬 = 소리도 A2.. 로 (조각 이득 더한 dB), V1 · A1 에는 빈 틈**,
-  끔 = 소리는 A1 에 두고 V1 화면만 비움 (userClips vhide -> keep vhide -> body.mjs drawbox 검정, 미리보기 PlanRange 투명). 원본 파일에서 온 덧 영상을 V1 에 놓으면 (끌기 · 우클릭) 화면만 비운 클립을 되살리거나
-  빈 자리에 원본 클립으로 돌아간다 (두 프레임 안 겹침은 옆에 붙임). review.source · srcSize 는 export_shortsmith.py 가 쓴다 - 옛 프로젝트는 내보내기를 다시 해야 옮길 수 있다.
-  렌더 render.mjs 는 덧 영상 crop 을 scale 앞에, 미리보기 Layers.tsx 는 같은 비율로 넓힌 영상을 상자 안에서 민다.
-- **이펙트 탭 (2026-10-03):** 왼쪽 칸 탭 소스 / 이펙트. 갈래 셋 - 화면 효과 (얼굴 확대 · 천천히 다가가기 / 물러나기 · 흔들기 · 흐리게 = 원본 클립 V1 에만),
-  색 (흑백 · 따뜻하게 · 차갑게 · 선명하게 · 바랜 색 · 청록 주황 · 밝게 · 어둡게 = 클립 color 를 통째로 바꿈, 원본 · 덧 클립), 전환 (다섯 가지, 0.5초). **소리 효과는 없다** (소리 필터 금지).
-  클립 위에 끌어 놓거나 (골라 둔 클립 위면 고른 것 전부 · 그룹은 늘 같이) 눌러서 고른 클립에. 화면 효과는 userClips[].fx [{type, z | z0 z1 | amp | sigma}] ->
-  apply_review.py 가 fx.json "fx" 에 `"user": true` + 숫자 시각 (클립 편집 시각) 으로 (매번 user 표만 지우고 다시 씀, AI 연출은 그대로) -> scene.fx -> 렌더 · 미리보기는 원래 창 효과 그대로.
-  굽지 않은 미리보기는 planScene 이 user 표를 빼고 지금 클립 자리에서 다시 넣는다. 내보내기는 user 효과를 걸친 조각 (review.clips[].fx) 에 되싣는다. 인스펙터 비디오 탭 "효과" = 값 슬라이더 · 빼기.
-- **렌더 설정 · 화면 비율 (2026-10-03):** 사용자 편집 > 렌더 탭 = 파일 (작업 폴더 · 내보낼 곳 · 기준 언어) / 영상 (코덱 H.264 · H.265, 인코더 자동 · 소프트웨어, 화질 12-32 (기본 20),
-  해상도 = 프리셋 캔버스 비율 그대로 짧은 변 720 · 1080 · 1440 · 2160 - 세로면 세로 크기만, 프레임) / 소리 (AAC 비트레이트, 목표 크기 LUFS = 고정 이득 한 번, 리미터 없음 - 최고점 한도에 걸리면 덜 올라간다),
-  렌더 단추는 맨 아래. project.json render.opts -> apply_review.py 가 edit.json `output` -> scene.output -> render.mjs outVideo: 조각 (캐시) 은 그대로 두고 조각과 다른 것이 있을 때만
-  이어 붙인 그림을 마지막에 한 번 더 인코딩 (encoder.mjs outputEncoder, 하드웨어 먼저 시험해 고름, hevc 는 hvc1 표). 기본이면 -c:v copy 그대로.
-  AI 편집 > 스타일 적용에 화면 비율 (스타일 기본 · 9:16 · 16:9 · 1:1 · 4:5, ai.aspect) - 작업 글에 "화면 비율" 줄로 실린다.
-- **AI 편집 탭 = 옛 피드백 탭을 합침 (2026-10-03, 사용자: "로그 창 제거, 피드백 탭을 AI 편집 탭과 합칠 것 -> 1차 편집에서도 영상 위에 지시가능하게 탭이름은 AI 편집"):**
-  탭은 AI 편집 · 사용자 편집 둘. AI 편집 = 스타일 적용 / 분석 | 영상 (쪽지 · 영역 · 선 · 화살표) + 지시 (review.prompt, 자막 언어 · AI 정책) + 메모 목록. 로그 칸 · 추가 프롬프트 칸 ·
-  쓰이지 않던 "추가 소스" 칸은 뺐다 (추가 소스 · 옛 자막 칸 마크업은 .fb-legacy 에 숨김 - feedback.js 가 아직 참조). showView('user') 는 'ai' 로 간다.
-  **1차 편집 전 (완성본 · 장면 없음) 은 "편집 대상" 에 놓은 첫 영상을 틀어** (브라우저 파일, 새로 고치면 다시 놓아야 함) 그 위에 쪽지를 그린다 - 쪽지 시각 = 원본 시각.
-  스타일 적용 작업 글에 지시 · 쪽지 (원본 시각 · 화면 비율 0-1 자리) · 화면 비율이 실리고, "렌더하지 말 것 (1차 편집도) - preview_update.py 로 미리보기만, 화면 잡기 · 확대는 사용자가 원본 클립 변형으로 고칠 수 있는 값으로" 를 적는다.
-  재편집 단추 (옛 편집) 는 장면이 생긴 뒤에만. 한 번도 안 구운 편은 body 가 없어 미리보기 배경이 비었다 - `shortsmith preview` 가 bg_preview.mp4 (540폭 30fps) 만 만든다.
-- **타임라인 다섯째 판 (2026-10-03):** 화면 사용법 전부는 `docs/대시보드_가이드.md` (화면에는 설명 글을 안 둔다 - 사용자: "부가 설명된거 다 지워, 단어 형태로", 초기화 단추 이름은 전부 "초기화").
-  트랙은 쓰는 데까지만 (원본만이면 V1 · A1), 끄는 동안 위 (오디오는 아래) 에 빈 트랙 하나 + 칸 끝에서 저절로 넘김. ST 트랙은 없앴다 - **자막은 비디오 트랙에** (review.capTracks = 글 -> 트랙, 없으면 V2 부터 빈 트랙, 끌어 옮김).
-  자막 단추 = review.userCaps [{id, at, d, text, speaker, kind, tf}] (출력 시각) -> apply_review.py 가 captions.csv 줄로 (자막 없던 편이면 edit.json captions 도) -> 내보내기 뒤로는 보통 자막. 완성본에서 자막은 늘 덧 클립 위 (트랙 순서는 렌더 순서가 아님).
-  A1 소리를 A2.. 로 끌면 덧 소리 + 원본 클립 ahide (keep ahide -> body.mjs volume=0, 미리보기 vol 0). 덧 소리를 A1 로 내리면 되살림. 연결 켬이면 영상 · 소리 같이.
-  되돌리기는 고른 것을 지키고 자막 트랙 · 새 자막까지, 슬라이더 뒤에도 (app.js isTyping 에서 range 뺌). 전환 표 = 전환만 고르기 · 양 끝 끌기로 길이 (가운데 고정).
-  전환 종류는 `shortsmith/lib/trans.mjs` 한 곳 (닦기 · 밀기 네 방향 · 원형, xfade 방향은 빨강->파랑 시험으로 잼) - body.mjs · render.mjs · Window.tsx · Layers.tsx 가 같이 읽는다.
-  화면 효과 셋 추가: flash (클립 시작 번쩍, eq brightness eval=frame), vignette, hflip (render.mjs fxGraph · Window.tsx). 바깥 파일은 /api/media/upload 로 projects/<id>/media 에 받고 review.srcFiles ("가져온 파일").
-  **새로 고친 뒤 자동 저장이 막히던 버그:** 폴더 시각 = 브라우저가 아는 시각이면 app.js 가 diskAt 을 안 채우고 돌아갔다 -> 저장마다 "폴더가 더 새것" 으로 건너뜀.
-- **렌더는 마지막에 한 번 (2026-10-02, 사용자: "매번 렌더링 할게 아니라 마지막에 한 번만 렌더링하고 그 전까지는 미리보기에서만", "렌더링 시간이 오래 걸리잖아 토큰도 더 많이 먹고").**
-  1차 편집 · AI 피드백 판은 **`shortsmith build` 를 돌리지 않는다.** 순서: 1) `python tools/apply_review.py <편> projects/<id>/project.json` (사용자가 대시보드에서 고친 컷 · 자막을
-  편 폴더에 넣는다 - 안 하면 2 의 내보내기가 사용자 편집 탭 컷을 지운다) 2) edit.json · captions.csv · fx.json 고침 3) `python tools/preview_update.py <편> <id>`
-  (= `shortsmith preview` 컷 + scene 만, 영상 안 구움, 1초 안팎 + export_shortsmith.py). 1 을 빼먹으면 3 이 멈춘다 (applied_review.json 의 표와 견줌, 버려도 되면 --force).
-  scene.json 이 완성본보다 새것이면 review.unbaked -> 피드백 · 사용자 편집 미리보기가 원본 사본에서 지금 컷대로 이어 튼다 ("렌더 전" 표). 완성본은 사용자가 사용자 편집 > 렌더 에서 굽는다.
-  아래 "굽고 나서 네 가지" 검사는 완성본이 생긴 뒤 (마지막 렌더 뒤) 에 돌린다 - 그 전에는 probe.py 처럼 원본 시각으로 답할 수 있는 것만 본다.
-  사용자 편집 인스펙터의 자막 **원본 시작 · 끝** 을 고치면 컷도 같이 바뀐다 (앞당기면 되살림 · 늦추면 뺌, 줄은 os2 · oe2 원본 시각에 선다 - planScene 과 apply_review.py 가 같이 읽는다).
-  "이 줄 컷에서 빼기" (자막 고르고 Delete) 는 그 줄 원본 구간을 컷에서 뺀다.
-- 피드백 탭 미리보기 영상은 가벼운 사본 (window_preview 30fps 720폭 · bg_preview 540폭) - 렌더용 60fps 를 그대로 틀면 브라우저가 멈춘다.
-- 피드백 탭 미리보기는 `dashboard/js/vendor/shortsmith-preview.js` (`cd shortsmith && npm run preview:build` 후 복사).
-- **굽지 않은 미리보기 (2026-09-29):** 되살리기 · 빼기가 걸려 있으면 미리보기가 원본 사본(`src_preview.mp4`, 전체 화면 1280폭 30fps)에서
-  남길 구간을 이어 튼다 (`scene.plan`, `src/parts/Window.tsx` 의 PlanWindow). 사본은 `tools/src_preview.py <편 폴더> [id]` -
-  `export_shortsmith.py` 끝에서 저절로 부른다 (원본이 그대로면 안 굽는다, 이 편 21초). 조각 크롭 · 이득은 cuts.json 에서 따라간다
-  (이득은 가장 큰 조각 이득까지 구워 두고 `<Video volume>` 로 줄인다 - 브라우저 볼륨은 1 을 못 넘는다). 렌더와 다른 점: 크로스페이드 없음.
-- **리플 켬/끔 (2026-09-30):** 피드백 탭 "원본 · 편집" 옆 스위치 (`review.ripple`, 없으면 켬). 켜면 전과 같다(뺀 자리 당김 · 되살린 만큼 밂).
-  끄면 뒤 시각이 안 바뀐다 - 뺀 자리는 빈 틈, 되살린 말은 옆을 덮어쓴다. 빈 틈은 edit.json keep 의 `{ "gap": 초 }` ->
-  cuts.json `{gap:true, s:0, e:초}` -> 검은 창 · 무음 조각 (body.mjs). 남길 구간 계산은 feedback.js plan() 과 apply_review.py 가 같다
-  (무작위 300가지로 리플 켬 = 옛 계산, JS = Python 확인).
-  편집 쪽에서 리플 켬이면 자막 끝을 옮길 때 같은 층 뒤 자막도 같이 민다/당긴다 (리플 트림).
-- **사용자 편집 탭 (2026-10-02, 피드백 탭 옆, 다빈치 리졸브 편집 페이지 모양):** `dashboard/js/useredit.js` · `css/useredit.css`. 클립 = 원본 [s, e] 를 편집 시각 at 에 놓은 것,
-  목록은 `review.userClips` (server.py 저장 칸 목록에 넣었다). 처음엔 지금 컷 (피드백 탭 되살리기 · 빼기 든 계획) 에서 시작. 렌더 단추 (apply_review.py) 는 userClips 가 있으면
-  그것을 남길 구간으로 굽고 자막 · 연출 시각은 원본 시각을 거쳐 옮긴다 (리플 켬과 같은 길, 빠진 클립의 자막 줄은 버림). 자막 없는 편도 컷은 굽는다.
-  피드백 탭 미리보기도 userClips 를 계획으로 쓴다 (낱말 빼기 · 되살리기는 그때 안 먹는다 - 딱지에 적힘). 미리보기는 D.Feedback.sceneFor(P) (굽지 않은 미리보기).
-  동작: 고르기 (시점 안 옮김) · 끝 끌기 (리플 켬 = 뒤 당김, 끔 = 틈) · 끌어 옮기기 (리플 켬 = 끼워 넣기, 끔 = 빈 자리에만) · 칼 (B) · Ctrl+B · Delete · Ctrl+Z ·
-  붙기 (N) · Ctrl+바퀴 확대 · Shift+Z 전체 · 위/아래 화살표 편집 점. 댄스 편도 굽지 않은 미리보기에서 카메라 경로로 잡는다 (2026-10-03, src_preview.py 가 srcPreview.camera 에 키를 싣고 Window.tsx camBox 가 body.mjs 와 같은 계산).
-  **오른쪽 칸은 탭 셋 (2026-10-02): 인스펙터 (클립 · 자막 줄 - 글 · 화자 · 디자인 · 시작 · 끝, 설명 딱지 글도) / 전사 자막 (낱말 누르면 클립 목록을 바로 잘라 빼고 되살림,
-  뺄 땐 앞뒤 쉼 가운데까지, 되살릴 땐 0.10 · 0.15초 여유) / 렌더 (렌더 단추 · 작업 폴더 · 내보낼 곳 · 기준 언어 · 진행).** 겹치는 자막은 ST1 안에서 줄을 나눠 쌓는다.
-  낱말 시각이 어긋난 옛 편: keep 인데 AI 조각 밖 (또는 반쯤 걸친) 낱말 덩이는 가장 가까운 조각 끝 안으로 옮겨 잰다 (keep 이 정본).
-  **피드백 탭은 추가 소스 · 영상 (쪽지 그리기) · 프롬프트 (머리에 편집 단추) · 메모 목록만** - 자막 칸 · 렌더 칸은 사용자 편집 탭으로 옮겼다. 옛 자막 칸 마크업은
-  feedback.js 가 아직 참조해서 `.fb-legacy` 에 숨겨 두었다 (지울 때는 feedback.js 의 fillSubs 쪽부터).
-  **셋째 판 (2026-10-02): 영상은 피드백 탭과 하나** - 탭이 보일 때 피드백 화면 (.fb-stage-wrap) 을 뷰어로 옮겨 오고 떠날 때 돌려놓는다 (쪽지 · 자막 고침 · 재생 위치 같음).
-  왼쪽은 소스 폴더 (review.srcFolders, 서버 /api/media/browse · list · poster), V1 썸네일 (/api/media/thumbs, 0.5초 격자 jpg) · A1 파형 (review.wave 없으면 /api/media/wave) -
-  서버 임시 폴더 kirinuki_media 에 남는다. 칸 크기 손잡이 셋 (split.js .ue-grid). 대시보드 전체 색은 이 탭의 중성 회색 (base.css 토큰, 켬 = 주황 --on).
-- **대시보드 저장은 review 를 칸 목록으로 걸러 받는다** (server.py save_project - 옛 탭이 파이프라인 결과를 되감지 못하게).
-  피드백 탭에 새 칸을 만들면 그 목록에도 넣고, 저장 뒤 project.json 에 들어갔는지 본다 (2026-09-30: 낱말 빼기 표 · e2 · kind · 리플이 버려지고 있었다).
-- 대시보드 스타일 목록은 프리셋 `name` 으로 고른다. 이름을 바꾸면 옛 이름을 `aliases` 에 남긴다 -
-  못 찾으면 첫 스타일로 떨어진 값이 자동 저장된다 (봉누도2 귀신에서 한 번 그랬고 되돌렸다).
-- **프레임마다 움직이는 연출을 새로 만들면 `lib/render.mjs` 의 `overlaySig` 에도 넣는다.** 그 열쇠가 같으면 오버레이 PNG 한 장을
-  여러 프레임이 돌려쓴다 - 손질(2026-09-25)에서 회전(spin)이 빠져 있어 완성본에서만 회전이 멈춰 보였다 (스틸은 멀쩡했다).
-- **컷은 말 덩이 사이 쉼에서만 낸다.** 대역 트랙(src_level.wav) 문턱으로 잡은 토막 경계는 여린 음절을 쉼으로 읽는다 -
-  전대역 말 지도(-52/-60, 0.30초)를 따로 그려 그 사이에서 자른다. 완성본에서 덩이 길이를 다시 재 온전한지 본다
-  (프젝아 모캡 2026-09-27: "반팔이랑" 이 반 잘렸는데 자막 검사는 통과했다 - 자막은 남은 소리에 맞아 있었다).
-- **댄스 쇼츠 (2026-10-01): 프리셋 `Dance(C:S) Solo Shorts` (presets/damui-dance-cs-shorts, 화면 전체가 창).** 카메라는
-  `python tools/dance_camera.py <편> [--sheet]` 가 edit.json `camera.keys` 로 쓴다 - isnet-anime(~/.u2net) 으로 몸 상자를 뽑아
-  (0.2초마다, 편 폴더 char_masks.npz 캐시, 30초에 약 3분) 그 사이는 광학 흐름으로 채워 1/30초마다 몸을 잰다. 카메라는 몸보다 먼저
-  움직이지 않고 ("먼저 이동하거나 늦게 이동하면 안돼"). **수치는 사용자 정답 두 쌍에서 잰다** (Damyui-n152-0 -> -1, n153-0 -> -2: 원본 속 상자를
-  프레임마다 SIFT 로 되찾아 몸과 맞댄다, 2026-10-01 셋째 "답 있으니까 다시 분석해"). 정답은 **배율 · 세로를 거의 고정** (같은 값 87-91% · 84-86% 시간),
-  몸 세로 가운데 = 화면 가운데, 몸 높이 가운데값이 화면의 0.78-0.87. 큰 점프 때만 손 포함 꼭대기 여백 0.04 를 지키며 따라 올라가고, 몸이 화면을 넘을 때만
-  1-2초 램프로 넓힌다. 가로는 무게중심, 늦음 0. 우리 카메라가 몸 따라 계속 오르내리고 배율을 바꾸니 "이동, 확대 축소 전부 이상해" 였다.
-  세로가 여백 선에 딱 닿을 때 멈춤 -> 몸 속도로 바뀌면 "점프하거나 조금이라도 앉으면 뚝뚝" - 선 앞에서부터 2차 곡선으로 붙고 (knee) 가볍게 거른다.
-  배율을 정답보다 5% 넓게 (FILL0 0.82) 둬서 작은 앉음 · 뜀은 여백이 받는다 (합본 세로 꺾임 51 -> 5).
-  윤곽은 `fps=5:round=up` 으로 뽑는다 (기본은 칸의 마지막 장이라 윤곽이 0.083초 미래였다). 윤곽은 원본 비율과 상관없이 480x270 이라 가로 세로 배율을 따로 쓴다
-  (16:9 아닌 원본에서 발목 아래가 잘렸다). 알림 그림을 몸으로 잡은 장은 앞 몸 둘레만 잘라 다시 잡는다 (check_masks).
-  멈췄다 옮기는 첫 판은 "너무 부자연스러워 / 계속 트래킹 하듯이 캐릭터의 중심을 기준으로" 로 버렸다.
-  **동작 -> 카메라 또는 동작 == 카메라, 카메라 -> 동작은 절대 금지** (사용자). 줌아웃은 몸이 지금 화면을 넘을 때만 참고본 빠르기로 천천히,
-  **캐릭터 : 여백 8:2 까지만** (캐릭터가 화면 80% 는 채운다, 구간 안은 오간 폭이 캐릭터). 왔다 갔다 구간(번갈아 차기)은 그때까지 오간 폭까지
-  넓히고 끝날 때까지 안 당기며, 끝나면 ("27~28혹은29초반은 일반적인 경우") 다시 당겨 여백을 줄인다.
-  앞을 보는 계산(앞뒤 다듬기 · 구간 전체 폭 미리 보기)을 넣지 않는다 - 매번 카메라가 먼저 움직였다.
-  카메라 조각은 프레임 수로 자른다 (-t 3자리로 자르니 18조각이 1797프레임 - 그림이 소리보다 50ms 밀렸다). 수치는 사용자 참고본 Damyui-n152-1.mov 에서 잰 값 (도구 상수 옆 근거).
-  여럿이 나란히 추는 원본에서 한 명만: edit.json `camera.region: [x0, x1]` (원본 가로 비율) 띠에서만 윤곽을 잡는다 - 다른 캐릭터가
-  그 띠로 안 들어오는 선을 진한 픽셀 등으로 재서 정한다 (가시나0 2026-10-02: 하늘머리만, [0.1, 0.45]).
-  몸이 원본 끝에 붙어 있으면 (발이 원본 아래 끝) 화면을 원본 끝에 대고 반대쪽 여백을 한쪽 몫으로 당긴다 - 안 그러면 아래 여백 몫이
-  통째로 머리 위로 간다 (가시나0: 위 0.155 · 아래 0.004 -> "여백이 너무 많잖아", h 918 -> 843).
-  region 은 전체 화면에서 잡고 띠에 가장 많이 든 덩이를 고른다 (띠로 자르면 띠 밖으로 뻗은 팔을 몰랐다). 몸 가로 끝은 백분위가 아니라 끝에서 k 번째 점 - 가는 팔은 1% 도 안 된다.
-  **C:D 는 둘째 판 (2026-10-02, mode "flow", dance_beats.plan_flow): 컷 · 순간 확대 · 고정 클로즈업 없이 배율이 늘 미끄러진다** - 첫 판 (비트 컷 인 · 밀기 · 펄스) 은
-  "너무 기계적 / 줌 인 아웃이 너무 인위적 / 동작이 중요할 때 너무 확대" 3/10. 참고본 VzGBBlqDzqA 는 앞 12초에 컷이 없다 (5fps 로 봄). 마디마다 움직임 순위로
-  넓음 (몸 0.88, 0.74 는 "넓은 샷 여백이 너무 많아") - 허벅지 위, 마디 첫 박에 목표가 바뀌고 용수철 둘 (밀기 4박 · 빼기 2박) + 4마디 숨 ±5%.
-  **카메라 길 꺾임 ("뚝뚝") 은 거르개 뒤에서 딱 자르는 것에서 나온다** - 손 담기 · 발 넣기 · 원본 끝 · 손 폭 배율은 모두 거르개 앞 목표에 넣고, 뒤에는 가속 한도
-  (C:S A_XS 3 · C:D FLOW_A 2 h/초², follow snap=False) 만. 머리 · 든 손은 지난 0.6초 중 가장 높은 자리 (끄덕임을 안 따라 내려감). 꺾임 검사: 0.1초에 0.15 h/초 넘게 바뀌는 곳.
-  챌린지(~챌린지) 면 여러 챌린지 영상을 찾아보고 순간 확대를 `camera.punch: [{s, e, z}]` 로 넣는다 (상반신 컷 인 · 컷 아웃).
-  keep 은 `{ "s", "e", "raw": true }` - 파형 컷이 음악을 자르지 않게. body.mjs 가 키 시각마다 조각을 나눠
-  멈춤은 crop, 이어진 이동 키는 3초까지 한 조각의 perspective 경로(프레임마다 소수 위치) 로 굽는다. 굽지 않은 미리보기에도 카메라가 보인다 (srcPreview.camera -> plan.camera, 2026-10-03 - 그 전에는 안 보였다).
-  shortsmith 는 **shortsmith 폴더에서 실행한다** - Remotion 이 실행 폴더에 Chrome(521MB)을 새로 받는다.
-- E: 는 하드링크가 안 된다 (fs.linkSync EISDIR).
-- **카덴라이브로 넘기기 (2026-10-02 첫 판):** `python tools/export_kdenlive.py <편>` -> `<편>/kdenlive/<편>.kdenlive` (+ `.kdenlive.ass` 자막). shortsmith build 뒤에 돌린다.
-  원본을 가리키는 조각 (끌어 늘이기 됨) · 배경 · 창 자르기 · 조각 이득 · 전체 고정 이득 · 카덴라이브 자막 (글 고침 됨, 종류마다 ASS 스타일). 아직 없음: 제목 · 그림 · 채팅 · 효과 · 카메라.
-  **카덴라이브 함정 (잰 것):** 프로필 이름 (`vertical_hd_60`) 이 없으면 720x576 25fps 로 굽는다 · 자르기 효과는 카덴라이브가 use_profile=1 을 채워 프로젝트 크기 값으로 읽는다
-  (원본 px 로 적으면 카덴라이브에서만 크게 확대) · 시퀀스 tractor id 는 uuid 자체 · 자막 필터에 kdenlive_id 를 붙이지 않는다 ·
-  **`kdenlive --render` 는 자막이 든 프로젝트면 무조건 죽는다** (카덴라이브가 저장한 프로젝트도 같음 - 26.08.1 버그) - 자막 없는 판으로 렌더 검사, 자막은 melt 나 화면으로 연다.
-  melt 는 한글 파일 이름을 못 연다 (영문 사본으로).
-- **새 소스는 오디오 start_time 부터 본다** (`ffprobe -show_entries stream=codec_type,start_time`). OBS 녹화는 0 이지만
-  2시.mp4 (Quick Share) 는 0.450 이었다 - 그대로 wav 를 뽑으면 전사 · 레벨 시각이 전부 그만큼 일러 말끝이 잘리고 자막이 이르다.
-  분석 wav 는 `adelay=<ms>:all=1` 로 영상 시계에 맞춘다 (샘플 수 `S` 는 입력 표본율 기준이라 틀리기 쉽다). body.mjs 가 경고한다.
+- **Per episode you write only `edit.json` (keep ranges, crop) and `fx.json`.** Never write ffmpeg filter strings,
+  ASS or React per episode. If a look is missing, add it to the preset.
+- **Presets are English JSON** (proper nouns may stay Korean). Damyui presets are private and live in `presets/`
+  (working folder); public presets live in `shortsmith/presets/`. The old Korean style files are kept in
+  `dashboard/styles/_legacy_ko/`. Measured values get `basis: "measured ..."`, guesses `"guess ..."`.
+  **Presets never record where or from which video something was measured** (no measuredFrom, portedFrom, video or
+  project names, YouTube URLs - user 2026-10-02). `basis` says only what was measured, e.g. "measured on one
+  reference". Sources go into PROGRESS.md and tool comments.
+- All five Damyui presets render with React (2026-09-17). Old episodes were ported and compared pixel by pixel
+  with their old finals - 냉면 and the 삼성 copy (solo), 담아맷돌 (multi), 고구마 (donation), 악성메일단
+  (longform). Caption positions within 1-2 px. The port scripts were not kept (one-off).
+  Presets with `renderer: "legacy-ass"` are rejected by the CLI.
+- Cut computation is `shortsmith/lib/cuts.mjs` (port of the old audio.py; same 8 ranges as before on 봉누도2귀신).
+- React draws only the transparent overlay (rendering the video too costs 12 s per frame). The window effect maths
+  in `lib/render.mjs` and `src/parts/Window.tsx` must stay identical.
+- Speed (봉누도2귀신, 28.75 s, measured): full build about 50 s, one caption fix 10 s. Rebundling after a `src/`
+  change takes 40-80 s.
+- **Two buttons in the feedback flow (2026-09-18):** "Edit" = AI (save + `jobs/<time>_재편집.md`). "Render" = no AI -
+  the server runs `tools/apply_review.py` (dashboard captions -> captions.csv, rewrites fx.json references to edited
+  lines, and **applies restores and drops to the `edit.json` keep ranges with the same maths as the preview**
+  (2026-09-29, previous version kept as edit.json.bak)) -> (`shortsmith cuts` if keep changed) -> `shortsmith build` ->
+  `tools/export_shortsmith.py --keep-feedback` (keeps the prompt and notes).
+  **So captions.csv may contain user edits - re-running the episode's caption script (make_captions.py etc.) during an
+  AI edit wipes them.** Compare with captions.csv before running it.
+- **Tracks and layer clips (2026-10-02, fourth round):** in the user edit timeline, video is above the centre line
+  (Vn .. V2, V1 = original) and audio below (A1 = original, A2 .. An); each area scrolls vertically with the wheel.
+  Captions sit on video tracks (see the fifth round below). Files dropped from the source pane become layer clips
+  (video linked with its sound, image, sound) - `review.userLayers` -> `apply_review.py` writes `edit.json` `layers`
+  (output time, absolute src path) -> `scene.layers` -> preview `src/parts/Layers.tsx` (Remotion Video, Img, Audio);
+  render `lib/render.mjs` composites with ffmpeg above the window and below the React overlay (`layerGraph`), and
+  `finish` mixes them with amix (own dB and fades, no normalisation).
+  Inspector: position and size % (relative to the size fitted to the window), opacity, brightness, contrast,
+  saturation (render uses eq + colorchannelmixer, close to the CSS), sound dB, mute, fade in / out. Original clips (A1)
+  also have sound dB (`userClips.vol` -> keep `gainDb`).
+  **Ripple moves layer clips and added captions too** (2026-10-03; before that they stayed where they were dropped and
+  drifted against V1). If the AI changes the cuts, layer positions can still drift. Export loads `edit.json` layers
+  back into `review.userLayers` (the files are canonical).
+  After changing the preview bundle, rebuild with `NODE_PATH=<main checkout>/shortsmith/node_modules node <esbuild> preview/entry.tsx ...`
+  and copy it to `dashboard/js/vendor` (worktrees have no node_modules, and E: does not support junctions).
+- **Original colour and transitions (2026-10-02, fifth):** the V1 clip inspector has colour (brightness, contrast,
+  saturation) and "transition (from previous clip)" - dissolve, through black, through white, wipe, slide - and
+  duration. `userClips {color, tin:{type, d}}` -> `apply_review.py` puts `color` on every keep piece of the clip and
+  `tin` on its first piece -> `cuts.mjs` passes them on -> `body.mjs`: colour is a piece filter (`colorVf`: eq +
+  colorchannelmixer); a transition is a short piece of length d centred on the cut (handles = source outside both
+  clips, ffmpeg xfade, `cache/tr_*.mkv`, `body.json` transitions) -> `render.mjs transGraph` lays it over the window
+  (before zoom and shake). Durations and caption times do not change. Short handles (start / end of source) shorten
+  the transition. On episodes with a camera path (dance, 2026-10-03) both handles of a transition piece are drawn with
+  the camera path at that source time (`body.mjs camVf` = same cameraSpans and `pathVf` as the pieces). The audio
+  crossfade stays at 0.15 s. The preview uses the same maths in `PlanWindow` (`src/parts/Window.tsx`) - with
+  transitions it plays from the source copy even after baking (`window_preview` has no transitions). Export carries
+  piece `color` and `tin` into `review.clips` so they survive a reopen.
+- **Motion and viewer dragging (2026-10-03):** select a layer clip (video or image) with the playhead inside it and a
+  box appears in the viewer - drag the middle to move, a corner to scale with fixed aspect (opposite corner fixed, Alt
+  = centre fixed). With snap (N) on it snaps to the screen, window edges and centres. Inspector "motion (keyframes)":
+  ◇ add key, ◆ delete key, ◀ ▶ previous / next key, smooth, clear motion. Once a key exists, every position or size
+  change adds a key at the playhead (like Resolve).
+  `userLayers[].keys [{t, x, y, w, h}]` (t = seconds inside the clip) and `ease` go into `edit.json` layers unchanged.
+  Preview: `Layers.tsx boxAt`. Render: `render.mjs` scales once to the largest box, pads with transparency, then uses
+  `perspective` (eval=frame, in / fps) for per-frame position and size - **overlay cannot take an image whose size
+  changes** (scale eval=frame locks to the first frame size, tested 2026-10-03). Blade or Ctrl+B splits keys at the
+  cut box; trimming the head shifts the keys too. Ctrl+B cuts only the selected layer clip if one is selected
+  (otherwise V1).
+  **Transitions between layer clips:** if the previous clip on the same track ends exactly where this one starts, the
+  inspector offers the same five transitions and a duration (`userLayers[].tin {type, d}`). Dissolve, wipe and slide
+  are centred on the cut and use the parts of both files outside the clips (in render, wipe and slide use transparent
+  clips with ffmpeg xfade wipeleft / slideleft - only inside the box; slide pushes the previous clip out too).
+  Through black / white do not use anything beyond the cut: the last h of the previous clip and the first h of the
+  next fade to that colour (`fade color=`; **in rgba this turns transparent - convert to yuva444p first**).
+  (For the three crossing types h = d/2; if a file is too short it gets shorter - the inspector says so; images always
+  work.) Render `render.mjs withTrans` and preview `Layers.tsx withTrans` share the maths (previous clip extended by h,
+  next clip starts h early with a 2h fade-in on top).
+- **Timeline and inspector, fourth round (2026-10-03):** blade = C (not B), I / O = range (outside dimmed, Alt+X clears,
+  Delete with nothing selected removes that range from V1).
+  Wheel = vertical scroll of that area (video / audio), Ctrl = horizontal, Alt = zoom. Dragging empty space = box
+  select. Link icon = linked (video and its sound are selected and moved together).
+  Right-click = make group (name), ungroup, rename - clip `g` + `review.userGroups` (saved by server.py). Inspector
+  values apply to the same kind (original / image / sound) in the same group (mates).
+  Inspector: video / audio tabs, slider + number (X and Y numbers are read-only), three colour tabs (brightness /
+  contrast / saturation; RGBW = lift, gamma, gain each with R G B W; curve graph), reset.
+  Colour maths is **one file, `shortsmith/lib/color.mjs`** (render `body.mjs` and `render.mjs` use
+  curves=interp=pchip with 33 points; the preview uses the same table as an SVG feComponentTransfer; types in
+  `color.d.mts`).
+  Transform: original clip `tf {x, y, z, r}` = move, zoom and rotate on top of the AI crop (`body.mjs tfCropVf`
+  crops again from the source - full quality, black outside; camera episodes use `tfPostVf`). Original clips can be
+  dragged as a box in the viewer too. Layer clips have `rot`; captions and label cards have `tf` (`captions.csv` column
+  `tf` = "x y z r"; `Caption.tsx` renders it in both render and preview).
+  **`server.py` matches caption edits by text (orig) and speaker** - matching only by start time let a label edit
+  overwrite the caption next to it when both started at the same time.
+- **Moving between tracks (2026-10-03):** drag a V1 clip onto V2.. or right-click "to upper track (V2)" = a layer video
+  of the same source range and the same framing (AI crop window aspect + transform tf -> box and rot; colour and group
+  follow) (`userLayers` kind video, path = `review.source`, `crop {x, y, w, h}` in source px, `w0 h0`). If that track
+  is busy it goes to the next free one above. **Link on = the sound moves to A2.. too (dB includes the piece gain), V1 and
+  A1 keep a gap**; link off = the sound stays on A1 and only the V1 picture is blanked (`userClips vhide` -> keep
+  `vhide` -> `body.mjs` drawbox black, preview `PlanRange` transparent). Dropping a source layer video back on V1
+  (drag or right-click) restores a blanked clip or becomes an original clip in the free space (overlaps within two
+  frames snap to the neighbour). `review.source` and `srcSize` are written by `export_shortsmith.py` - old projects
+  need a fresh export before clips can be moved.
+  Render: `render.mjs` applies the layer `crop` before scale. Preview: `Layers.tsx` widens the video at the same ratio
+  and shifts it inside the box.
+  Captions under a clip moved up stay (they follow the source range to the layer; `PC` in `apply_review.py` and
+  `feedback.js planScene`).
+- **Effects tab (2026-10-03):** the left pane has two tabs, sources / effects. Three groups - screen effects (zoom,
+  push in / out, shake, blur, mono, flash, vignette, horizontal flip - original clips on V1 only), colour (presets that
+  replace the clip `color`; original and layer clips) and transitions (0.5 s). **No sound effects** (no audio filters).
+  Drop onto a clip (onto a selected clip = every selected clip; groups always together) or click to apply to the
+  selection. Screen effects are `userClips[].fx [{type, z | z0 z1 | amp | sigma | d k | angle}]` -> `apply_review.py`
+  writes them to fx.json `"fx"` with `"user": true` and numeric times (clip edit time) (user entries are rewritten
+  each time; AI effects stay) -> `scene.fx` -> render and preview use the normal window effects.
+  The unbaked preview (`planScene`) drops user entries and re-adds them at the current clip positions. Export puts user
+  effects back on the pieces they cover (`review.clips[].fx`). Inspector video tab "effects" = value slider and remove.
+- **Render settings and aspect (2026-10-03):** user edit > render tab = file (work folder, output, base language) /
+  video (codec H.264 or H.265, encoder auto or software, quality 12-32 (default 20), resolution = preset canvas aspect
+  with short side 720 / 1080 / 1440 / 2160 - portrait only offers portrait sizes, frame rate) / audio (AAC bitrate,
+  target LUFS = one fixed gain, no limiter - the peak ceiling can stop it short); the render button is at the bottom.
+  `project.json render.opts` -> `apply_review.py` writes `edit.json` `output` -> `scene.output` -> `render.mjs
+  outVideo`: pieces (cache) stay as they are; only when something differs from the pieces is the joined picture
+  encoded once more at the end (`encoder.mjs outputEncoder`, tries hardware first, hevc gets the hvc1 tag). With
+  defaults it stays `-c:v copy`.
+  AI edit > style apply has an aspect picker (style default, 9:16, 16:9, 1:1, 4:5; `ai.aspect`) - written to the job as
+  an "aspect" line.
+- **The AI edit tab absorbed the old feedback tab (2026-10-03; user: "remove the log pane, merge the feedback tab into
+  the AI edit tab -> allow instructions on the video in the first edit too; tab name AI 편집"):**
+  two tabs, AI edit and user edit. AI edit = style apply / analyse | video (note, region, line, arrow) + instructions
+  (`review.prompt`, subtitle languages, AI policy) + note list. The log pane, the extra prompt pane and the unused
+  "extra sources" pane were removed (extra sources and the old caption pane markup are hidden in `.fb-legacy` -
+  feedback.js still references them). `showView('user')` goes to 'ai'.
+  **Before the first edit (no final, no scene) it plays the first video dropped in "edit target"** (a browser file; it
+  must be dropped again after a reload) and notes are drawn on it - note time = source time.
+  The style-apply job carries the instructions, notes (source time, position as 0-1 of the frame) and aspect, and says
+  "do not render (first edit included) - preview only with preview_update.py; framing and zoom as values the user can
+  change through the original clip transform".
+  The re-edit button (old "Edit") appears only once a scene exists. An episode never rendered has no body, so the
+  preview background was empty - `shortsmith preview` now makes only `bg_preview.mp4` (540 wide, 30 fps).
+  A freshly drawn note that is cancelled (cancel, X, Esc) is removed.
+- **Timeline, fifth round (2026-10-03):** everything about using the screens is in `docs/대시보드_가이드.md` (the UI
+  carries no explanatory text - user: "delete every add-on explanation, write single words"; every reset button is
+  named "초기화").
+  Tracks are shown only as far as used (original only = V1 and A1); while dragging, one empty track appears above
+  (audio: below) and the area auto-scrolls at the edge. The ST track is gone - **captions sit on video tracks**
+  (`review.capTracks` = text -> track; otherwise the first free track from V2; drag to move).
+  Caption button = `review.userCaps [{id, at, d, text, speaker, kind, tf}]` (output time) -> `apply_review.py` writes
+  captions.csv rows (and `edit.json` captions for an episode that had none) -> after export they are ordinary captions.
+  In the final video captions always sit above layer clips (track order is not render order).
+  Dragging A1 sound to A2.. makes a layer sound and sets `ahide` on the original clip (keep `ahide` -> `body.mjs`
+  volume=0, preview vol 0). Dropping a layer sound on A1 restores it. With link on, picture and sound move together.
+  Undo keeps the selection and covers caption tracks and new captions, also right after a slider (app.js `isTyping`
+  ignores range inputs). A transition marker selects only the transition; dragging either end changes its length
+  (centre fixed).
+  Transition types live in one place, `shortsmith/lib/trans.mjs` (wipe and slide in four directions, circle; xfade
+  directions measured with red -> blue test clips) - read by `body.mjs`, `render.mjs`, `Window.tsx` and `Layers.tsx`.
+  Three more screen effects: flash (at clip start, eq brightness eval=frame), vignette, hflip (`render.mjs fxGraph`,
+  `Window.tsx`). Files dropped from Explorer go through `/api/media/upload` into `projects/<id>/media` and
+  `review.srcFiles` ("가져온 파일").
+  **Autosave stopped after a reload:** when the folder time equalled the browser's, app.js returned without setting
+  `diskAt`, so every save was skipped as "folder is newer".
+- **Ripple keeps gaps (2026-10-03):** trimming, deleting or inserting with ripple on shifts only what follows the edit
+  (`gapsOf` / `pack(G)` / `shiftRest` in `useredit.js`). It used to close every gap on the timeline, which also closed
+  the gap left by a clip moved up to V2, so the layer ended up over a different scene.
+- **Render once, at the end (2026-10-02; user: "don't render every time - render once at the end and use the preview
+  until then", "rendering takes long and costs more tokens").**
+  First edits and AI feedback rounds **do not run `shortsmith build`.** Order: 1) `python tools/apply_review.py
+  <episode> projects/<id>/project.json` (moves the user's dashboard cuts and captions into the episode folder - without
+  it, the export in step 3 wipes the user edit tab cuts) 2) edit edit.json / captions.csv / fx.json
+  3) `python tools/preview_update.py <episode> <id>` (= `shortsmith preview`, cuts + scene only, no video, about 1 s,
+  + export_shortsmith.py). Skipping 1 makes 3 stop (it compares with the signature in applied_review.json; `--force`
+  if the changes may be discarded).
+  If scene.json is newer than the final, `review.unbaked` makes the feedback and user edit previews play the source
+  copy with the current cuts ("not rendered" badge). The user renders the final from user edit > render.
+  The four checks in "after rendering" below run once a final exists (after the last render). Before that, only check
+  what source time can answer, like probe.py.
+  Changing a caption's **source start / end** in the user edit inspector also changes the cut (earlier = restore,
+  later = drop; the line is anchored at `os2 · oe2` source time - read by both `planScene` and `apply_review.py`).
+  "Remove this line from the cut" (select a caption, Delete) removes its source range from the cut.
+- The feedback preview uses light copies (`window_preview` 30 fps 720 wide, `bg_preview` 540 wide) - playing the 60 fps
+  render masters freezes the browser.
+- The preview is `dashboard/js/vendor/shortsmith-preview.js` (`cd shortsmith && npm run preview:build`, then copy).
+- **Unbaked preview (2026-09-29):** when restores or drops exist, the preview plays the kept ranges from the source
+  copy (`src_preview.mp4`, full frame 1280 wide 30 fps) (`scene.plan`, `PlanWindow` in `src/parts/Window.tsx`).
+  The copy is made by `tools/src_preview.py <episode> [id]` - called automatically at the end of
+  `export_shortsmith.py` (not rebuilt if the source is unchanged; 21 s for this episode). Piece crop and gain follow
+  cuts.json (gain is baked up to the largest piece gain and lowered with `<Video volume>` - browser volume cannot exceed
+  1). Difference from the render: no crossfade.
+- **Ripple on / off (2026-09-30):** switch next to "source / edit" in the feedback view (`review.ripple`, default on).
+  On = as before (dropped space is pulled in, restored time pushes later content). Off = later times do not move -
+  dropped space becomes a gap and restored speech overwrites its neighbour. Gaps are keep `{ "gap": sec }` ->
+  cuts.json `{gap:true, s:0, e:sec}` -> black window and silent piece (body.mjs). The keep computation in
+  `feedback.js plan()` and `apply_review.py` is identical (300 random cases: ripple on = old maths, JS = Python).
+  With ripple on, moving a caption end in the edit view also moves the following captions on that row (ripple trim).
+- **User edit tab (2026-10-02, next to the feedback view, modelled on the DaVinci Resolve edit page):**
+  `dashboard/js/useredit.js` and `css/useredit.css`. A clip = source range [s, e] placed at edit time `at`; the list is
+  `review.userClips` (in the server.py save list). It starts from the current cut (the plan including feedback
+  restores and drops). The render button (`apply_review.py`) uses userClips as the keep ranges when present and moves
+  caption and effect times through source time (same path as ripple on; captions of removed clips are dropped).
+  Episodes without captions still get their cuts rendered.
+  The feedback preview also uses userClips as its plan (word drops and restores then have no effect - the badge says
+  so). The preview is `D.Feedback.sceneFor(P)` (unbaked preview).
+  Actions: select (does not move the playhead), drag ends (ripple on = pull following, off = gap), drag to move (ripple
+  on = insert, off = only into free space), blade (C), Ctrl+B, Delete, Ctrl+Z, snap (N), Ctrl+wheel zoom, Shift+Z fit,
+  up / down arrows = edit points. Dance episodes also show the camera path in the unbaked preview (2026-10-03,
+  `src_preview.py` puts the keys in `srcPreview.camera` and `Window.tsx camBox` uses the same maths as body.mjs).
+  **The right pane has three tabs (2026-10-02): inspector (clip, caption line - text, speaker, design, start, end; also
+  label card text) / transcript (clicking a word cuts it out of the clip list or restores it - drops extend to the
+  middle of the surrounding pauses, restores add 0.10 / 0.15 s) / render (render button, work folder, output, base
+  language, progress).**
+  Old episodes whose word times are off: word runs that are kept but outside (or half outside) the AI pieces are
+  measured as if moved inside the nearest piece end (keep is canonical).
+  The old feedback-tab caption list markup is still referenced by feedback.js and is hidden in `.fb-legacy` (remove the
+  `fillSubs` side of feedback.js first if deleting it).
+  **Third round (2026-10-02): one video for both tabs** - when the user edit tab is shown it borrows the feedback screen
+  (`.fb-stage-wrap`) as its viewer and returns it on leave (same notes, caption edits and playhead).
+  Left pane = source folders (`review.srcFolders`, server `/api/media/browse · list · poster`), V1 thumbnails
+  (`/api/media/thumbs`, a 0.5 s grid jpg), A1 waveform (`review.wave` or `/api/media/wave`) - cached in the server temp
+  folder `kirinuki_media`. Three resize gutters (`split.js .ue-grid`). The whole dashboard uses this tab's neutral grey
+  (base.css tokens, on = orange `--on`).
+- **Dashboard saves filter `review` by key** (`server.py save_project` - so an old tab cannot roll back pipeline
+  output). A new review key must be added to that list, and checked in project.json after a save (2026-09-30: the word
+  drop table, `e2`, `kind` and ripple were being dropped).
+- The dashboard style list matches presets by `name`. When renaming, keep the old name in `aliases` - if no match is
+  found the first style is picked and autosaved (happened once on 봉누도2 귀신 and was reverted).
+- **Any new per-frame animated effect must be added to `overlaySig` in `lib/render.mjs`.** Frames with the same key
+  reuse one overlay PNG - in 손질 (2026-09-25) spin was missing, so rotation froze in the final only (stills were fine).
+- **Cuts only fall in pauses between speech runs.** Run boundaries found with the band-limited track
+  (`src_level.wav`) threshold read soft syllables as pauses - draw a separate full-band speech map (-52/-60, 0.30 s)
+  and cut between its runs. Re-measure run lengths in the final to confirm they are intact (프젝아 모캡 2026-09-27:
+  "반팔이랑" was half cut although the caption check passed - the caption matched the audio that was left).
+- **Dance shorts (2026-10-01): preset `Dance(C:S) Solo Shorts` (presets/damui-dance-cs-shorts, the whole screen is
+  the window).** `python tools/dance_camera.py <episode> [--sheet]` writes the camera to `edit.json camera.keys` -
+  isnet-anime (~/.u2net) extracts the body box (every 0.2 s, cached in the episode's char_masks.npz, about 3 min per
+  30 s); optical flow fills the gaps so the body is measured every 1/30 s. The camera never moves before the body (user:
+  "it must not move early or late"). **Numbers are measured from the user's two answer pairs** (Damyui-n152-0 -> -1,
+  n153-0 -> -2: the frame box was found again in the source per frame with SIFT and compared with the body; 2026-10-01
+  third: "you have the answers, analyse again"). The answers keep **scale and vertical position nearly fixed** (same
+  value 87-91% and 84-86% of the time), body vertical centre = frame centre, median body height 0.78-0.87 of the frame.
+  Only big jumps make it follow upwards while keeping a 0.04 top margin including hands, and only when the body
+  overflows does it widen with a 1-2 s ramp. Horizontal follows the centre of mass with zero lag. Our camera kept
+  rising and falling with the body and changing scale - "movement and zoom are all wrong".
+  Stopping dead when vertical touches the margin line -> switching to body speed made it "judder whenever she jumps or
+  crouches even slightly" - it now joins with a quadratic curve before the line (knee) and is lightly filtered.
+  The scale is 5% wider than the answers (FILL0 0.82) so small crouches and hops stay inside the margin (vertical kinks
+  in the compilation 51 -> 5).
+  Silhouettes are extracted with `fps=5:round=up` (the default takes the last frame of each slot, so silhouettes were
+  0.083 s in the future). Silhouettes are 480x270 whatever the source aspect, so x and y scale separately (on non-16:9
+  sources the feet were cut off). Frames where a notification graphic was taken for the body are re-done cropped around
+  the previous body (`check_masks`).
+  The first version (hold, then move) was dropped as "far too unnatural / track continuously around the character's
+  centre".
+  **Motion -> camera, or motion == camera. Camera -> motion is strictly forbidden** (user). Zoom out only when the body
+  exceeds the current frame, at the reference speed, slowly, **down to character : margin 8:2 at most** (the character
+  fills at least 80% of the frame; inside a back-and-forth span the swept width counts as the character). In
+  back-and-forth spans (alternating kicks) it widens to the width swept so far and does not tighten until the span ends;
+  after that ("27~28 or early 29 is the normal case") it tightens again.
+  No look-ahead (forward-backward smoothing, previewing a whole span's width) - every time, the camera moved early.
+  Camera pieces are cut by frame count (cutting with 3-decimal -t gave 1797 frames for 18 pieces - picture lagged sound
+  by 50 ms). Numbers come from the user's reference Damyui-n152-1.mov (see the notes next to the tool constants).
+  For a source with several dancers side by side, track one: `edit.json camera.region: [x0, x1]` (fraction of source
+  width) - silhouettes are taken only in that band; choose the band so no other character enters it, measured with
+  dark pixels etc. (가시나0 2026-10-02: only 하늘머리, [0.1, 0.45]).
+  If the body touches a source edge (feet at the bottom edge), put the frame on that edge and pull the opposite margin
+  down to a one-sided share - otherwise the whole bottom margin share goes above the head (가시나0: top 0.155, bottom
+  0.004 -> "way too much margin", h 918 -> 843).
+  `region` detects on the whole frame and picks the blob mostly inside the band (cropping to the band missed arms
+  reaching out of it). Body horizontal extent uses the k-th point from the edge, not a percentile - a thin arm is less
+  than 1%.
+  **C:D is the second version (2026-10-02, mode "flow", `dance_beats.plan_flow`): no cuts, no punch-in zooms, no fixed
+  close-ups - the scale always glides.** The first version (beat cut-ins, push, pulse) scored 3/10: "too mechanical /
+  zoom in and out too artificial / zooms in too much when the move matters". The reference VzGBBlqDzqA has no cut in
+  the first 12 s (checked at 5 fps). Per bar, ranked by motion: wide (body 0.88; 0.74 was "too much margin on the wide
+  shot") down to above the thighs; the target changes on the bar's first beat; two springs (push 4 beats, pull 2) + a
+  ±5% breath every 4 bars.
+  **Camera kinks ("juddering") come from hard clamps after the filter** - hand inclusion, feet inclusion, source edges
+  and hand-width scale all go into the target before the filter; after it only an acceleration limit remains (C:S A_XS
+  3, C:D FLOW_A 2 h/s², follow snap=False). Head and raised hands use the highest point of the last 0.6 s (no following
+  nods down). Kink check: more than 0.15 h/s change within 0.1 s.
+  For challenges (~챌린지), look at several challenge videos and add punch-ins as `camera.punch: [{s, e, z}]` (upper-body
+  cut in and out).
+  keep is `{ "s", "e", "raw": true }` so waveform cuts do not cut the music. `body.mjs` splits pieces at each key time:
+  holds use crop; consecutive moving keys are rendered as one piece of up to 3 s with a perspective path (sub-pixel
+  position per frame). The unbaked preview shows the camera too (`srcPreview.camera` -> `plan.camera`, 2026-10-03 -
+  before that it did not).
+  **Run shortsmith from the shortsmith folder** - Remotion downloads Chrome (521 MB) into the working directory.
+- E: does not support hard links (`fs.linkSync` EISDIR).
+- **Kdenlive export (2026-10-02, first version, not used in the current flow):** `python tools/export_kdenlive.py
+  <episode>` -> `<episode>/kdenlive/<episode>.kdenlive` (+ `.kdenlive.ass` captions), run after `shortsmith build`.
+  The dashboard does not call it and user edit tab changes (layers, colour, transitions, effects, new captions) are
+  not carried. It carries source pieces (extendable), background, window crop, piece gain, overall fixed gain and
+  Kdenlive captions (text edits included, an ASS style per kind). Missing: title, images, chat, effects, camera.
+  **Kdenlive traps (measured):** without a profile name (`vertical_hd_60`) it renders 720x576 25 fps; Kdenlive fills
+  use_profile=1 on the crop effect and reads the values in project size (source px values zoom in only in Kdenlive);
+  the sequence tractor id is the uuid itself; never add kdenlive_id to the caption filter;
+  **`kdenlive --render` always crashes on a project with captions** (also on projects Kdenlive saved itself - 26.08.1
+  bug) - test renders without captions, open captions in melt or the UI.
+  melt cannot open Korean file names (use an English copy).
+- **For a new source, check the audio start_time first** (`ffprobe -show_entries stream=codec_type,start_time`). OBS
+  recordings have 0, but 2시.mp4 (Quick Share) had 0.450 - extracting the wav as is makes every transcript and level
+  time early by that much, so sentence ends get cut and captions come early. Align the analysis wav to the video clock
+  with `adelay=<ms>:all=1` (the sample count `S` is in the input sample rate and easy to get wrong). body.mjs warns.
 
-## 컷과 자막 묶음 (프젝아 모캡 2026-09-27, 열 판 만에 세운 규칙)
+## Cuts and caption grouping (프젝아 모캡 2026-09-27, rules that took ten rounds)
 
-한 편에 재편집이 아홉 번 붙었다. 원인은 거의 다 **낱말이 어디서 소리나는지 잘못 안 것**과
-**컷이 자막 줄을 가른 것**이었다. 다음 편에서는 처음부터 이렇게 한다.
+One episode needed nine re-edits. Almost all of them came from **misjudging where a word is audible** and from
+**cuts splitting a caption line**. From the next episode on, do this from the start.
 
-1. **한 자막 줄 = 한 장면.** 컷은 자막이 바뀌는 자리에만 낸다. 줄 한가운데를 컷이 지나가면
-   시청자는 뒷말이 **다음 장면으로 넘어갔다**고 읽는다 (사용자가 다섯 판 내리 이 말을 했다).
-   줄 안에 1초짜리 쉼이 있어도 한 장면이면 묶여 읽힌다 - **묶음은 쉼이 아니라 장면으로 읽힌다.**
-2. **컷은 말 덩이 사이에서만.** 전대역 말 지도(-52/-60, 0.30초)로 덩이를 그린다.
-   대역 트랙(src_level.wav) 문턱으로 잡은 토막 경계는 여린 음절을 쉼으로 읽어 낱말을 반 자른다.
-3. **무성 마찰음(ㅅ·ㅆ·슈·ㅎ)은 레벨에 안 보인다.** 3-7kHz 대 200-1500Hz 비가 0dB 위로 뜨는 곳을 같이 본다.
-   "슈트를" 의 슈 가 -64dB 라 쉼으로 읽혀 자막을 1초 앞에 붙였고, 다섯 판을 엉뚱한 데서 헤맸다.
-4. **위스퍼 낱말 시각은 쉼 앞뒤에서 믿지 않는다** (여기선 최대 1.6초 어긋났다).
-   줄 시각은 말 토막에 글자를 나눠 담아 뽑는다 (`tools/edit_audit/align.py`).
-5. **모캡·전신 소스는 0.2초만 지워도 자세가 튄다.** 꼭 깎아야 하면 `cutmatch.py` 로 화면이 가장 덜 튀는
-   자리를 고른다. 튀는 정도는 **8x8 칸 최대차이**로 잰다 (프레임 평균으로 재면 팔 하나 움직인 것을 놓친다).
-6. **굽고 나서 네 가지를 돌리고, 마지막에 프레임을 떠서 눈으로 본다** (`tools/edit_audit/README.md`):
-   verify_runs(말이 잘렸나) · scenes(컷이 줄을 갈랐나) · pauses(묶음이 쉼과 맞나) · check(자막이 빈 자리/낱말 가운데).
-   **자막 글은 fit.py 로 잰다** (2026-09-30, 모든 프리셋): 한 줄이 글자 크기를 줄이지 않는 길이인지 (렌더러와 같은 잣대 -
-   브라우저 canvas 값과 맞춰 봤다), 한 문장을 둘로 나눈 줄이 8:2 처럼 치우치지 않았는지. 쓰기 전에 `fit.py <편> "글"` 로 재 본다.
-   **수치만 보고 "고쳤다" 고 말하지 않는다.**
-7. **사용자 말을 좁게 읽지 않는다.** 따옴표 안의 말은 낱말이 아니라 **자막 줄 이름**일 수 있고
-   ("'이게'는 다음 장면으로 넘어감"), "장면" 은 컷을 뜻한다. 헷갈리면 되묻는다 - 잘못 읽어 두 판을 날렸다.
-8. **낱말 자리가 다퉈지면 일찍 물어본다.** 파형으로 못 푸는 자리(전사에 없는 덩이, 마찰음 구분)는
-   사용자에게 한 줄 물어보는 것이 다섯 판보다 싸다.
+1. **One caption line = one scene.** Cut only where the caption changes. A cut through the middle of a line makes the
+   viewer read the rest **as belonging to the next scene** (the user said this five rounds in a row). Even with a 1 s
+   pause inside a line, one scene reads as one unit - **grouping is read by scene, not by pause.**
+2. **Cut only between speech runs.** Draw runs on the full-band speech map (-52/-60, 0.30 s). Run boundaries from the
+   band-limited track (`src_level.wav`) threshold read soft syllables as pauses and cut words in half.
+3. **Unvoiced fricatives (ㅅ, ㅆ, 슈, ㅎ) do not show on the level.** Also look where the 3-7 kHz to 200-1500 Hz ratio rises
+   above 0 dB. The 슈 of "슈트를" sat at -64 dB, was read as a pause, the caption was put 1 s early, and five rounds were
+   spent looking in the wrong place.
+4. **Do not trust Whisper word times around pauses** (up to 1.6 s off here). Line times come from spreading characters
+   over the speech runs (`tools/edit_audit/align.py`).
+5. **Mocap and full-body sources jump even when only 0.2 s is removed.** If something must go, use `cutmatch.py` to pick
+   the spot where the picture jumps least, measured as the **maximum difference over an 8x8 grid** (a frame average
+   misses one arm moving).
+6. **After rendering, run four checks and finally grab frames and look** (`tools/edit_audit/README.md`):
+   verify_runs (speech cut?), scenes (cut through a line?), pauses (groups match pauses?), check (caption over a gap or
+   mid-word?).
+   **Measure caption text with fit.py** (2026-09-30, all presets): whether a line fits without shrinking the font
+   (same yardstick as the renderer - checked against browser canvas values) and whether a sentence split into two lines
+   is lopsided like 8:2. Before writing, measure with `fit.py <episode> "text"`.
+   **Never say "fixed" based on numbers alone.**
+7. **Do not read the user's words narrowly.** A quoted word may be **the name of a caption line**, not a word ("'이게'
+   moves to the next scene"), and "scene" means a cut. When unsure, ask - two rounds were lost to a misreading.
+8. **Ask early when a word's position is disputed.** For spots the waveform cannot settle (a run missing from the
+   transcript, telling fricatives apart), one question to the user is cheaper than five rounds.
 
-## 렌더는 조각 캐시를 쓴다 (옛 파이프라인)
+## Rendering uses a piece cache (old pipeline)
 
-`piece_cache.py` 가 조각마다 따로 구워 두고 바뀐 것만 다시 굽는다.
+`piece_cache.py` renders each piece separately and re-renders only what changed.
 
-    build_edit.py       조각을 굽고(1층) 이어 붙여 body.mkv
-    apply_captions.py   조각에 자막을 굽고(2층) 이어 붙여 완성본
+    build_edit.py       render pieces (layer 1) and join them into body.mkv
+    apply_captions.py   burn captions per piece (layer 2) and join into the final
 
-전부 새로 구우면 본편 1분 48초, 캐시가 있으면 3초. 자막 한 줄을 고치면
-그 자막이 걸린 조각만(보통 1~2개) 다시 굽는다. 이어 붙이기는 `-c copy` 라
-다시 인코딩하지 않는다. 7일 안 쓴 캐시는 자동으로 지운다.
+A full render of the main episode takes 1 min 48 s; with the cache, 3 s. Fixing one caption re-renders only the pieces
+under it (usually 1-2). Joining is `-c copy`, no re-encode. Cache entries unused for 7 days are deleted automatically.
 
-컷을 옮기면 그 뒤 자막의 완성본 시각이 전부 밀리므로 뒤 조각도 다시 굽는다 -
-이건 어쩔 수 없다.
+Moving a cut shifts every later caption's final time, so the later pieces are re-rendered too - unavoidable.
 
-## 토큰을 아끼는 방법
+## Saving tokens
 
-지금까지 1차 편집과 피드백 한 판이 비슷한 토큰을 먹었다. 원인과 대책:
+First edits and single feedback rounds used to cost about the same number of tokens. Causes and fixes:
 
-1. **원시 표를 대화에 쏟지 않는다.** 파형 100줄, 전사 전체 덤프 같은 것.
-   `probe.py` 로 필요한 자리만 묻는다 - 소리·컷·화면·자막·전사를 한 번에
-   열 줄 안쪽으로 찍는다 (`python probe.py 26 29`, 완성본 시각은 `-o`).
-   파형은 `level.json` 에 넣어 두므로 두 번째부터는 0.2초.
-2. **파일을 통째로 다시 쓰지 않는다.** 200줄짜리 스크립트를 새로 쓰면
-   그 200줄이 전부 토큰이다. 바뀌는 부분만 바꾼다.
-3. **그림은 판단이 걸릴 때만.** 컨택트 시트 한 장이 파형 표보다 비싸다.
-   "여기 뭐가 보이나"가 진짜 물음일 때만 뜬다.
-4. **스크립트는 결론을 찍는다.** 검사 스크립트는 "문제 N건"과 그 N건만
-   찍고, 통과한 항목은 한 줄로 줄인다.
-5. **정한 것은 코드 주석과 `PROGRESS.md` 에 적는다.** 다음 판에서 다시
-   설명하지 않아도 되게 - 대화에 적은 것은 사라지지만 파일은 남는다.
+1. **Do not dump raw tables into the conversation** (100 lines of waveform, a full transcript dump).
+   Ask `probe.py` for just the spot you need - it prints sound, cuts, picture, captions and transcript in under ten lines
+   (`python probe.py 26 29`, final time with `-o`). The waveform is cached in `level.json`, so later calls take 0.2 s.
+2. **Do not rewrite whole files.** A new 200-line script costs 200 lines of tokens. Change only what changes.
+3. **Images only when a judgement depends on them.** One contact sheet costs more than a waveform table. Grab one only
+   when "what is visible here" is the real question.
+4. **Scripts print conclusions.** Check scripts print "N problems" and those N only; passes collapse into one line.
+5. **Write decisions into code comments and `PROGRESS.md`** so the next round does not need the explanation again -
+   the conversation disappears, files stay.
 
-## 잰 것과 짐작한 것을 갈라 적는다
+## Separate what was measured from what was guessed
 
-주석과 `PROGRESS.md` 에 적을 때 **근거를 밝힌다.** "재 보니 53.98초"와
-"아마 시청자 애칭인 듯"은 다른 무게인데, 코드 주석에 나란히 적히면 다음
-판에서 둘 다 확정 사실로 읽힌다.
+When writing comments and `PROGRESS.md`, **state the basis.** "Measured 53.98 s" and "probably a viewer nickname" carry
+different weight, but side by side in a comment both read as fact in the next round.
 
-**Why:** 1차 편집이 Whisper 의 "담린이 남진"을 "담린이 남긴"으로 고치고
-주석에 "Whisper 오청, 담린이는 시청자 애칭으로 보인다"라고 근거까지
-적어 두었다. 짐작이었는데 **다음 두 판이 그걸 확정 사실로 읽고 사용자
-피드백보다 우선했다.** 정답은 "담유이 남친"이었고, 고치는 데 판이 셋 걸렸다.
+**Why:** a first edit changed Whisper's "담린이 남진" to "담린이 남긴" and commented "Whisper mishearing, 담린이 seems
+to be a viewer nickname". It was a guess, **but the next two rounds read it as fact and ranked it above the user's
+feedback.** The answer was "담유이 남친", and fixing it took three rounds.
 
-**How to apply:** 짐작에는 "(짐작)" 이나 "확인 안 함"을 붙인다. 사용자
-피드백과 어긋나면 짐작이 진다 - 근거를 적어 뒀더라도 그렇다.
+**How to apply:** mark guesses with "(guess)" or "not verified". When it conflicts with user feedback the guess loses,
+even if a reason was written down.
