@@ -142,7 +142,7 @@ review = {"video": {"ko": FINAL.replace(os.sep, "/")} if os.path.exists(FINAL) e
           "kept": [[round(a, 3), round(b, 3)] for a, b in main], "restore": [], "drop": [], "transcript": segs,
           # 조각(클립)마다 원본 시각과 완성본 시각 - 피드백 탭의 타임스탬프 칸이 쓴다 (2026-09-28)
           "clips": [dict({"i": i + 1, "s": round(pc["s"], 3), "e": round(pc["e"], 3), "os": round(o, 3), "oe": round(o + d, 3)},
-                         **{k: pc[k] for k in ("color", "tin", "tf") if pc.get(k)})    # 색 · 전환 · 변형 (사용자 편집 탭, 2026-10-02 · 03)
+                         **{k: pc[k] for k in ("color", "tin", "tf", "vhide") if pc.get(k)})    # 색 · 전환 · 변형 (사용자 편집 탭, 2026-10-02 · 03)
                     for i, (pc, o, d) in enumerate([f for f in flat if not f[0].get("gap")])],
           "captions": [{"s": round(conv(ts(r["start"])), 3), "e": round(conv(ts(r["end"])), 3), "speaker": r["speaker"].strip(),
                         "kind": (r.get("kind") or "").strip(), "text": r["text"].strip(), "by": "claude",
@@ -153,6 +153,15 @@ review = {"video": {"ko": FINAL.replace(os.sep, "/")} if os.path.exists(FINAL) e
 # (shortsmith preview / tools/preview_update.py 로 고친 판) 피드백 · 사용자 편집 미리보기가 완성본 대신 원본 사본에서 컷대로 이어 튼다
 # 덧 트랙 (edit.json layers -> 사용자 편집 탭 V2.. · A2.., 2026-10-02) - 내보낼 때마다 파일 쪽이 정본
 review["userLayers"] = [dict({k: v for k, v in L.items() if k != "src"}, path=L["src"]) for L in (E.get("layers") or []) if L.get("src")]
+# 원본 (사본 아님) 경로와 크기 - 사용자 편집 탭에서 원본 클립을 V2.. 로 옮기면 그 파일을 덧 클립으로 쓴다 (2026-10-03)
+_src_abs = SRC if os.path.isabs(SRC) else os.path.join(WORK, SRC)
+review["source"] = os.path.abspath(_src_abs).replace(os.sep, "/")
+try:
+    _wh = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0", _src_abs],
+                         capture_output=True, text=True).stdout.strip().split(",")
+    review["srcSize"] = {"w": int(_wh[0]), "h": int(_wh[1])}
+except Exception:
+    pass
 review["unbaked"] = not os.path.exists(FINAL) or os.path.getmtime(FINAL) < os.path.getmtime("scene.json") - 1
 # 원본 소리 파형 - 피드백 탭 편집 축에 그린다 (2026-09-30, tools/src_wave.py, 원본이 그대로면 편 폴더 wave.json 을 다시 씀)
 sys.path.insert(0, os.path.join(ROOT, "tools"))

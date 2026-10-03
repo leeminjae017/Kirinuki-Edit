@@ -99,7 +99,10 @@ const LayerPic: React.FC<{ L: Layer; url: string; b: Box; fps: number }> = ({ L,
   if (L.xout?.type === 'slide' && pOut > 0) dx = -pOut * b.w;
   if (L.xin && DIP[L.xin.type] && pIn < 1) { wash = 1 - pIn; washC = DIP[L.xin.type]; }
   if (L.xout && DIP[L.xout.type] && pOut > 0) { wash = Math.max(wash, pOut); washC = DIP[L.xout.type]; }
-  const st: React.CSSProperties = { position: 'absolute', left: dx, top: 0, width: b.w, height: b.h, objectFit: 'fill', maxWidth: 'none' };
+  const ck = L.crop && L.w0 && L.h0 ? b.w / L.crop.w : 0;      // a part of the file (main clip moved up keeps its crop)
+  const st: React.CSSProperties = ck
+    ? { position: 'absolute', left: dx - L.crop!.x * ck, top: -L.crop!.y * ck, width: L.w0! * ck, height: L.h0! * (b.h / L.crop!.h), objectFit: 'fill', maxWidth: 'none' }
+    : { position: 'absolute', left: dx, top: 0, width: b.w, height: b.h, objectFit: 'fill', maxWidth: 'none' };
   return (
     <div style={{ position: 'absolute', inset: 0, opacity: (L.opacity ?? 1) * fadeAt(L, t) }}>
       <div style={{ position: 'absolute', left: b.x, top: b.y, width: b.w, height: b.h, overflow: 'hidden', clipPath: clip,
