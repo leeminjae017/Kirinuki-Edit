@@ -351,6 +351,7 @@
       subtitleLanguages: AI.langs,
       /* each: 영상마다 결과 한 편 / merge: 대상 영상을 sources 순서대로 이어 결과 한 편 */
       outputMode: merging() ? 'merge' : 'each',
+      aspect: AI.aspect || null,             // 화면 비율 (비우면 스타일 그대로, 2026-10-03)
       outputs: outs,
       outputCount: outs.length,
       extraPrompt: AI.prompt || '',
@@ -425,6 +426,7 @@
           + 'shortsmith 에서는 편 폴더 하나 (edit.json 하나) 의 keep 에 다른 파일 조각을 { "source": ... } 로 잇는다.'
         : '출력 방식: 영상마다 따로 - 대상 영상 하나에 결과 한 편',
       langLine,
+      AI.aspect ? '화면 비율: ' + AI.aspect + ' (' + ({ '9:16': '세로', '16:9': '가로', '1:1': '정사각형', '4:5': '세로 조금' }[AI.aspect] || '') + ') - 이 비율의 프리셋을 고르고, 없으면 프리셋 canvas 를 이 비율로 바꾼 사본을 쓴다. 원본을 이 비율에 맞게 잡는다 (화면 잡기 · 크롭)' : '화면 비율: 스타일 (프리셋) 그대로',
       j.outputMode === 'merge'
         ? j.outputs.map(function (o) { return '- ' + o.file + '  [' + o.lang + ']'; }).join('\n') + '\n이어 붙일 순서:\n'
           + j.outputs[0].sources.map(function (p, i) { return '  ' + (i + 1) + '. ' + p; }).join('\n')
@@ -527,6 +529,14 @@
         D.info('AI 호출 정책: ' + pol.options[pol.selectedIndex].text, 'ai');
         D.touch();
       });
+
+      /* 화면 비율 (스타일 적용, 2026-10-03) */
+      function paintAspect() { D.$$('#aspectSeg [data-aspect]').forEach(function (b) { b.classList.toggle('is-on', b.dataset.aspect === (AI.aspect || '')); }); }
+      D.$$('#aspectSeg [data-aspect]').forEach(function (b) {
+        b.addEventListener('click', function () { AI.aspect = b.dataset.aspect; paintAspect(); D.touch(); });
+      });
+      paintAspect();
+      AI.paintAspect = paintAspect;
 
       /* 스타일 이름 */
       var sn = D.$('#styleName');
@@ -658,6 +668,7 @@
       D.$('#extraPrompt').value = AI.prompt || '';
       D.$('#langInput').value = (AI.langs || []).join(', ');
       D.$('#aiPolicy').value = AI.policy;
+      if (AI.paintAspect) AI.paintAspect();
       D.$('#styleName').value = AI.styleName || '';
       Object.keys(zones).forEach(function (k) { zones[k].set(AI.drops[k] || []); });
       renderLangs();

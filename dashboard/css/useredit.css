@@ -291,3 +291,17 @@
 .ue-fxrow .i{width:13px;height:13px;opacity:.8}
 .ue-fxrow b{flex:1;font-size:12px}
 .ue-pool [hidden]{display:none!important}
+
+/* 렌더 탭 (2026-10-03): 설정은 위에서 넘기고 렌더 단추는 맨 아래에 붙어 있다 */
+.ue-rnd{padding:0;gap:0;overflow:hidden}
+.rnd-scroll{flex:1 1 auto;min-height:0;overflow:auto;padding:10px 10px 12px;display:flex;flex-direction:column;gap:9px}
+.rnd-h{font-size:11px;font-weight:700;color:var(--ue-txt);letter-spacing:.3px;margin-top:4px;padding-top:7px;border-top:1px solid #33333a}
+.rnd-h:first-child{border-top:0;padding-top:0;margin-top:0}
+.rnd-q{display:grid;grid-template-columns:minmax(0,1fr) 56px;gap:6px;align-items:center}
+.rnd-q input[type=range]{width:100%;accent-color:var(--on, #ff8a3d)}
+.rnd-qlab{font-weight:600;color:var(--ue-txt);margin-left:4px}
+.rnd-reset{align-self:flex-start}
+.rnd-foot{flex:none;padding:10px;border-top:1px solid var(--ue-line);background:var(--ue-panel);display:flex;flex-direction:column;gap:8px}
+.rnd-foot .rnd-prog{margin:0}
+.ue-ptab{white-space:nowrap;flex:none}
+.ue-pool #ueAddFolder span{display:none}

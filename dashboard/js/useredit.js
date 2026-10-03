@@ -2268,6 +2268,77 @@
     }
   }
 
+
+  /* ---------- 렌더 설정 (2026-10-03 사용자: "렌더 탭에서 렌더 버튼은 맨 아래, 렌더 시 필요한 모든 설정 커스텀 가능하게 변경 코덱 설정, 화질 등등
+     영상에 맞게 세로 영상은 세로 영상 비율만, 가로 영상은 가로 영상 비율만") ----------
+     D.state.render.opts {codec, soft, q, size: [w, h], fps, abr, lufs} -> project.json render.opts -> apply_review.py 가 edit.json output ->
+     render.mjs outVideo (조각과 다를 때만 마지막에 한 번 더 인코딩). 해상도 목록은 프리셋 캔버스 비율 그대로 - 세로면 세로 크기만 */
+  function rOpts() { D.state.render = D.state.render || {}; return D.state.render.opts || {}; }
+  function rSet(k, v) {
+    var o = Object.assign({}, rOpts());
+    if (v === '' || v == null || v === false) delete o[k]; else o[k] = v;
+    D.state.render.opts = Object.keys(o).length ? o : null;
+    D.touch();
+    rNote();
+  }
+  function rCanvas() { return (R && R.canvas) || (D.state.layout && D.state.layout.canvas) || [1080, 1920]; }
+  function rSizes() {
+    var c = rCanvas(), cw = c[0], ch = c[1], out = [], even = function (v) { return Math.round(v / 2) * 2; };
+    var names = { 720: '720p', 1080: '1080p', 1440: '1440p (2K)', 2160: '2160p (4K)' };
+    [720, 1080, 1440, 2160].forEach(function (s) {          // 짧은 변 기준 - 세로면 가로가 짧은 변
+      var w = cw <= ch ? s : even(s * cw / ch), h = cw <= ch ? even(s * ch / cw) : s;
+      if (w === cw && h === ch) return;
+      out.push([w, h, names[s]]);
+    });
+    return out;
+  }
+  function rQLab(q) { return q <= 15 ? '아주 좋음' : q <= 18 ? '좋음' : q <= 22 ? '보통' : q <= 26 ? '작은 파일' : '아주 작은 파일'; }
+  function rNote() {
+    var o = rOpts(), c = rCanvas(), sz = o.size, re = !!(sz || o.fps || o.codec === 'hevc' || o.soft || (o.q != null && o.q !== 20));
+    var n = D.$('#rndNote');
+    if (n) n.textContent = re ? '조각은 그대로 쓰고 마지막에 한 번 더 인코딩합니다 (몇 초 더)' : '설정이 기본이라 조각을 그대로 이어 붙입니다 (다시 인코딩 안 함)';
+    var h = D.$('#rndSizeHint');
+    if (h) h.textContent = (c[0] < c[1] ? '세로 영상이라 세로 크기만' : c[0] > c[1] ? '가로 영상이라 가로 크기만' : '정사각형 크기만') + ' 보여 줍니다'
+      + (sz && sz[0] * sz[1] > c[0] * c[1] ? ' · 원본보다 크게 하면 늘리기만 됩니다' : '');
+  }
+  function rFill() {
+    if (!D.$('#rndCodec')) return;
+    var o = rOpts(), c = rCanvas();
+    D.$('#rndCodec').value = o.codec || 'h264';
+    D.$('#rndEnc').value = o.soft ? 'soft' : '';
+    var q = o.q != null ? o.q : 20;
+    D.$('#rndQ').value = String(q); D.$('#rndQN').value = String(q); D.$('#rndQLab').textContent = rQLab(q);
+    var sel = D.$('#rndSize');
+    sel.textContent = '';
+    sel.appendChild(D.el('option', { value: '', text: '프리셋 그대로 (' + c[0] + '×' + c[1] + ')' }));
+    rSizes().forEach(function (s) { sel.appendChild(D.el('option', { value: s[0] + 'x' + s[1], text: s[0] + '×' + s[1] + ' · ' + s[2] })); });
+    var sv = o.size ? o.size[0] + 'x' + o.size[1] : '';
+    if (sv && !sel.querySelector('option[value="' + sv + '"]')) sel.appendChild(D.el('option', { value: sv, text: sv.replace('x', '×') + ' (저장된 값 - 비율이 다름)' }));
+    sel.value = sv;
+    D.$('#rndFps').value = o.fps ? String(o.fps) : '';
+    D.$('#rndAbr').value = o.abr ? String(o.abr) : '';
+    D.$('#rndLufs').value = o.lufs != null ? String(o.lufs) : '';
+    rNote();
+  }
+  function rInit() {
+    if (!D.$('#rndCodec')) return;
+    D.$('#rndCodec').addEventListener('change', function (e) { rSet('codec', e.target.value === 'h264' ? '' : e.target.value); });
+    D.$('#rndEnc').addEventListener('change', function (e) { rSet('soft', e.target.value === 'soft'); });
+    var setQ = function (v) {
+      v = Math.max(12, Math.min(32, Math.round(+v || 20)));
+      D.$('#rndQ').value = String(v); D.$('#rndQN').value = String(v); D.$('#rndQLab').textContent = rQLab(v);
+      rSet('q', v === 20 ? '' : v);
+    };
+    D.$('#rndQ').addEventListener('input', function (e) { setQ(e.target.value); });
+    D.$('#rndQ').addEventListener('dblclick', function () { setQ(20); });
+    D.$('#rndQN').addEventListener('change', function (e) { setQ(e.target.value); });
+    D.$('#rndSize').addEventListener('change', function (e) { rSet('size', e.target.value ? e.target.value.split('x').map(Number) : ''); });
+    D.$('#rndFps').addEventListener('change', function (e) { rSet('fps', e.target.value ? +e.target.value : ''); });
+    D.$('#rndAbr').addEventListener('change', function (e) { rSet('abr', e.target.value ? +e.target.value : ''); });
+    D.$('#rndLufs').addEventListener('change', function (e) { rSet('lufs', e.target.value ? +e.target.value : ''); });
+    D.$('#rndReset').addEventListener('click', function () { D.state.render.opts = null; D.touch(); rFill(); D.toast('렌더 설정을 기본으로 돌렸습니다'); });
+  }
+
   /* ---------- 불러오기 · 보이기 ---------- */
   function load(review) {
     R = review || null;
@@ -2293,6 +2364,7 @@
     EX.forEach(function (x) { var n = parseInt(String(x.id || '').slice(1), 10); if (!x.id) x.id = 'x' + (UID++); else if (n >= UID) UID = n + 1; });
     VS = 0; AS = 0;
     if (D.$('#ueEmpty')) D.$('#ueEmpty').hidden = !!CL.length;
+    rFill();
     loadMedia();
     drawBins();
     draw();
@@ -2326,6 +2398,7 @@
     sc.addEventListener('dragleave', function (ev) { if (!sc.contains(ev.relatedTarget)) D.$('#ueDrop').hidden = true; });
     sc.addEventListener('drop', onDrop);
     D.$$('#view-edit [data-ptab]').forEach(function (b) { b.addEventListener('click', function () { setPTab(b.dataset.ptab); }); });
+    rInit();
     D.$$('#view-edit [data-tool]').forEach(function (b) { b.addEventListener('click', function () { setTool(b.dataset.tool); }); });
     D.$('#ueSnapBtn').addEventListener('click', function () { setSnap(!SNAP); });
     D.$('#ueRipBtn').addEventListener('click', function () { setRipple(!RIP); });
