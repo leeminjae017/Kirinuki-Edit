@@ -1,518 +1,178 @@
-# 편집 관리 대시보드
+# Dashboard - developer notes
 
-편집 파이프라인을 눈으로 관리하기 위한 정적 웹 대시보드. 빌드 도구도, 외부 의존성도 없다.
-**Claude API를 호출하지 않는다.** 이 대시보드가 만드는 것은 *작업 정의(JSON)* 와 *프롬프트*이고,
-실제 실행은 평소처럼 Claude Code에서 한다.
+A static web app plus a small Python server (`server.py`) for managing edits. No build step, no npm.
+**It never calls the Claude API.** It writes job files and prompts. Claude Code runs them.
 
-## 실행
+The user guide (Korean, every screen and shortcut) is [docs/대시보드_가이드.md](../docs/대시보드_가이드.md).
+This file covers the code: files, server API, data model and the rules that keep the browser and the
+episode folders in sync.
 
-가장 간단한 방법은 `index.html`을 브라우저로 여는 것이다. 다만 `file://`에서는 브라우저가
-localStorage를 막는 경우가 있어(작업 상태 자동 저장), 로컬 서버로 여는 쪽을 권한다.
+## Running
 
 ```bash
-python -m http.server 8899 --directory E:/Edit/Claude/dashboard
+python dashboard/server.py --port 8899 --open
 ```
 
-http://localhost:8899 접속. (`.claude/launch.json`에 `dashboard` 설정이 들어 있어
-Claude Code의 미리보기에서도 바로 띄울 수 있다.)
+| Flag | Default | Meaning |
+|---|---|---|
+| `--port` | 8899 | HTTP port |
+| `--projects` | `projects/` | project store, one folder per project |
+| `--jobs` | `jobs/` | where AI jobs are written |
+| `--open` | off | open a browser tab |
+| `--keep-alive` | off | do not exit when the last page closes |
 
-## 구성
+The server lives as long as a page is open: pages ping every 3 s and send a goodbye on close. With no
+page left it exits (about 2 s after a tab closes, about 14 s if the browser dies). It reattaches on its
+own if it starts after the page. Opened as plain static files (`python -m http.server`), the dashboard
+still works, but projects live in localStorage and jobs go to the clipboard.
+
+## Files
 
 ```
 dashboard/
-  index.html          아이콘 스프라이트 + 두 탭의 레이아웃
-  css/base.css        토큰, 패널, 버튼, 드롭존, 로그, 모달
-  css/ai.css          AI 편집 탭
-  css/editor.css      사용자 편집 탭 (선택 / 미리보기 / 인스펙터 / 타임라인)
-  css/projects.css    프로젝트 칩 · 상단 메뉴 · 프로젝트 매니저 카드
-  js/core.js          상태, 시간 · 파일 유틸, 로그, 모달, 저장
-  js/split.js         레이아웃 너비 · 높이 조절 (거터 드래그)
-  js/dnd.js           드래그 & 드랍 (폴더 재귀 탐색 포함), 드롭존
-  js/csv.js           자막 CSV 파싱 / 직렬화
-  js/fonts.js         이 컴퓨터에 깔린 폰트 목록과 크기 배율
-  js/ai.js            스타일 분석 · 적용, 다국어, 프롬프트 · 작업 JSON 생성
-  js/timeline.js      트랙 / 클립, 이동 · 트리밍 · 컷 · 동기화 · 스냅
-  js/inspector.js     선택 요소 수정 (자막 화자 / 내용 / 디자인)
-  js/editor.js        선택(빈), 미리보기 재생, CSV 반영, 렌더 작업
-  js/projects.js      프로젝트 (만들기 · 열기 · 저장 · 복제 · 삭제, 매니저 화면)
-  js/app.js           부팅, 탭, 프로젝트 저장 · 불러오기, 단축키
+  index.html            icon sprite + layout of both tabs and the project manager
+  server.py             HTTP server: files, media, projects, styles, jobs, render
+  css/base.css          tokens (neutral grey, --on = orange), panels, buttons, drop zones, modal
+  css/ai.css            AI edit tab
+  css/feedback.css      viewer, notes, caption lists (shared by both tabs)
+  css/useredit.css      user edit tab (timeline, inspector, effects, render pane)
+  css/projects.css      project chip, menu, manager cards
+  css/editor.css        old editor layout (still loaded; shared bits only)
+  js/core.js            state, time / file helpers, toasts, modal (onCancel), save / load
+  js/server.js          server detection, ping, job hand-off
+  js/split.js           panel gutters (drag = resize, double-click = default)
+  js/dnd.js             drag and drop of files / folders, drop zones (same file dropped again replaces)
+  js/csv.js             caption CSV parse / write
+  js/fonts.js           installed fonts and libass size factors
+  js/ai.js              AI edit tab: style analyse / apply, languages, aspect, job JSON + prompt
+  js/feedback.js        viewer: preview player, notes, unbaked plan (planScene), caption data
+  js/useredit.js        user edit tab: timeline, inspector, sources / effects, words, render pane
+  js/projects.js        projects: create, open, save, autosave, manager
+  js/app.js             boot, tabs, shortcuts, disk freshness check
+  js/vendor/shortsmith-preview.js   bundled React preview (built from shortsmith/preview)
+  styles/               analysed style JSON (shared by all projects)
+  _legacy/              old editor (timeline.js, inspector.js, editor.js) - not loaded
 ```
 
-## 레이아웃 조절
+Rebuild the preview bundle after editing `shortsmith/src` or `shortsmith/preview`:
 
-패널 사이의 빈 틈이 스플리터다. **끌면 너비 · 높이가 바뀌고, 더블클릭하면 기본값으로 돌아간다.**
-
-| 위치 | 조절 대상 |
-|---|---|
-| AI 편집: 스타일 ↔ 추가 프롬프트 | 스타일 패널 너비 |
-| AI 편집: 추가 프롬프트 ↔ 로그 | 추가 프롬프트 너비 |
-| 사용자 편집: 선택 ↔ 미리보기 | 선택 패널 너비 |
-| 사용자 편집: 미리보기 ↔ 인스펙터 | 인스펙터 너비 |
-| 사용자 편집: 상단 ↔ 타임라인 | 상단 영역 높이 |
-| 사용자 편집: 타임라인 ↔ 로그 | 로그 높이 |
-
-남는 공간은 AI 편집에서는 로그가, 사용자 편집에서는 가로로 미리보기 · 세로로 타임라인이 흡수한다.
-흡수하는 패널이 최소 크기(가로 260px, 세로 150px) 아래로 눌리지 않도록 드래그가 자동으로 멈추고,
-창을 줄여 공간이 모자라면 큰 패널부터 자동으로 줄어든다. 조절한 크기는 브라우저에 저장되며
-상단 *초기화*를 누르면 레이아웃도 기본값으로 돌아간다. 기본값은 처음 열 때 화면 크기에 맞춰 계산된다.
-
-## 탭 1 — AI 편집
-
-| 스타일 분석(탭) | 스타일 적용(탭) | 추가 프롬프트(공통) | 로그(공통) |
-|---|---|---|---|
-| 원본 파일 / 폴더 | 편집 대상 파일 / 폴더 | 지시문 | 표시 단계 콤보박스 |
-| 편집본 파일 / 폴더 | 스타일 선택 콤보박스 | 다국어 설정 | INFO / WARNING / ERROR |
-| 스타일 분석 버튼 | 스타일 적용 버튼 | 출력 개수 계산 | 이모티콘 없음 |
-
-- 모든 입력칸은 **파일도 폴더도** 드래그 & 드랍을 받는다. 폴더는 하위까지 재귀로 읽는다.
-  (드래그가 곤란할 때를 위해 각 드롭존 아래에 "파일 선택 / 폴더 선택"도 있다.)
-- **스타일 분석**: 원본 + 편집본을 넣고 누르면 분석 프롬프트와 `job_style_analyze.json`을 만든다.
-  스타일은 "분석 대기" 상태로 목록에 등록된다. Claude Code가 낸 결과 JSON을
-  *분석 결과 등록*에 붙여넣으면 "분석 완료"로 바뀌고 적용 탭에서 쓸 수 있다.
-- **스타일 적용**: 대상 폴더 + 스타일을 고르면 결과 파일 목록이 미리 계산된다.
-- **다국어**: 쉼표로 구분해 입력한다. 자막만 언어별로 만들고 영상 · 오디오는 동일하다.
-  대상 영상 2개 × 언어 3개면 결과 영상은 6개, 대상 1개 × 언어 3개면 3개다.
-- **AI 호출 정책**: 필요할 때만 / 단계마다 / 호출 안 함. 생성되는 프롬프트에 그대로 실린다
-  (토큰 관리용 명시).
-
-## 탭 2 — 사용자 편집
-
-일반 편집 프로그램 구성: **선택 | 미리보기 | 인스펙터** + 하단 타임라인.
-(로그는 AI 편집 탭에만 둔다. 경고 · 오류는 토스트로 뜬다.)
-
-- 기본 트랙은 **영상 1**, **오디오 1**. 트랙 추가로 자막 · 효과음 · 영상 · 오디오 레이어를 더 만든다.
-- 선택 패널에 파일 / 폴더를 드랍하면 종류별로 정리된다. 항목을 타임라인 트랙으로
-  끌어다 놓으면 클립이 생긴다. (타임라인 트랙 위로 파일을 직접 드랍해도 된다.)
-- 영상을 배치하면 **영상 클립 + 오디오 클립이 같은 동기화 그룹**으로 함께 생긴다.
-  툴바의 *동기화*가 켜져 있으면 함께 움직이고, 끄면 개별로 움직인다.
-  인스펙터에서 그룹 해제도 된다.
-- 클립은 본체를 끌어 이동, 좌우 끝을 끌어 트리밍, 세로로 끌면 같은 종류의 다른 트랙으로 이동한다.
-  스냅은 0초 · 재생헤드 · 다른 클립 경계에 붙는다.
-- **휠은 가로로 돈다.** 타임라인은 가로로 긴 것이고 편집하는 동안 계속 보는 건 시간축이다.
-  `Shift+휠`이 세로 이동, `Ctrl+휠`이 확대 · 축소다 (마우스 밑의 시각을 붙잡고 늘린다).
-  가로 끝에 닿으면 페이지 쪽으로 넘긴다.
-- **컷**: 재생헤드 위치에서 자른다. 선택이 없으면 그 지점을 지나는 모든 클립을,
-  선택이 있으면 선택(+동기화 그룹)만 자른다. 자른 뒤 오른쪽 조각은 새 그룹이 된다.
-- **인스펙터**는 탭이 둘이다. *클립*은 고른 클립 하나를 고치고(공통: 이름 · 시작 · 길이 ·
-  소스 시작 / 영상: 불투명도 · 볼륨 · 되돌려 재생 · 화면 자리 / 오디오: 볼륨 / 자막: 화자 ·
-  내용 · 폰트 · 크기 · 글자색 · 외곽선 · 배경 · 세로 위치 · 굵기 · 정렬), *전체 자막*은
-  자막을 목록으로 늘어놓고 그 자리에서 고친다. 자세한 것은 아래 "인스펙터" 절.
-- 미리보기는 **확인용**이지만 완성본과 같은 그림을 만든다. 영상 클립을 트랙 순서대로 겹쳐
-  각자의 화면 자리에 놓고, 자막을 실제 폰트 · 색 · 위치로 그린다.
-  편집 결과가 파일에 반영되는 것은 **렌더링뿐**이다.
-
-### 자막 CSV
-
-파이프라인과 같은 포맷을 읽고 쓴다.
-
-```csv
-start,end,speaker,text
-0:00:00.10,0:00:01.02,아야,아니 아담아
-0:00:01.02,0:00:02.56,아야,"뽀뽀할래는, 뭐야?"
+```bash
+cd shortsmith
+NODE_PATH=<main checkout>/shortsmith/node_modules node <main checkout>/shortsmith/node_modules/esbuild/bin/esbuild preview/entry.tsx --bundle --minify --format=iife --global-name=ShortsmithPreview --outfile=dist/preview.js '--define:process.env.NODE_ENV="production"'
+cp dist/preview.js ../dashboard/js/vendor/shortsmith-preview.js
 ```
 
-- 시간은 `H:MM:SS.ss`, `MM:SS.ss`, 초 단위 숫자를 모두 받는다. 헤더가 없으면
-  `start,end,speaker,text` 순서로 간주하고 경고를 남긴다.
-- CSV 파일을 **선택 패널에 끌어다 놓고 더블클릭**하면 반영 방식을 고를 수 있다.
-  - *새 자막 트랙으로 열기*
-  - *수정 내용 반영*: 시작 시간이 0.35초 이내로 맞는 기존 자막을 찾아 내용 · 화자 · 시간을 갱신하고,
-    없으면 새로 추가한다. CSV에 없는 기존 자막은 지우지 않고 경고만 남긴다.
-  - *선택 트랙 통째로 교체*
-- 내보내기는 없앴다. 자막은 인스펙터의 **전체 자막** 탭에서 고치고, 렌더 작업이 자막을 통째로
-  실어 나른다. 파이프라인 쪽 CSV는 `import_project.py`가 만든다.
+## Server API
 
-### 렌더링
+GET
 
-**서버가 그 자리에서 굽는다.** 인스펙터에서 아무 클립도 고르지 않으면 렌더링 설정이
-나온다. 누르면 서버가 파이프라인을 돌리고 진행과 로그가 같은 자리에 뜬다.
-
-| 칸 | 무엇인가 |
+| Path | Returns |
 |---|---|
-| **굽는 곳** | 이 편집을 굽는 스크립트가 있는 폴더. 여기서 컷과 자막을 파이프라인에 넣고 영상을 만든다 (`import_project.py` · `build_edit.py` · `apply_captions.py`) |
-| **내보낼 곳** | 다 구운 영상이 저장될 폴더. 비워 두면 스크립트에 적힌 자리로 간다 |
-| **자막** | 만들 자막 언어. 쉼표로 나눈다. 언어 수만큼 영상이 나오고 영상 · 소리는 같고 자막만 바뀐다 |
-| **기준** | 자막이 원래 적혀 있는 말. 이 언어는 `apply_captions.py`가, 나머지는 `apply_captions_<언어>.py`가 굽는다 |
+| `/api/status` | server info (clients, jobs dir, projects dir) |
+| `/api/projects` | project list (from `meta.json`) |
+| `/api/project?id=` | one `project.json` |
+| `/api/project/thumb?id=` | card thumbnail |
+| `/api/styles` | `styles/*.json` |
+| `/api/file?path=` | a local file (range requests, used for video) |
+| `/api/media/browse` · `/list` | folder browsing for the source pane |
+| `/api/media/thumbs` · `/wave` · `/poster` · `/info` `?path=` | thumbnail grid, waveform, poster, probe (cached in `%TEMP%/kirinuki_media`) |
+| `/api/fonts` | installed font names |
+| `/api/dirs` | folder picker for render settings |
+| `/api/render/status?id=` | render progress and log |
+| `/api/translations` | existing translation CSVs (legacy pipeline) |
 
-두 폴더는 옆의 **찾기**로 고른다. 브라우저의 파일 고르기 창은 진짜 경로를 안 내주기
-때문에(파일 이름만 준다) 폴더 목록은 서버가 읽어서 보여 준다. 작업 폴더 밖은 아예
-보이지 않고, 굽는 스크립트가 들어 있는 폴더에는 **굽는 폴더** 표가 붙는다.
+POST
 
-내보낼 곳은 환경 변수 `DASH_OUT_DIR`로 파이프라인에 넘어간다. 스크립트는 이 값이
-있으면 거기에 저장하고 없으면 자기 안에 적힌 자리로 간다 - 대시보드 없이 손으로
-돌려도 그대로 동작한다. 없는 폴더는 서버가 만든다.
-
-컷이 그대로면 영상은 다시 굽지 않는다. 자막만 고친 렌더가 몇 분에서 십몇 초가 된다.
-
-**진행률**은 지난 렌더에서 잰 단계별 시간으로 낸다 (파이프라인 폴더의
-`.render_times.json`). 단계 수로만 세면 몇 분짜리 인코딩 동안 막대가 그 자리에
-붙어 있기 때문이다. 처음 도는 단계가 남아 있으면 남은 시간을 말하지 않고 막대에
-줄무늬를 넣어 어림이라는 것을 알린다 - 두 번째 렌더부터 초가 맞는다.
-
-클로드는 옮길 자막이 있을 때만 부른다 (아래 **자막 언어와 클로드** 참고).
-
-### 단축키
-
-| 키 | 동작 |
+| Path | Does |
 |---|---|
-| Space | 재생 / 일시정지 |
-| C | 재생헤드에서 컷 |
-| Delete · Backspace | 선택 클립 삭제 |
-| ← → | 재생헤드 1프레임 이동 (Shift: 1초) |
-| Alt + ← → | 선택 클립 1프레임 이동 (Shift: 1초) |
-| Home · End | 처음 · 끝으로 |
-| Ctrl + S | 프로젝트 JSON 저장 |
+| `/api/ping` · `/api/bye` | page lifetime |
+| `/api/project/save` | save a project (review is merged - see below) |
+| `/api/project/delete` | move to `projects/_trash` |
+| `/api/style/save` · `/api/style/delete` | style files |
+| `/api/media/upload?project=&name=` | file dropped from Explorer -> `projects/<id>/media/` (same name and size = reuse) |
+| `/api/job` | write `jobs/<time>_<kind>.json` and `.md` for Claude Code |
+| `/api/render` | start a render |
 
-## 로그
-
-두 탭이 같은 로그를 본다. 단계는 INFO / WARNING / ERROR이고 콤보박스는 **최소 표시 단계**로
-동작한다(WARNING을 고르면 WARNING과 ERROR만 보인다). 이모티콘은 쓰지 않는다.
-
-**로그는 프로젝트별로 나뉜다.** 줄마다 그때 열려 있던 프로젝트를 적어 두고, 화면에는 그
-프로젝트의 줄만 보여 준다. 프로젝트를 다시 열면 지난번에 무슨 일이 있었는지가 그대로
-보인다 (`projects/<id>/project.json`에 끝의 500줄이 남는다).
-
-예외는 **대시보드 자체에 관한 줄**이다. 꼬리표가 `server` · `app` · `fonts`인 줄은
-어느 프로젝트의 것도 아니라서 어디서나 보인다 — "서버가 없어 작업이 클립보드로 간다"는
-말은 어느 편집을 열고 있든 똑같이 알아야 하는 것이다.
-
-- 아래의 INFO / WARNING / ERROR 개수도 지금 프로젝트 기준이다
-- **비우기**는 지금 프로젝트의 줄만 지운다. 다른 프로젝트의 기록은 건드리지 않는다
-- 줄마다 화면에 찍는 시:분:초(`t`)와 별개로 진짜 시각(`ts`)을 들고 있다. 지난 세션의
-  기록과 이번 세션의 줄을 한자리에 놓을 때 시:분:초만으로는 날짜가 다른 줄이 뒤섞인다
-
-로그 판은 **AI 편집 탭에만** 있다. 사용자 편집에서는 편집 화면을 넓게 쓰는 편이 낫고, 거기서
-필요한 것은 로그가 아니라 타임라인과 미리보기다. 대신 경고 · 오류는 어느 탭에 있든 화면 오른쪽
-아래에 토스트로 뜬다 - 왜 안 되는지는 반드시 보여야 한다.
-
-**화면 조작은 적지 않는다.** 탭 전환, 패널 너비 조절, 재생 · 일시정지, 스냅 · 동기화 토글,
-미리보기 비율, 전체 선택처럼 화면 상태만 바뀌는 일은 로그에 남기지 않는다. 로그는 편집에
-무슨 일이 있었는지 되짚는 곳이고, 그런 줄이 섞이면 정작 필요한 줄이 화면 밖으로 밀려난다.
-남는 것은 편집을 바꾼 일(`edit`), 소재(`asset`), 자막(`caption`), 컷(`cut`), 프로젝트
-(`project`), 스타일 · 분석 · 적용, 렌더, 서버, 그리고 실패를 알리는 경고 · 오류다.
-꼬리표도 화면 이름이 아니라 무엇에 관한 줄인지로 붙인다.
-
-## 프로젝트 — 편집 한 편이 프로젝트 하나
-
-편집은 저마다 다른 원본, 다른 컷, 다른 자막, 다른 레이아웃을 쓴다. 상태를 한 덩어리로만
-들고 있으면 다음 편집을 시작하는 순간 앞의 것이 덮인다. 그래서 **대시보드의 모든 상태
-(컷 · 자막 · 레이아웃 · 편집 메모 · 스타일 선택)는 열려 있는 프로젝트에 딸린다.**
-
-상단 왼쪽의 **프로젝트 칩**이 지금 무엇을 열고 있는지 보여 준다. 누르면 매니저가 열린다.
-오른쪽 **메뉴**에 프로젝트를 다루는 것이 다 있다.
-
-| 메뉴 | 하는 일 |
-| --- | --- |
-| 새 프로젝트 추가 | 이름을 묻고 빈 타임라인으로 시작한다. 열려 있던 편집은 먼저 저장된다 |
-| 프로젝트 매니저 | 카드 목록. 한 줄에 다섯 장 (Ctrl+Shift+P) |
-| 프로젝트 저장 | 지금 프로젝트를 저장소에 넣는다 (Ctrl+S) |
-| 프로젝트 불러오기 | 편집 폴더의 `*_project.json`을 새 프로젝트로 들여온다 |
-| 파일로 내보내기 | 지금 프로젝트를 JSON 파일로 받는다 |
-| 이 프로젝트 비우기 | 프로젝트는 남기고 그 안의 편집만 지운다 |
-
-**프로젝트 매니저**의 카드에는 완성본 미리보기를 그대로 구운 썸네일(프리셋 배경 + 영상 띠 +
-상단 캡션), 이름, 스타일, 길이, 컷 · 자막 · 메모 개수, 마지막 수정 시각이 들어간다. 카드에
-마우스를 올리면 열기 · 이름 · 복제 · 삭제가 나온다. 더블클릭해도 열린다.
-
-### 어디에 저장되나
-
-`대시보드.cmd`로 열면 (로컬 서버가 붙으면) 디스크에 저장된다.
+## Projects
 
 ```
-projects/<id>/project.json   대시보드 상태 전부
-projects/<id>/meta.json      목록에 쓰는 요약
-projects/<id>/thumb.jpg      카드 썸네일
-projects/_trash/             삭제한 프로젝트 (지운 것처럼 보이지만 여기 남는다)
+projects/<id>/project.json   full dashboard state
+projects/<id>/meta.json      summary for the list
+projects/<id>/thumb.jpg      card thumbnail
+projects/<id>/media/         files dropped from Explorer
+projects/_trash/             deleted projects
 ```
 
-서버 없이 정적으로 열면 브라우저(localStorage)에 저장되고, 다음에 서버가 붙는 순간 디스크로
-옮겨진 뒤 브라우저 쪽은 비워진다 — 양쪽에 남겨 두면 지운 것이 되살아나기 때문이다.
-
-저장은 **Ctrl+S**로 하고, 손댄 뒤 20초쯤 잠잠하면 조용히 한 번 더 저장한다. 저장하지 않고 탭을
-닫아도 마지막 상태는 브라우저에 남아 다음에 그대로 이어진다.
-
-### 원본 파일에 관한 제약
-
-브라우저는 **경로만으로 파일을 다시 열 수 없다.** 로컬 서버가 붙어 있으면 서버가 경로로 원본을
-내주므로 미리보기가 그대로 살아난다. 정적으로 열었을 때만 원본을 다시 드랍해야 한다(그때 경고
-로그가 남는다). 렌더는 파일 핸들이 아니라 경로로 하므로 렌더 작업 정의에는 영향이 없다.
-
-## 스타일 파일
-
-`styles/` 폴더에 분석이 끝난 스타일 JSON을 둔다. 스타일 분석 탭의 "분석 결과"
-칸에 파일을 끌어다 놓거나 내용을 붙여넣고 등록 버튼을 누르면 스타일 선택
-콤보박스에 올라온다. 등록된 스타일은 브라우저에 저장되어 다음에 열 때도 남는다.
-
-- `styles/담유이_다인쇼츠.json` — "담유이 2인 이상 쇼츠". 치즈vs캬라멜 ·
-  과민반응 · 담아맷돌 편집에서 뽑은 규칙이다. 화자를 이름이 아니라 역할로
-  나눈다: 담유이는 항상 있는 호스트(흰색, Black, 이름표 없음), 나머지는 전부
-  게스트(Bold, 자기 색, 이름표 붙음)다. 아야는 자주 나오는 게스트로 색만
-  기록해 둔 것이고, 없는 영상도 있다. 화자가 몇 명이든 컷 · 오디오 · 페이싱
-  규칙은 같다.
-
-- `styles/담유이_1인일반쇼츠.json` — "담유이 1인 일반 쇼츠". 위 스타일에서 게스트만 뺀 것이다. 자막이 전부
-  호스트 스타일(흰색, 이름표 없음, 10자)이 되고, 크롭이 하나가 되고, 화자를
-  가르는 단계가 없어진다. 컷 · 자막 타이밍 · 오디오 · 페이싱 · 검증은 두
-  스타일이 같으니 한쪽을 고치면 다른 쪽도 같이 고쳐야 한다 (각 파일의
-  `derivedFrom.sync` 참고).
-
-두 스타일이 공유하는 것 중 자주 헷갈리는 두 가지:
-
-- **발끈 자막** (`caption.emphasis`) — 발끈 · 항변하는 줄만 주황 그라데이션으로
-  띄운다. 세로로 위가 연두(#DAFD73), 아래가 주황빨강(#FB5D4B)이고 글자마다가
-  아니라 줄 전체에 걸린다. 아껴 써야 세기가 산다.
-- **반복 표기** (`caption.repeat`) — 글자 수 상한에 들어가면 그대로 두 번 적고
-  ("이녀석 이녀석...", "오이데~ 오이데~"), 넘칠 때만 (xN)으로 센다
-  ("이터널리턴 (x2)"). 넉넉하면 적어주는 쪽이 낫다.
-
-## 버튼이 하는 일
-
-- **스타일 분석 / 스타일 적용** (주 버튼) — 작업을 정의하고, 붙여넣을 프롬프트를
-  클립보드에 올린다. Claude Code에 붙여넣으면 그대로 실행된다. 대시보드는 API를
-  호출하지 않으므로(추가 결제 없음) 실행은 Claude Code가 하고, 사용자가 할 일은
-  붙여넣기 하나다.
-- **작업 JSON** — 같은 작업 정의를 파일로 남긴다. 기록용이고, 눌러야만 저장된다.
-
-## 로컬 서버 (작업을 파일로 넘기기)
-
-`대시보드.cmd`를 실행하면 서버가 뜨고 브라우저가 열린다. 이때 주 버튼은
-프롬프트를 클립보드에 올리는 대신 작업을 `E:\Edit\Claude\jobs\`에 파일로
-떨어뜨린다. Claude Code가 그 폴더에서 집어가면 되므로 붙여넣기가 필요 없다.
-
-    <시각>_스타일적용.json   작업 정의
-    <시각>_스타일적용.md     그대로 실행할 수 있는 프롬프트
-
-**수명이 대시보드와 붙어 있다.** 페이지가 열려 있는 동안 3초마다 핑을 보내고,
-탭을 닫으면 작별 신호를 보낸다. 붙어 있는 페이지가 없어지면 서버가 스스로
-내려간다 - 탭을 닫으면 약 2초, 브라우저가 죽어 신호가 오지 않으면 약 14초
-(핑 유효시간 12초)다. 서버를 띄워 놓고 잊어버릴 일이 없다.
-
-반대 방향도 맞춰진다. 서버가 페이지보다 늦게 뜨거나 중간에 다시 떠도 핑이
-계속 돌기 때문에 알아서 다시 붙는다. 지금 어느 쪽인지는 상단 배지가 보여준다.
-
-- **서버** (초록) — 작업이 `jobs/`에 파일로 나간다
-- **서버 없음** (회색) — 정적 서버로 열렸다는 뜻. 작업은 클립보드로 나간다
-
-정적으로 열고 싶으면 예전처럼 `python -m http.server 8899 --directory dashboard`를
-쓰면 되고, 그때는 클립보드 방식으로 동작한다. 어느 쪽이든 클로드 API는 부르지
-않는다 - 서버는 파일을 쓸 뿐이다.
-
-## 편집 내역을 대시보드에서 열기
-
-편집 파이프라인이 `<프로젝트>_project.json`을 같이 내보낸다. 상단 **불러오기**로
-열면 사용자 편집 타임라인에 컷과 자막이 그대로 뜬다. 클립 이름에 원본의 몇 초를
-썼는지 적혀 있고, 판단 근거는 같이 나오는 `_project.md`에 있다.
-
-원본 영상은 로컬 서버가 저장된 경로로 읽어 온다 (`/api/file`). 그래서 프로젝트를
-불러오면 미리보기가 바로 나온다 - 파일을 다시 끌어다 놓지 않아도 된다. 정적
-서버로 열었을 때는 브라우저가 경로만으로 파일을 열 수 없어 예전처럼 드랍해야
-한다.
-
-## 사용자 편집 - 자막 추가와 클립 복제
-
-- **자막 추가** (`T`) — 재생헤드 자리에 자막 한 장을 새로 놓는다. 다음 자막까지의
-  간격만큼(최대 1.6초) 길이를 잡고, 바로 선택되므로 인스펙터에서 내용을 적으면
-  된다. 이미 자막이 있는 자리면 새로 만들지 않고 그 자막을 골라 준다.
-- **복사 / 붙여넣기** (`Ctrl+C` / `Ctrl+V`) — 고른 클립을 복사해 **재생헤드에**
-  붙여넣는다. 여러 개를 복사하면 서로의 간격을 그대로 두고 덩어리의 맨 앞이
-  재생헤드에 온다. 클립보드는 대시보드 안에만 있어서 다른 프로그램의 복사와
-  섞이지 않는다.
-- **복제** (`Ctrl+D`) — 고른 클립을 바로 뒤에 하나 더 놓는다. 영상과 오디오처럼
-  묶인 클립은 묶음째 복제되고 **새 묶음 번호**를 받는다. 그래서 사본을 옮겨도
-  원본이 따라 움직이지 않는다.
-
-자막을 여러 장 한꺼번에 고치려면 인스펙터의 **전체 자막** 탭을 쓴다. 목록에서 바로 고치고
-Enter로 다음 줄로 넘어간다. (CSV 열기 · CSV 저장 버튼은 없앴다. 자막 CSV 파일을 선택 패널에
-끌어다 놓으면 예전처럼 들여올 수는 있다.)
-
-### 단축키
-
-| 키 | 하는 일 |
-|---|---|
-| `Space` | 재생 / 정지 |
-| `C` | 재생헤드에서 자르기 |
-| `T` | 재생헤드에 자막 추가 |
-| `Ctrl+Z` / `Ctrl+Shift+Z` | 되돌리기 / 다시하기 (`Ctrl+Y`도 됨) |
-| `Ctrl+A` | 클립 전체 선택 |
-| `Ctrl+C` / `Ctrl+V` | 클립 복사 / 재생헤드에 붙여넣기 |
-| `Ctrl+D` | 선택 클립 복제 (바로 뒤에) |
-| `Delete` | 선택 클립 삭제 |
-| `←` `→` | 한 프레임 이동 (`Shift`로 1초) |
-| `Alt+←` `Alt+→` | 선택 클립을 한 프레임 밀기 |
-| `Home` `End` | 처음 / 끝으로 |
-| 휠 | 타임라인 가로 이동 |
-| `Shift`+휠 | 타임라인 세로 이동 |
-| `Ctrl`+휠 | 타임라인 확대 · 축소 (마우스 자리 기준) |
-| `Ctrl+S` | 프로젝트 저장 |
-
-## 대시보드에서 고친 편집을 렌더에 반영하기
-
-**렌더링** 버튼이 서버에게 파이프라인을 돌리게 한다 (`POST /api/render`).
-
-    python import_project.py <project.json>   # 컷 -> pieces_override.json, 자막 -> CSV
-    python build_edit.py                      # 컷이 바뀌었을 때만
-    python apply_captions.py                  # 언어마다 하나씩
-
-폴더는 프로젝트에 딸린 값이다 (인스펙터 → 렌더링 → 폴더). 작업 폴더 기준
-상대 경로로 적는다 - `edit/고구마`. 작업 폴더 밖이거나 파이프라인 스크립트가
-없는 폴더는 서버가 거절한다.
-
-**영상은 컷이 바뀌었을 때만 굽는다.** 서버가 import 앞뒤로 `pieces_override.json`을
-견줘 보고, 같으면 자막이 없는 중간물 `edit_nocap.mkv`를 그대로 쓴다. 컷이 바뀌었으면
-`seg_durs.json`을 먼저 지운다 - 지난 렌더에서 잰 길이가 남아 있으면 timeline이 그
-값으로 완성본 시각을 계산해 자막이 통째로 밀린다.
-
-### 스타일은 프로젝트가 아니라 대시보드의 것이다
-
-스타일은 `dashboard/styles/` 폴더에 파일로 산다. 대시보드는 열릴 때 그 폴더를
-읽어 목록을 만들고, 프로젝트는 **어느 것을 골랐는지 이름만** 기억한다
-(`ai.styleSel`).
-
-전에는 스타일이 프로젝트 상태 안에 들어 있었다. 그래서 한 편에서 분석해 둔
-스타일이 다음 편집에서는 보이지 않았고, `styles/` 폴더에 파일이 넷 있는데
-화면에는 방금 등록한 하나만 떴다. 스타일의 쓰임새가 "다음 편집에 그대로 쓰는
-것"이라 이건 앞뒤가 안 맞는다.
-
-- `GET /api/styles` — `styles/*.json`을 읽어 내려준다
-- `POST /api/style/save` — 등록한 스타일을 `styles/<이름>.json`으로 저장한다.
-  이름이 같으면 덮어쓴다 (분석 결과 갱신)
-- `POST /api/style/delete` — 파일을 지운다. **모든 프로젝트에서 사라지므로**
-  한 번 묻는다
-- 옛 저장본에 프로젝트 안 스타일이 남아 있으면 처음 열 때 창고로 옮긴다.
-  옮길 대상은 "창고에서 온 적이 없는 것"(`file`이 없는 것)뿐이다 - 이름만
-  견주면 방금 지운 스타일이 헌 목록에 남아 있다가 곧바로 다시 올라가서
-  지우기가 없던 일이 된다 (실제로 그랬다)
-- 서버 없이 열면 등록한 스타일이 그 화면에만 남는다. 그때는 그렇다고 알린다
-
-### 자막 언어와 클로드
-
-자막이 무슨 말로 적혀 있는지는 글자판으로 가른다 (한글 · 가나 · 한자 · 로마자).
-사전도 모델도 필요 없다.
-
-- 한 언어가 자막의 **80% 이상**을 차지해야 "이 자막은 X다"라고 본다. 그만큼
-  모이지 않으면 어느 쪽이 원본인지 정할 수 없으므로 판단하지 않고 통째로 넘긴다
-- 고른 언어로 이미 적혀 있으면 **바로 굽는다**. 다른 말로 적힌 자막이 있으면
-  **그것만** 클로드에게 넘어간다 - 통째로 넘기면 모델이 멀쩡한 컷을 다시 잡는다
-- **이미 옮겨 둔 번역이 있으면 그대로 쓴다.** 파이프라인 폴더의
-  `<프로젝트>_<언어>_subtitles.csv`를 지금 자막과 견줘, 같으면 클로드를
-  부르지 않고 바로 굽는다. 컷이 바뀌면 자막 시각도 따라 바뀌므로 어긋나고,
-  그때는 다시 넘긴다 (`GET /api/translations`)
-- 견주는 것은 시각만이 아니라 **`src` 칸 - 무엇을 옮긴 것인지**다. 번역 CSV의
-  칸은 `start, end, speaker, text, src`이고 `src`에 옮기기 전의 원문이 그대로
-  적혀 있다. 시각만 견주면 컷은 그대로 두고 자막 글자만 고쳤을 때 이를 알아채지
-  못하고 낡은 번역이 그대로 구워진다. `src`가 없는 CSV는 맞는지 알 수 없는
-  것으로 보고 다시 넘긴다
-- **상단 캡션도 옮긴다.** 예전에는 `build_ass.TITLE` 상수라 영어판에도 한국어
-  제목이 그대로 남았다. 이제 자막 CSV에 화자 `제목`으로 들어가고, 다른 자막과
-  같은 길로 번역된다. 길어져 화면을 넘치면 크기를 줄여 그린다
-- **뜻이 아니라 느낌을 옮긴다.** 한 나라에서만 통하는 말은 같은 감정을 부르는
-  그 나라 말로 바꾼다. 스타일 JSON의 `localization`에 규칙과 사례가 있다
-  (고구마 → JUST SNEEZE)
-
-자막 18장이 전부 한국어이고 언어가 `ko, en`이면, ko는 바로 구워지고 en만
-`jobs/`로 넘어간다.
-
-**기준 언어**는 `apply_captions.py`가 굽는 말이다. 나머지 언어는
-`apply_captions_<언어>.py`를 쓴다 - 없으면 렌더가 시작되지 않고 그 이름을 알려 준다.
-
-### 프리셋에 구워진 이름표
-
-프리셋 배경 영상 아래쪽에 "담유이"가 구워져 있다. 영어판에 한국어 이름이 남으면
-자막만 바꾼 영상이 되므로, `rebuild_from_csv_en.py`가 그 자리를 검정으로 덮고
-`Damyui`를 같은 모양으로 다시 그린다 (흰 채움 #FDFDFD, 파란 외곽 #00A8FD).
-새 프리셋을 만드는 것보다 빠르고 원본 영상은 건드리지 않는다. 자리는
-완성본에서 재서 `PLATE_*` 상수에 적어 두었다.
-
-### 컷은 대시보드가 정한 자리를 쓴다
-
-`pieces_override.json`이 있으면 timeline이 파형에서 컷을 다시 잡지 않고 그 값을
-쓴다 - 눈으로 맞춘 자리를 파이프라인이 도로 옮기면 고친 의미가 없기 때문이다.
-파형 기준으로 되돌리려면 `pieces_override.json`을 지우면 된다.
-
-되돌리기는 클립과 트랙만 되돌린다. 재생헤드나 확대율까지 되돌리면 화면이 엉뚱한
-데로 튕겨서 오히려 헷갈린다. 프로젝트를 불러오거나 초기화하면 기록은 비워진다.
-
-## 미리보기가 완성본과 같아 보이게
-
-**완성본에 들어간 것은 전부 클립이다.** 배경 프리셋 영상, 소스 영상과 그 오디오, 자막, 상단
-캡션, 효과음 - 하나도 빼지 않고 각자의 트랙에 놓인다. 예전에는 배경과 상단 캡션이 "레이아웃
-설정"으로만 넘어와서 타임라인에 보이지도, 손댈 수도 없었다. **상단 캡션도 결국 자막이므로 자막
-클립이다** - 글자도 디자인도 다른 자막과 똑같이 고칠 수 있다.
-
-고구마(영도 쇼츠)의 트랙 구성:
-
-| 트랙 | 종류 | 들어 있는 것 |
-| --- | --- | --- |
-| 상단 캡션 | 자막 | "고구마" 한 장, 완성본 내내 |
-| 자막 | 자막 | 담유이의 반응 13장 |
-| 영상 | 영상 | 컷 2개. 화면 자리 = 0,678 1080x608 (가운데 띠) |
-| 배경 (프리셋) | 영상 | DamuiPreset.mov. 화면 전체, 소스 끝에서 처음으로 |
-| 오디오 | 오디오 | 소스 영상의 소리 |
-
-트랙 순서가 곧 앞뒤다. **위 트랙이 앞에 온다** (NLE와 같다). 영상 클립마다 **화면 자리**(frame)가
-붙는데, 완성본 캔버스(1080x1920) 기준 픽셀이고 인스펙터에서 고칠 수 있다. 렌더도 이 자리에 이
-크기로 올린다.
-
-**화자 이름은 화면에 그리지 않는다.** 화자는 어느 디자인을 쓸지 고르는 표식이지 완성본에 나오는
-글자가 아니다 - 담유이 자막에는 이름표가 없다. 이름도 같이 보여야 하는 편집(따옴표 자막 등)에서만
-인스펙터의 "화자 이름도 화면에 그리기"를 켠다.
-
-자막의 세로 위치는 완성본 프레임을 직접 재서 맞췄다. ASS는 글자를 기준선(위 정렬이면 위, 아래
-정렬이면 아래)에 놓고 미리보기는 한가운데에 놓으므로, 그 차이(글자 크기의 0.44배)를 빼지 않으면
-상단 캡션이 85px 위에 뜬다. 지금은 상단 캡션 16.3%, 자막 74.9%로 완성본과 같다.
-
-배경 프리셋이 안 보이던 이유는 서버가 페이지보다 늦게 붙기 때문이었다. 경로로만 있는 원본은
-서버가 읽어 주는데, 미리보기는 그 전에 한 번 그리고 다시 그리지 않았다. 이제 서버가 붙는 순간
-다시 그린다.
-
-## 폰트
-
-폰트 칸에는 **이 컴퓨터에 깔린 폰트가 전부** 나온다. 로컬 서버가 폰트 파일의 이름표를 직접 읽어
-목록을 만들고(`/api/fonts`), 대시보드가 그중 브라우저가 실제로 찾아내는 이름만 남긴다.
-
-이 두 단계가 필요한 이유가 있다. 렌더(libass)는 이름이 조금 달라도 알아서 찾아내지만 브라우저는
-못 찾고 **아무 말 없이 기본 폰트로 떨어진다.** 상단 캡션이 그랬다 - ASS는 `BM JUA OTF`인데
-브라우저가 아는 이름은 `BM JUA_OTF`라서, 미리보기만 맑은 고딕으로 나오고 있었다.
-
-크기도 그냥 옮기면 안 된다. **libass는 글자 크기를 em이 아니라 폰트 높이(winAscent+winDescent)로
-받고, CSS는 em으로 받는다.** 같은 130을 줘도 쿠키런은 미리보기가 1.36배, 주아는 1.10배 크게
-나온다. 그래서 폰트마다 `upem / (winAscent + winDescent)`를 읽어 곱한다. 완성본 프레임과 재 보면
-상단 캡션 잉크 폭 420 대 423, 자막 668 대 668로 맞는다.
-
-## 클립 옮기기 · 확대 · 크롭
-
-숫자만으로 자리를 맞추는 건 고문이라 **미리보기에서 직접 잡는다.** 클립을 고르면 상자가 씌워진다.
-
-- **끌기** — 자리를 옮긴다 (영상은 화면 자리, 자막은 가로 · 세로 위치)
-- **모서리 끌기** — 크기를 바꾼다. `Shift`를 누르면 비율을 지킨다
-- **Alt + 끌기** (영상) — 자리는 그대로 두고 **크롭만** 민다. 소스에서 보이는 창을 옮기는 것이다
-- 무대를 누르면 그 자리의 클립이 골라진다 (위 트랙부터 본다)
-
-인스펙터에도 같은 값이 숫자로 있다.
-
-| 항목 | 뜻 |
-| --- | --- |
-| 화면 자리 (왼쪽 · 위 · 너비 · 높이) | 완성본 캔버스 기준 픽셀. 렌더도 이 자리에 이 크기로 올린다 |
-| 확대 (90 · 100 · 110 · 125%) | 자리의 가운데를 붙잡고 키우거나 줄인다 |
-| 크롭 (왼쪽 · 위 · 오른쪽 · 아래 %) | 소스에서 잘라 쓸 부분. 자른 부분이 화면 자리를 꽉 채운다 |
-| 자막 가로 · 세로 위치 | % (가운데가 50) |
-
-**렌더에 반영된다.** `import_project.py`가 화면 자리와 크롭을 `layout_override.json`에 적고,
-`build_edit.py`가 그 값으로 굽는다 (크롭은 ffmpeg `crop=`, 자리는 `overlay=x:y` + `scale`).
-자막 디자인(크기 · 아래 여백)이 바뀐 경우는 `build_ass.py`의 상수라서 CSV로 옮길 수 없다 -
-`import_project.py`가 무엇을 어떻게 고쳐야 하는지 화면에 적어 준다.
-
-## 인스펙터 - 클립 / 전체 자막
-
-인스펙터 머리에 탭이 둘 있다.
-
-- **클립** - 고른 클립 하나를 고친다. 영상이면 불투명도 · 볼륨 · 되돌려 재생 · 화면 자리 ·
-  확대 · 크롭, 자막이면 화자 · 내용 · 폰트 · 크기 · 색 · 외곽선 · 외곽 두께 · 그림자 거리 ·
-  가로 · 세로 위치 · 정렬. **크기 · 두께 · 거리는 완성본 캔버스 기준**이라 ASS의 숫자를
-  그대로 적으면 된다.
-- **전체 자막** - 편집에 있는 자막을 시간순으로 늘어놓고 그 자리에서 고친다. 화자와 내용이
-  각각 칸이고, 지금 재생헤드에 떠 있는 자막은 **타임라인의 자막 클립과 같은 보라색**으로
-  표시된다. 줄을 누르면 그 자막으로 이동하고, Enter를 누르면 다음 줄로 넘어간다.
-
-자막을 하나씩 골라 가며 고치면 앞뒤 흐름이 안 보인다. 같은 말이 두 번 들어갔는지, 말이
-겹치는지, 화자가 섞였는지는 나란히 놓고 봐야 보인다. CSV 열기 · CSV 저장 버튼은 없앴다 -
-자막은 여기서 고치고, 렌더 작업이 자막을 통째로 실어 나른다.
+Ctrl+S saves. Any change marks the project dirty and autosaves after 20 s of quiet.
+On page load `app.js` (`freshenFromDisk`) compares the folder's `savedAt` with the browser's copy. If the
+folder is newer (Claude exported a new edit), the project is read from disk. If they are equal, `diskAt` is still set. Skipping that
+made every later save think the folder was newer, so autosave silently stopped after a page reload.
+
+**`save_project` merges `review` key by key.** Pipeline output (`kept`, `transcript`, `captions`,
+`video`, `scene`, `clips`) is owned by the files: a stale tab would otherwise roll the project back.
+Only user keys are taken from the browser:
+
+`prompt notes drop restore ripple restoreCaps userClips srcFolders userLayers userGroups userCaps capTracks srcFiles`
+
+plus per-word drop / restore flags and caption edits (matched by original text and speaker, not by start
+time - matching by time let one label edit overwrite a neighbouring caption).
+**A new review key must be added to that list,** then checked in `project.json` after a save.
+
+## Review data (user edit tab)
+
+| Key | Shape | Meaning |
+|---|---|---|
+| `userClips` | `[{s, e, at, vol, color, tin, tf, g, vhide, ahide, fx}]` | V1 / A1 clips: source range placed at timeline time `at` |
+| `userLayers` | `[{id, kind, path, track, at, s, e, box, opacity, vol, fin, fout, color, keys, ease, tin, crop, w0, h0, link}]` | V2.. / A2.. clips |
+| `userGroups` | `{g: name}` | clip groups |
+| `userCaps` | `[{id, at, d, text, speaker, kind, tf}]` | captions added in the tab (output time) |
+| `capTracks` | `{caption text or 'uc'+id: track}` | caption track on the video side |
+| `srcFolders` · `srcFiles` | paths | source pane folders and imported files |
+| `source` · `srcSize` | path, `{w, h}` | original video (written by `export_shortsmith.py`) |
+
+`project.render.opts` holds render settings (`codec soft q size fps abr lufs`). `project.ai.aspect` is the
+aspect picked in style apply.
+
+Timeline rules worth knowing before editing `useredit.js`:
+
+- **Ripple** shifts only what follows the edit and keeps every other gap (`gapsOf` / `pack(G)`).
+  Layers and `userCaps` move with it (`shiftRest`). Undo stores the state from before the drag.
+- Moving a V1 clip up turns it into a source layer (`toLayer`). With link on, V1 and A1 keep a gap.
+  With link off, only the picture moves (`vhide`). The reverse is `toMain`. `toAudio` moves only the
+  sound (`ahide`).
+- While dragging, `draw()` skips the inspector and the words pane; the ruler and waveforms are reused,
+  and mouse moves are coalesced to one per frame (`onMoveQ`).
+
+## Preview and render must agree
+
+- **Unbaked preview:** `feedback.js planScene()` builds the plan from `userClips` (or word drop / restore)
+  and plays the source copy (`src_preview.mp4`). `tools/apply_review.py` computes the same keep ranges
+  and caption times. Change one, change the other.
+- Captions keep their source anchor. Source layers (a V1 clip moved up) count as kept ranges for
+  captions only (`PC` in both files).
+- Window effects live in `shortsmith/lib/render.mjs` and `src/parts/Window.tsx`. Transitions are listed
+  once in `shortsmith/lib/trans.mjs`. Colour maths is `shortsmith/lib/color.mjs`.
+
+## Render button
+
+`/api/render` on a shortsmith episode (`edit.json`) runs, with no AI:
+
+1. `tools/apply_review.py <episode> <project.json>` - dashboard cuts, captions, effects, layers and
+   render options into the episode folder (`.bak` copies kept)
+2. `shortsmith cuts` if `edit.json` changed, then `shortsmith build`
+3. `tools/export_shortsmith.py <episode> <id> --keep-feedback` - write the result back to the project
+
+Episodes that predate shortsmith still go through the legacy steps (`import_project.py`,
+`build_edit.py`, `apply_captions*.py`) in `render_job`.
+
+## AI jobs
+
+The AI edit tab writes `jobs/<time>_스타일적용.json` and `.md` (or `_재편집`). The job carries the
+instruction text, notes (with source time and position), subtitle languages, aspect, assets and the AI
+policy. Notes drawn before the first edit are on the dropped source file, so their time is source time.
+
+## Fonts
+
+`/api/fonts` reads font name tables. The page keeps only names the browser resolves, because a wrong
+name silently falls back to a default font in the browser while libass still finds it. Sizes are scaled
+by `upem / (winAscent + winDescent)` per font, since libass sizes by font height and CSS by em.

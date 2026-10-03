@@ -1,149 +1,159 @@
-# 담유이(HONEYZ) 편집 스타일 가이드
+# 담유이 (HONEYZ) editing style notes
 
-이 문서는 기존 DaVinci Resolve 프로젝트(Damyui-n*, Damui-*, Damui-ss* 등)와
-`Setting.txt`를 분석해 정리한 **이 채널 전용** 편집 스타일 기록입니다.
+A record of **this channel's** editing style, worked out from the existing DaVinci Resolve projects (Damyui-n*, Damui-*,
+Damui-ss* etc.) and `Setting.txt`.
 
-> Resolve/ffmpeg 자동화 방법론, API 한계, Whisper 파이프라인 같은 **범용 기술 지식**은
-> [resolve-ffmpeg-automation-notes.md](resolve-ffmpeg-automation-notes.md)에 분리되어 있습니다.
+> General technical knowledge - Resolve / ffmpeg automation, API limits, the Whisper pipeline - is kept separately in
+> [resolve-ffmpeg-automation-notes.md](resolve-ffmpeg-automation-notes.md).
+> Current episodes use shortsmith presets (`presets/`); this file is the Resolve-era reference they were measured against.
 
-## 1. 캔버스 / 포맷
+## 1. Canvas and format
 
-| 구분 | 값 |
+| Item | Value |
 |---|---|
-| 숏폼(Shorts) 해상도 | **1080x1920 (세로)** |
-| 프레임레이트 | **60fps** |
-| 롱폼(Longform) 참고 프로젝트 해상도 | 1920x1080 (가로) — VOD 하이라이트 편집본 계열, 숏폼과는 다른 트랙 |
+| Shorts resolution | **1080x1920 (portrait)** |
+| Frame rate | **60 fps** |
+| Longform reference resolution | 1920x1080 (landscape) - VOD highlight edits, a separate track from shorts |
 
-> 과거 `Damyui-n*` 계열 프로젝트 다수는 1920x1080으로 남아있지만, 이는 롱폼/다른 용도이며
-> **숏폼은 1080x1920 + `DamuiPreset.mov` 프리셋 기반**이 맞는 구성이다.
+> Many older `Damyui-n*` projects are 1920x1080, but those are longform or other uses.
+> **Shorts are 1080x1920 based on the `DamuiPreset.mov` preset.**
 
-## 2. 숏폼 트랙 구조
+## 2. Shorts track layout
 
 ```
-V3  (최상단) 자막 / 캡션 (Text+ 템플릿, 화자별 스타일 — 3번 항목 참고)
-V2          본편 영상 (프리셋 영상창에 맞춰 스케일)
-V1  (최하단) DamuiPreset.mov 배경 프레임 + 뒤이어 아웃트로
+V3  (top)     captions (Text+ templates, a style per speaker - see section 3)
+V2            main video (scaled to the preset's video window)
+V1  (bottom)  DamuiPreset.mov background frame, followed by the outro
 ```
 
-- **V1 배경 프리셋**: `E:\Edit\DamUICLIP\EditVId\DamuiPreset\DamuiPreset.mov`
-  - 원본은 세로 1080x1920, 24fps, 약 200초 길이의 루프용 소스
-  - **주의**: 시작 부분 0~2초(24fps 기준 0~48프레임)에 "제목" 플레이스홀더 타이틀 애니메이션이 나왔다가 사라짐
-    → **항상 in점을 2초(48프레임) 이후로 잡고 잘라서 사용** (그래야 빈 placeholder 텍스트가 노출되지 않음)
-  - 프레임 안에 상단 제목 영역, 중앙 투명/흰색 "영상창", 하단 `HONEYZ` 로고 + `담유이` 워터마크가 이미 디자인되어 있음
-- **V2 본편**: 프리셋의 중앙 영상창 크기에 맞춰 자동 스케일(가로 기준 fit) → 원본이 16:9면 상하로 프리셋 배경이 비쳐 보임
-- **아웃트로**: 본편이 끝나는 지점에 바로 이어붙임 (V1과 동일 트랙)
-  - 최신 버전: `E:\Edit\DamUICLIP\EditVId\DamuiPreset\DamuiEOVPreset3.mov` (1920x1080, 60fps, 약 7.47초)
-  - 구버전 `DamuiEOVPreset.mov`, `DamuiEOVPreset2.mov`도 존재 (전부 1920x1080/60fps)
+- **V1 background preset:** `E:\Edit\DamUICLIP\EditVId\DamuiPreset\DamuiPreset.mov`
+  - Source is portrait 1080x1920, 24 fps, about 200 s, meant for looping.
+  - **Caution:** a "제목" placeholder title animates in and out during the first 0-2 s (frames 0-48 at 24 fps)
+    -> **always set the in point after 2 s (48 frames)** so the empty placeholder text is never shown.
+  - The frame already contains the top title area, the transparent / white "video window" in the middle, and the
+    `HONEYZ` logo + `담유이` watermark at the bottom.
+- **V2 main video:** auto-scaled to the preset's centre window (fit to width) -> a 16:9 source leaves the preset
+  background visible above and below.
+- **Outro:** appended right where the main video ends (same track as V1).
+  - Latest: `E:\Edit\DamUICLIP\EditVId\DamuiPreset\DamuiEOVPreset3.mov` (1920x1080, 60 fps, about 7.47 s)
+  - Older `DamuiEOVPreset.mov` and `DamuiEOVPreset2.mov` also exist (all 1920x1080 / 60 fps).
 
-## 3. 자막 / 타이틀 템플릿 (Text+ 스타일 시트)
+## 3. Caption and title templates (Text+ style sheet)
 
-출처: `Setting.txt` (Fusion Text+ 템플릿 카테고리 기반, `cc`=카테고리, `size`=정규화 크기, `px/py`=정규화 위치)
+Source: `Setting.txt` (based on Fusion Text+ template categories; `cc` = category, `size` = normalised size,
+`px/py` = normalised position).
 
-### Shorts (숏폼 기준값)
+### Shorts (reference values)
 
-| 화자/용도 | 카테고리(cc) | size | px, py | 비고 |
+| Speaker / use | Category (cc) | size | px, py | Notes |
 |---|---|---|---|---|
-| 담유이 (기본 자막) | 여행&브이로그06 | 0.171 | 0.5, 0.25 | |
-| 강조 | 펫&키즈06 | 0.14 | 0.5, 0.25 | Text-Color `#aaffff` |
+| 담유이 (default caption) | 여행&브이로그06 | 0.171 | 0.5, 0.25 | |
+| Emphasis | 펫&키즈06 | 0.14 | 0.5, 0.25 | Text-Color `#aaffff` |
 | 허츄 | 여행&브이로그07 | 0.171 | 0.5, 0.25 | Shading-Color `#ff55ff` |
 | 망내 | 게임&오락02 | 0.135 | 0.5, 0.25 | |
-| 로즈 | 패션&뷰티12 | 0.18 | 0.5, 0.25 | 폰트 `luxury`(segoe UI Symbol) |
+| 로즈 | 패션&뷰티12 | 0.18 | 0.5, 0.25 | font `luxury` (Segoe UI Symbol) |
 | 4포 | 게임&오락02 | 0.14 | 0.5, 0.25 | Shading-Color `#3d71ff` |
-| 상단 타이틀 | 패션&뷰티04 | 0.204 | 0.5, 0.9 | |
-| 하단 로고 | honeyz로고 | scale 1,1 | px=0, py=-768 | |
-| 하단 채널명 | 담유이 - 슈돌20종 배민도현체 | 0.128 | 0.5, 0.75 | |
+| Top title | 패션&뷰티04 | 0.204 | 0.5, 0.9 | |
+| Bottom logo | honeyz로고 | scale 1,1 | px=0, py=-768 | |
+| Bottom channel name | 담유이 - 슈돌20종 배민도현체 | 0.128 | 0.5, 0.75 | |
 
-### Longform (참고 — 롱폼용 별도 값)
+### Longform (reference - separate values)
 
-전반적으로 숏폼보다 자막 크기가 작고(y=0.13 부근 고정) 인물별 세부 스타일이 더 많음.
-가우시안 블러 OpenFX를 인트로에 사용. 상세 값은 `Setting.txt` 원본 참고.
+Captions are generally smaller than in shorts (fixed around y=0.13) with more per-person styles.
+A Gaussian Blur OpenFX is used on the intro. See the original `Setting.txt` for details.
 
-### NOGARI / Thumbnail
+### NOGARI / thumbnail
 
-- NOGARI: 화자 이름 텍스트 각각 다른 색상 (담유이 `#55ffff`/`#4172bc`, 망내 `#7b84a1`, 모네 `#ffaaff`/`#c66dd0`), 폰트 `배민 주아`, size 0.045
-- 썸네일 폰트: `Jua`
+- NOGARI: each speaker name in its own colour (담유이 `#55ffff`/`#4172bc`, 망내 `#7b84a1`, 모네 `#ffaaff`/`#c66dd0`),
+  font `배민 주아`, size 0.045
+- Thumbnail font: `Jua`
 
-### 3.1 실제 폰트 파일 매핑
+### 3.1 Font file mapping
 
-`Setting.txt`에 적힌 폰트 표기 → 실제 파일 → ASS `Fontname`에 넣어야 하는 **내부 등록명**(파일명과 다를 수 있음).
-전부 `C:\Users\12612\AppData\Local\Microsoft\Windows\Fonts\`에 사용자 단위로 설치되어 있고, ffmpeg에서
-별도 설정 없이 정상 인식/렌더링됨을 확인함 (확인 방법은 범용 노트 참고).
+Font names in `Setting.txt` -> actual file -> **internal registered name** for ASS `Fontname` (may differ from the
+file name). All are installed per user in `C:\Users\12612\AppData\Local\Microsoft\Windows\Fonts\`; ffmpeg finds and
+renders them with no extra setup (how this was checked is in the general notes).
 
-| Setting.txt 표기 | 실제 파일 | ASS `Fontname` |
+| Setting.txt name | File | ASS `Fontname` |
 |---|---|---|
 | 배민 주아 | `BMJUA_otf.otf` / `BMJUA_ttf.ttf` | `BM JUA OTF` |
 | 배민 도현체 | `BMDOHYEON_ttf.ttf` | `BM DoHyeon` |
 | 777별나라달님 | `777Starlandmoon.TTF` | `777Starlandmoon` |
 | CookieRunOTF | `CookieRunOTF Black.OTF` / `Bold.OTF` | `CookieRunOTF Black` / `CookieRunOTF Bold` |
-| Yu Gothic UI | 시스템 폰트 | `Yu Gothic UI` |
-| segoe UI Symbol (로즈 luxury용) | 시스템 폰트 (`seguisym.ttf`) | `Segoe UI Symbol` |
-| Jua (썸네일) | 별도 파일 없음 → `BM JUA OTF`로 대체(사실상 동일 폰트) | `BM JUA OTF` |
+| Yu Gothic UI | system font | `Yu Gothic UI` |
+| Segoe UI Symbol (for 로즈 luxury) | system font (`seguisym.ttf`) | `Segoe UI Symbol` |
+| Jua (thumbnail) | no separate file -> use `BM JUA OTF` (effectively the same font) | `BM JUA OTF` |
 
-> **슈돌20종은 폰트가 아님.** 시스템 전체(C:, E: 드라이브 포함) 어디에도 해당 이름의 폰트 파일이 없음 →
-> "여행&브이로그", "패션&뷰티"처럼 **Resolve Text+ 템플릿 팩의 카테고리명**으로 추정됨.
+> **슈돌20종 is not a font.** No font file of that name exists anywhere on the system (C: and E: included) -> most
+> likely a **Resolve Text+ template pack category name**, like "여행&브이로그" or "패션&뷰티" (guess).
 
-### 3.2 Text+ 템플릿 실측값 (정적 레이어드 스타일, 애니메이션 없음)
+### 3.2 Measured Text+ template values (static layered styles, no animation)
 
-각 템플릿을 Fusion에서 직접 export해서 뽑은 실측값. 전부 키프레임 없는 정적 `TextPlus` 노드로 확인됨
-(추출 방법은 범용 노트의 "Fusion Text+ 템플릿 분석 기법" 참고). TextPlus는 Element1(채우기)~Element5까지
-레이어를 쌓으며, **숫자가 클수록 뒤쪽(바깥쪽) 레이어**다. 색상은 0~1 float → 0~255 hex로 환산 (ASS에 넣을 땐 BGR로 뒤집을 것).
+Values measured by exporting each template from Fusion. All are static `TextPlus` nodes without keyframes (extraction
+method: "Analysing Fusion Text+ templates" in the general notes). TextPlus stacks layers Element1 (fill) to Element5;
+**a higher number is a layer further back (outside)**. Colours converted from 0-1 floats to 0-255 hex (reverse to BGR
+for ASS).
 
-| cc(카테고리) | TEMPLATE_ID (실제 팩 경로) | 기본 폰트 | 레이어 구성 (뒤→앞) |
+| cc (category) | TEMPLATE_ID (pack path) | Default font | Layers (back -> front) |
 |---|---|---|---|
-| 여행&브이로그06 | `Edit/Titles/09. 여행&브이로그 11종/...06` | CookieRunOTF Bold | E3 글로우 `#05EBFD`(시안, thickness0.041, offset 우하단) → E2 외곽선 `#00131A`(진네이비, 0.0315) → 흰 글자 |
-| 여행&브이로그07 | `Edit/Titles/09. 여행&브이로그 11종/...07` | CookieRunOTF Bold | E3 글로우 `#FD6405`(오렌지, 0.041) → E2 외곽선 `#220E01`(진갈색, 0.031) → 흰 글자 *(담유이 프로젝트에서 Shading `#ff55ff`로 덮어씀)* |
-| 펫&키즈06 | `Edit/Titles/11. 펫&키즈 11종/...06` | BM JUA_TTF Regular | E4 소프트그림자 회색 `#555555`(thickness0.1, 매우 부드러움) → E3/E2 파란 외곽선 `#00AAFF` → 노란 글자(B=0) |
-| 게임&오락02 | `Edit/Titles/10. 게임&오락 12종/...02` | Maplestory Bold | E4 그림자 남색 `#222F6C`(0.054, offset 우하단) → E3 큰 소프트외곽선(색 기본값) → E2 시안 외곽선 `#00FFFF` → 검정 글자 |
-| 패션&뷰티12 | `Edit/Titles/06. 패션&뷰티 17종/...12` | tvN Enjoystories Bold | E4 새빨강 초대형 소프트글로우(블러 20,20) → E3 핑크 `#FF7EC1`(0.024) → E2 모브 `#A46DA4` |
-| 패션&뷰티04 | `Edit/Titles/06. 패션&뷰티 17종/...04` | BM JUA_TTF Regular | E4 올리브 그림자 45% 투명(0.058, offset) → E3 파랑 `#5096FF` 60% 투명(0.031) → E2 외곽선(R=0만 지정) |
-| 패션&뷰티13 | `Edit/Titles/06. 패션&뷰티 17종/...13` | **BM DoHyeon** Regular | E3 마젠타 `#FF55FF`(글자색과 동일 계열) → E2 다크그레이 외곽선 `#222222`(0.043) → 하늘색 글자 `#00B8FC` |
-| Memo_002 | `Edit/Titles/01. Memo Titles 30종/Memo_002` | Gong Gothic Light | 사각형(ElementShape 2/3) 레이어로 "메모지 박스" 구성: E5 다크`#191919`(외곽 박스) → E4 라임 `#CCFF66`(포인트 박스) → E3 사각형(기본색) → E2 시안 사각형 `#00FFFF` → 거의 검정 글자 `#191919` |
+| 여행&브이로그06 | `Edit/Titles/09. 여행&브이로그 11종/...06` | CookieRunOTF Bold | E3 glow `#05EBFD` (cyan, thickness 0.041, offset to bottom right) -> E2 outline `#00131A` (dark navy, 0.0315) -> white text |
+| 여행&브이로그07 | `Edit/Titles/09. 여행&브이로그 11종/...07` | CookieRunOTF Bold | E3 glow `#FD6405` (orange, 0.041) -> E2 outline `#220E01` (dark brown, 0.031) -> white text *(overridden with Shading `#ff55ff` in Damyui projects)* |
+| 펫&키즈06 | `Edit/Titles/11. 펫&키즈 11종/...06` | BM JUA_TTF Regular | E4 soft grey shadow `#555555` (thickness 0.1, very soft) -> E3/E2 blue outline `#00AAFF` -> yellow text (B=0) |
+| 게임&오락02 | `Edit/Titles/10. 게임&오락 12종/...02` | Maplestory Bold | E4 navy shadow `#222F6C` (0.054, offset bottom right) -> E3 large soft outline (default colour) -> E2 cyan outline `#00FFFF` -> black text |
+| 패션&뷰티12 | `Edit/Titles/06. 패션&뷰티 17종/...12` | tvN Enjoystories Bold | E4 bright red huge soft glow (blur 20,20) -> E3 pink `#FF7EC1` (0.024) -> E2 mauve `#A46DA4` |
+| 패션&뷰티04 | `Edit/Titles/06. 패션&뷰티 17종/...04` | BM JUA_TTF Regular | E4 olive shadow 45% transparent (0.058, offset) -> E3 blue `#5096FF` 60% transparent (0.031) -> E2 outline (only R=0 set) |
+| 패션&뷰티13 | `Edit/Titles/06. 패션&뷰티 17종/...13` | **BM DoHyeon** Regular | E3 magenta `#FF55FF` (same family as the text) -> E2 dark grey outline `#222222` (0.043) -> sky blue text `#00B8FC` |
+| Memo_002 | `Edit/Titles/01. Memo Titles 30종/Memo_002` | Gong Gothic Light | a "memo box" built from rectangle layers (ElementShape 2/3): E5 dark `#191919` (outer box) -> E4 lime `#CCFF66` (accent box) -> E3 rectangle (default colour) -> E2 cyan rectangle `#00FFFF` -> near-black text `#191919` |
 
-> **Memo_002는 단순 아웃라인이 아니라 사각형(박스) 레이어 조합**이라, ASS의 `BorderStyle=3`(불투명 박스)만으로는
-> 다중 레이어 박스를 못 살림 — 정확히 재현하려면 `\p` 벡터 드로잉으로 사각형을 직접 그려야 함.
-> 나머지(외곽선+글로우형)는 ASS `Outline`+`Shadow`+색상만으로 거의 그대로 재현 가능.
+> **Memo_002 is a combination of rectangle (box) layers, not a simple outline**, so ASS `BorderStyle=3` (opaque box)
+> alone cannot reproduce the multi-layer box - an exact copy needs rectangles drawn with `\p` vector drawing.
+> The rest (outline + glow types) can be reproduced almost exactly with ASS `Outline` + `Shadow` + colours.
 
-**찾았지만 이름 매칭 실패한 것**: `뭉쳐야쏜다2 MC_Point`(롱폼용, 여러 이름 조합 시도했지만 실패 — 우선순위 낮아 보류),
-`슈돌20종`(개별 아이템 이름을 몰라서 실패 — 어차피 Setting.txt에 실제 사용값(폰트=배민도현체 등)이 다 있어서 베이스 프리셋 없이도 직접 스타일 구성 가능).
-`honeyz로고`는 Text+ 템플릿이 아니라 `E:\Edit\DamUICLIP\Honeyz.png` 이미지 파일임(확인 완료).
+**Found but not matched by name:** `뭉쳐야쏜다2 MC_Point` (longform; several name combinations failed - postponed, low
+priority) and `슈돌20종` (item names unknown - but Setting.txt already has the values actually used (font = 배민도현체
+etc.), so the style can be built without a base preset).
+`honeyz로고` is not a Text+ template but the image file `E:\Edit\DamUICLIP\Honeyz.png` (verified).
 
-### 3.3 완성된 ASS 스타일시트
+### 3.3 Finished ASS style sheet
 
-위 실측값 + `Setting.txt` 오버라이드(크기/위치/색상)를 반영한 실제 사용 가능한 스타일시트가
-[damyui_caption_styles.ass](damyui_caption_styles.ass)로 완성되어 ffmpeg 렌더 검증까지 마쳤음
-(환산 공식·조정 내역은 범용 노트 참고). 요약:
+A usable style sheet with the measured values above plus the `Setting.txt` overrides (size, position, colour) is in
+[damyui_caption_styles.ass](damyui_caption_styles.ass), verified with an ffmpeg render (conversion formulas and
+adjustments in the general notes). Summary:
 
-- `TopTitle`(상단 타이틀)은 이론값(`MarginV=1728`)대로 두면 화면 위로 넘쳐서 `1250`으로 시각 보정함.
-- 이 채널 자막은 원래 **1~4음절 정도의 짧은 문구**용으로 설계된 큰 폰트 — 긴 문장을 넣으면 줄바꿈/화면 이탈 발생.
-- 채널명(`ChannelName`)은 대응 템플릿(슈돌20종)을 못 찾아서 Setting.txt 폰트(배민도현체)만으로 기본 아웃라인 스타일을 새로 구성함.
-- "즉시 완벽"이 아니라 **실측 기반의 검증된 v1 초안**으로 취급할 것 — 실제 대사 길이에 따라 미세 조정 필요.
+- `TopTitle` overflowed the top of the frame at the theoretical value (`MarginV=1728`), so it was corrected by eye to `1250`.
+- This channel's captions are large fonts designed for **short phrases of about 1-4 syllables** - long sentences wrap
+  or leave the frame.
+- No template was found for the channel name (`ChannelName`, 슈돌20종), so a basic outline style was built from the
+  Setting.txt font (배민도현체) alone.
+- Treat it as a **measured and verified v1 draft**, not as final - fine-tune to real line lengths.
 
-## 4. 소스/자산 경로 규칙
+## 4. Source and asset paths
 
-| 용도 | 경로 |
+| Use | Path |
 |---|---|
-| 치지직 클립 원본 | `E:\Edit\DamUICLIP\chzzk-clips\` |
-| OBS 녹화본 | `E:\Edit\OBS\<시리즈명>\` (예: 야낭0~8.mp4) |
-| 프리셋/브랜딩 소스 | `E:\Edit\DamUICLIP\EditVId\DamuiPreset\` |
-| 배경 이미지 | `E:\Edit\DamUICLIP\EditVId\LongBG.jpg`, `노가리BG.png` |
+| Chzzk clip sources | `E:\Edit\DamUICLIP\chzzk-clips\` |
+| OBS recordings | `E:\Edit\OBS\<series>\` (e.g. 야낭0-8.mp4) |
+| Preset / branding sources | `E:\Edit\DamUICLIP\EditVId\DamuiPreset\` |
+| Background images | `E:\Edit\DamUICLIP\EditVId\LongBG.jpg`, `노가리BG.png` |
 
-## 5. DaVinci Resolve 프로젝트 명명 규칙
+## 5. DaVinci Resolve project naming
 
-- `Damyui-n###` : 순번 기반 메인 편집 프로젝트 (숫자가 클수록 최신)
-- `Damui-ss#` : 캡션/타이틀 템플릿 테스트·프리뷰용 (실제 결과물 아님, 초단편)
-- `Damyui-p0` : 날짜(YYMMDD) 파일명 기반 클립 모음 프로젝트
+- `Damyui-n###`: main edit projects numbered in sequence (higher = newer)
+- `Damui-ss#`: caption / title template tests and previews (not real output, very short)
+- `Damyui-p0`: clip collection project with date (YYMMDD) file names
 
-## 6. 화자별 STT 고유명사 힌트
+## 6. Proper-noun hints for speech recognition
 
-Whisper `initial_prompt`와 후처리 사전에 넣을 이 채널 고유명사 목록 (자세한 사용법은 범용 노트 참고):
+This channel's proper nouns for the Whisper `initial_prompt` and the post-processing dictionary (usage in the general
+notes):
 
 ```
 담유이, 허츄, 망내, 4포, 로즈, 담팬무, HONEYZ, 치지직
 ```
 
-관측된 오인식 → 교정:
+Observed misrecognitions -> corrections:
 
-| 오인식 | 정답 |
+| Misheard | Correct |
 |---|---|
 | 아펨무 / 아킨부 / 담백무 | 담팬무 |
 | 네로남부 | 내로남불 |
