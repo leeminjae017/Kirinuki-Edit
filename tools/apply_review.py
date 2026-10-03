@@ -22,7 +22,8 @@ os.chdir(work)
 E = json.load(io.open("edit.json", encoding="utf-8"))
 caps = R.get("captions") or []
 # 자막이 없는 편 (댄스 등) 도 사용자 편집 탭의 컷은 굽는다 - 자막 파일은 그때 안 건드린다
-if not caps and not (R.get("userClips") or []) and not R.get("userLayers"):
+UCAPS = [o for o in (R.get("userCaps") or []) if (o.get("text") or "").strip()]     # 자막 추가 (출력 시각, 2026-10-03)
+if not caps and not (R.get("userClips") or []) and not R.get("userLayers") and not UCAPS:
     sys.exit("피드백 탭에 자막이 없습니다")
 clock, speed = E.get("captionClock", "output"), float(E.get("speed") or 1)
 if clock == "source":
@@ -170,7 +171,7 @@ if CUT:
     # 클립 소리 크기 (사용자 편집 인스펙터 '소리', dB, 2026-10-02) - 그 클립에서 나온 조각의 gainDb 에 더한다
     # 색 (color) 은 그 클립의 모든 조각에, 전환 (tin: 앞 클립에서 넘어오는 것) 은 그 클립의 첫 조각에 (2026-10-02)
     # 변형 (tf: 이동 · 확대 · 회전) 은 색처럼 그 클립의 모든 조각에 (2026-10-03)
-    UVOL = [(c["at"], c["at"] + c["e"] - c["s"], float(c.get("vol") or 0), c.get("color"), c.get("tin"), c.get("tf"), c.get("vhide")) for c in UC] if UC else []
+    UVOL = [(c["at"], c["at"] + c["e"] - c["s"], float(c.get("vol") or 0), c.get("color"), c.get("tin"), c.get("tf"), c.get("vhide"), c.get("ahide")) for c in UC] if UC else []
     for a, b, at in sorted(P, key=lambda r: r[2]):
         a0, at0 = a, at
         if at > cur + 0.01:
@@ -200,6 +201,8 @@ if CUT:
                 ent["tf"] = tf
             if (u[6] if u else (inside or {}).get("vhide")):     # 화면을 V2.. 로 옮기고 소리만 남긴 클립 (2026-10-03)
                 ent["vhide"] = True
+            if (u[7] if u else (inside or {}).get("ahide")):     # 소리는 아래 트랙으로 - 이 조각 소리 0
+                ent["ahide"] = True
             tin = (u[4] if u else (inside or {}).get("tin")) if abs(x - a) < 1e-3 else None
             if tin and tin.get("d"):
                 ent["tin"] = tin
@@ -220,9 +223,12 @@ def hms(t):
 
 
 out = E.get("captions", "captions.csv")
-if caps and os.path.exists(out):
+if UCAPS and not E.get("captions"):                      # 자막 없던 편에 자막을 더했다
+    E1 = json.load(io.open("edit.json", encoding="utf-8")); E1["captions"] = out
+    io.open("edit.json", "w", encoding="utf-8").write(json.dumps(E1, ensure_ascii=False, indent=1) + chr(10))
+if (caps or UCAPS) and os.path.exists(out):
     shutil.copyfile(out, out + ".bak")
-with io.open(out if caps else os.devnull, "w", encoding="utf-8-sig", newline="") as f:
+with io.open(out if (caps or UCAPS) else os.devnull, "w", encoding="utf-8-sig", newline="") as f:
     w = csv.writer(f)
     # kind 칸(자막 디자인 이름)도 같이 쓴다 - 안 쓰면 렌더 단추 한 번에 모든 줄이 기본 자막이 된다
     # tf: 자막 변형 "x y z r" (사용자 편집 탭, 2026-10-03) - shortsmith scene.mjs 가 읽는다
@@ -263,6 +269,10 @@ with io.open(out if caps else os.devnull, "w", encoding="utf-8-sig", newline="")
             if (o.get("text") or "").strip() and o.get("src"):
                 rows.append((planned(o["src"][0]), planned(o["src"][1]), o.get("speaker") or "담유이", o.get("kind") or "",
                              o["text"].strip(), ""))
+    for o in UCAPS:
+        tf = o.get("tf") or {}
+        tfs = " ".join("%g" % float(tf.get(k, d)) for k, d in (("x", 0), ("y", 0), ("z", 1), ("r", 0))) if tf else ""
+        rows.append((float(o["at"]), float(o["at"]) + float(o.get("d") or 2), o.get("speaker") or "", o.get("kind") or "", o["text"].strip(), tfs))
     for r in sorted(rows, key=lambda r: (r[2] not in ("제목", "title"), r[0])):
         w.writerow([hms(r[0]), hms(r[1]), r[2], r[3], r[4], r[5]])
 
@@ -339,7 +349,7 @@ import hashlib
 def user_sig(rv):
     w = [[x.get("s"), bool(x.get("restore")), bool(x.get("drop"))] for sg in (rv.get("transcript") or []) for x in (sg.get("words") or [])
          if x.get("restore") or x.get("drop")]
-    return hashlib.sha1(json.dumps([rv.get("userClips") or [], w, rv.get("userLayers") or []], sort_keys=True).encode("utf-8")).hexdigest()
+    return hashlib.sha1(json.dumps([rv.get("userClips") or [], w, rv.get("userLayers") or []] + ([rv["userCaps"]] if rv.get("userCaps") else []), sort_keys=True).encode("utf-8")).hexdigest()
 
 
 # 덧 트랙 (사용자 편집 탭 V2.. · A2.., 2026-10-02): edit.json layers 로 (출력 시각). shortsmith scene 이 scene.layers 로 싣고 render 가 합성 · 섞는다

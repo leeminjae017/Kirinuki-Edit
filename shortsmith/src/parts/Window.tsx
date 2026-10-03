@@ -1,6 +1,7 @@
 import React from 'react';
 import { AbsoluteFill, Img, OffthreadVideo, Sequence, Video, useCurrentFrame, useVideoConfig } from 'remotion';
 import { colorCss, ToneDefs } from './Layers';
+import { isSlide, isXf, transIn, transOut } from '../../lib/trans.mjs';
 import { Env, Fx, Scene, abs, on } from '../scene';
 
 /* Window = the cut source video. Zoom, push, shake and mono are CSS versions of the ffmpeg graph in lib/render.mjs
@@ -51,20 +52,25 @@ export const WindowView: React.FC<{ scene: Scene; env: Env; t: number }> = ({ sc
   }
   const mono = get('mono');
   const blur = get('blur');
+  const flip = get('hflip'), vig = get('vignette'), flash = get('flash');
+  const fl = flash ? Math.max(0, 1 - (t - flash.s) / (flash.d ?? 0.3)) * (flash.k ?? 0.6) : 0;   // ffmpeg eq brightness adds; CSS multiplies - close enough
   const layer: React.CSSProperties = { position: 'absolute', left: 0, top: 0, width: W.w, height: W.h, transformOrigin: '0 0' };
   const win = scene.body.windowPreview && env.preview ? scene.body.windowPreview : scene.body.window;
 
   return (
-    <div style={{ position: 'absolute', left: W.x, top: W.y, width: W.w, height: W.h, overflow: 'hidden', filter: [mono ? 'grayscale(1)' : '', blur ? `blur(${blur.sigma}px)` : ''].join(' ').trim() || undefined }}>
+    <div style={{ position: 'absolute', left: W.x, top: W.y, width: W.w, height: W.h, overflow: 'hidden', filter: [mono ? 'grayscale(1)' : '', blur ? `blur(${blur.sigma}px)` : '', fl > 0 ? `brightness(${(1 + 2 * fl).toFixed(3)})` : ''].join(' ').trim() || undefined }}>
       <div style={{ ...layer, transform: shakeT || undefined }}>
         <div style={{ ...layer, transform: pushT || undefined }}>
           <div style={{ ...layer, transform: transform || undefined }}>
-            {env.preview && scene.plan
-              ? <PlanWindow scene={scene} env={env} fps={fps} />
-              : <Media src={abs(scene.dir, win)} env={env} style={{ width: W.w, height: W.h, display: 'block' }} />}
+            <div style={{ ...layer, transformOrigin: '50% 50%', transform: flip ? 'scaleX(-1)' : undefined }}>
+              {env.preview && scene.plan
+                ? <PlanWindow scene={scene} env={env} fps={fps} />
+                : <Media src={abs(scene.dir, win)} env={env} style={{ width: W.w, height: W.h, display: 'block' }} />}
+            </div>
           </div>
         </div>
       </div>
+      {vig ? <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(0,0,0,0.65) 100%)' }} /> : null}
     </div>
   );
 };
@@ -140,7 +146,7 @@ const camBox = (K: CamK[], t: number, aspect: number, SW: number, SH: number) =>
   const w = Math.min(SW, h * aspect);
   return { x: clamp(x, 0, SW - w), y: clamp(y, 0, SH - h), w, h };
 };
-type Tr = 'dissolve' | 'black' | 'white' | 'wipe' | 'slide' | null;
+type Tr = string | null;
 const PlanRange: React.FC<{ scene: Scene; env: Env; fps: number; r: PlanR; len: number; h0: number; h1: number;
                             a0: number; a1: number; t0: number; t1: number; tin: Tr; tout: Tr; z: number }> =
   ({ scene, env, fps, r, len, h0, h1, a0, a1, t0, t1, tin, tout }) => {
@@ -157,21 +163,20 @@ const PlanRange: React.FC<{ scene: Scene; env: Env; fps: number; r: PlanR; len: 
       return v;
     };
     // picture: a plain cut shows only its own frames; a transition widens that by t0 / t1 on each side
-    let op = f >= h0 && f < h0 + len ? 1 : 0, clip: string | undefined, dx = 0;
+    let op = f >= h0 && f < h0 + len ? 1 : 0, clip: string | undefined, dx = 0, dy = 0;
     if (tin && f >= h0 - t0 && f < h0 + t0) {          // coming in (drawn over the outgoing range)
       const p = (f - (h0 - t0)) / (2 * t0);
       if (tin === 'dissolve') op = p;
       else if (tin === 'black' || tin === 'white') op = f < h0 ? 0 : (f - h0) / t0;
-      else if (tin === 'wipe') { op = 1; clip = `inset(0 0 0 ${((1 - p) * 100).toFixed(2)}%)`; }
-      else if (tin === 'slide') { op = 1; dx = (1 - p) * W.w; }
+      else if (isXf(tin)) { op = 1; const q = transIn(tin, p, W.w, W.h); clip = q.clip; dx = q.dx; dy = q.dy; }
     }
     if (tout && f >= h0 + len - t1 && f < h0 + len + t1) {   // going out (under the incoming range)
       if (tout === 'black' || tout === 'white') op = f >= h0 + len ? 0 : 1 - (f - (h0 + len - t1)) / t1;
-      else if (tout === 'slide') { op = 1; dx = -((f - (h0 + len - t1)) / (2 * t1)) * W.w; }
+      else if (isSlide(tout)) { op = 1; const q = transOut(tout, (f - (h0 + len - t1)) / (2 * t1), W.w, W.h); dx = q.dx; dy = q.dy; }
       else op = 1;
     }
     return (
-      <div style={{ position: 'absolute', left: dx, top: 0, width: W.w, height: W.h, overflow: 'hidden', opacity: op, clipPath: clip }}>   {/* no zIndex - it lifted the video over the caption layer */}
+      <div style={{ position: 'absolute', left: dx, top: dy, width: W.w, height: W.h, overflow: 'hidden', opacity: op, clipPath: clip }}>   {/* no zIndex - it lifted the video over the caption layer */}
         <ToneDefs c={r.color} />
         <div style={{ position: 'absolute', inset: 0, transform: tf.r ? `rotate(${tf.r}deg)` : undefined, opacity: r.vhide ? 0 : 1 }}>
           <Video src={env.url(abs(scene.dir, P.src))} startFrom={Math.round(r.s * fps) - h0} volume={vol}

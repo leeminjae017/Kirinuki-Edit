@@ -30,8 +30,8 @@ if len(args) > 1 and "--force" not in sys.argv:
     rv = (json.load(io.open(pj, encoding="utf-8")).get("review") or {}) if os.path.exists(pj) else {}
     w = [[x.get("s"), bool(x.get("restore")), bool(x.get("drop"))] for sg in (rv.get("transcript") or []) for x in (sg.get("words") or [])
          if x.get("restore") or x.get("drop")]
-    if rv.get("userClips") or w or rv.get("userLayers"):
-        sig = hashlib.sha1(json.dumps([rv.get("userClips") or [], w, rv.get("userLayers") or []], sort_keys=True).encode("utf-8")).hexdigest()
+    if rv.get("userClips") or w or rv.get("userLayers") or rv.get("userCaps"):
+        sig = hashlib.sha1(json.dumps([rv.get("userClips") or [], w, rv.get("userLayers") or []] + ([rv["userCaps"]] if rv.get("userCaps") else []), sort_keys=True).encode("utf-8")).hexdigest()
         ap = os.path.join(work, "applied_review.json")
         done = json.load(io.open(ap, encoding="utf-8")).get("sig") if os.path.exists(ap) else None
         if done != sig:

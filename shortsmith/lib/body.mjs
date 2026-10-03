@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { encoder } from './encoder.mjs';
 import { curvesVf } from './color.mjs';
+import { XFADE } from './trans.mjs';
 import { duration, log, loudness, md5, run, sig, slash, spawnPromise, writeJson } from './util.mjs';
 
 /* ffmpeg part 1: cut, crop and audio. Outputs in the project folder:
@@ -102,8 +103,7 @@ export function colorVf(c) {
   if (cv) f.push(cv);
   return f.length ? ',' + f.join(',') : '';
 }
-/* transition names (dashboard) -> ffmpeg xfade */
-export const XFADE = { dissolve: 'fade', black: 'fadeblack', white: 'fadewhite', wipe: 'wipeleft', slide: 'slideleft' };
+export { XFADE };   // transition names (dashboard) -> ffmpeg xfade, lib/trans.mjs
 
 /* What scene.json needs from the body, without encoding anything (2026-10-02, `shortsmith preview`): the dashboard previews
    an edit straight from the light source copy (src_preview.mp4) and only the final render bakes window.mkv. Length = sum of
@@ -209,7 +209,7 @@ export async function buildBody(projectDir, edit, preset, cutsList) {
       const L = loudness(file);
       gainDb = +Math.min(preset.audio.targetLufs - L.I, (preset.audio.maxTruePeakDb ?? -1.5) - L.TP).toFixed(2);
     }
-    const gain = gainDb ? `volume=${gainDb}dB,` : '';
+    const gain = pc.ahide ? 'volume=0,' : gainDb ? `volume=${gainDb}dB,` : '';   // ahide: the sound went to a lower track (dashboard)
     const pcC = pc.crop || (pc.source ? null : C);
     // start_time=0: a source missing the frame right at the cut (260921 합본 38.200s, a seam of joined files) would start at
     // 1/60s, and fps= began there - the piece came out a frame short and the picture ran 17ms ahead of the sound after it

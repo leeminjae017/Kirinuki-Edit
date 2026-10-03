@@ -80,6 +80,11 @@
     <symbol id="i-fx-t-white" viewBox="0 0 24 24"><rect x="2" y="6" width="7" height="12" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="9" y="6" width="6" height="12" fill="#fff" stroke="currentColor" stroke-width="1.2"/><rect x="15" y="6" width="7" height="12" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
     <symbol id="i-fx-t-wipe" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="3" y="5" width="9" height="14" rx="1.5" opacity=".6"/><path d="M12 3v18" stroke="currentColor" stroke-width="2"/></symbol>
     <symbol id="i-fx-t-slide" viewBox="0 0 24 24"><rect x="9" y="5" width="13" height="14" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="2" y="5" width="7" height="14" rx="1.5" opacity=".6"/><path d="M13 12h6m-2.5-2.5L19 12l-2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="i-fx-t-circle" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="4.5" opacity=".7"/></symbol>
+    <symbol id="i-fx-mono" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 4a8 8 0 0 1 0 16z"/></symbol>
+    <symbol id="i-fx-flash" viewBox="0 0 24 24"><path d="M13 2L4 14h7l-2 8 9-12h-7z"/></symbol>
+    <symbol id="i-fx-vig" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><ellipse cx="12" cy="12" rx="5.5" ry="4" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".6"/></symbol>
+    <symbol id="i-fx-flip" viewBox="0 0 24 24"><path d="M12 3v18" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2 2"/><path d="M10 6L3 18h7zM14 6l7 12h-7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
     <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   </defs>
 </svg>
@@ -168,12 +173,12 @@
         </div>
 
         <div class="row-actions">
-          <button class="btn btn-primary" id="btnAnalyze" title="분석 작업을 정의하고 프롬프트를 클립보드로 넘깁니다"><svg class="i"><use href="#i-analyze"/></svg><span>스타일 분석</span></button>
-          <button class="btn" id="btnAnalyzeSave" title="작업 정의를 JSON으로 저장"><svg class="i"><use href="#i-down"/></svg><span>작업 JSON</span></button>
+          <button class="btn btn-primary" id="btnAnalyze" title="스타일 분석"><svg class="i"><use href="#i-analyze"/></svg><span>스타일 분석</span></button>
+          <button class="btn" id="btnAnalyzeSave" title="작업 JSON"><svg class="i"><use href="#i-down"/></svg><span>작업 JSON</span></button>
         </div>
 
         <details class="foldout">
-          <summary>분석 결과 등록 (Claude Code 출력 JSON 붙여넣기)</summary>
+          <summary>분석 결과 등록</summary>
           <textarea class="input mono" id="analyzeResult" rows="6" placeholder="{ &quot;name&quot;: &quot;담유이 숏폼 v3&quot;, &quot;cut&quot;: {}, &quot;caption&quot;: {} }&#10;&#10;JSON 파일을 여기에 끌어다 놓아도 됩니다 (styles/ 폴더)"></textarea>
           <div class="row-actions">
             <button class="btn btn-primary btn-sm" id="btnStyleRegister"><svg class="i"><use href="#i-plus"/></svg><span>스타일 목록에 등록</span></button>
@@ -209,11 +214,11 @@
         <div class="field">
           <label class="field-label">화면 비율</label>
           <div class="seg aspect-seg" id="aspectSeg">
-            <button type="button" data-aspect="" title="스타일 (프리셋) 에 적힌 비율 그대로">스타일 기본</button>
-            <button type="button" data-aspect="9:16" title="세로 - 쇼츠 · 릴스 · 틱톡">9:16</button>
-            <button type="button" data-aspect="16:9" title="가로 - 유튜브 본편">16:9</button>
+            <button type="button" data-aspect="" title="기본">기본</button>
+            <button type="button" data-aspect="9:16" title="세로">9:16</button>
+            <button type="button" data-aspect="16:9" title="가로">16:9</button>
             <button type="button" data-aspect="1:1" title="정사각형">1:1</button>
-            <button type="button" data-aspect="4:5" title="세로 조금 - 인스타 피드">4:5</button>
+            <button type="button" data-aspect="4:5" title="세로">4:5</button>
           </div>
         </div>
 
@@ -222,15 +227,15 @@
             <label class="field-label">출력 예정</label>
             <!-- 대상 영상이 둘 넘을 때만 보인다 (ai.js renderOutputs) -->
             <div class="seg out-mode" id="outMode" hidden>
-              <button type="button" data-mode="each" title="영상마다 따로: 대상 영상 하나에 결과 영상 하나"><svg class="i"><use href="#i-grid"/></svg><span>따로</span></button>
-              <button type="button" data-mode="merge" title="하나로 합치기: 대상 영상을 순서대로 이어 결과 한 편 (언어마다 한 편)"><svg class="i"><use href="#i-layers"/></svg><span>하나로</span></button>
+              <button type="button" data-mode="each" title="따로"><svg class="i"><use href="#i-grid"/></svg><span>따로</span></button>
+              <button type="button" data-mode="merge" title="하나로"><svg class="i"><use href="#i-layers"/></svg><span>하나로</span></button>
             </div>
           </div>
           <ul class="output-list" id="outputList"></ul>
         </div>
 
         <div class="row-actions">
-          <button class="btn btn-primary" id="btnApply" title="편집 작업을 정의하고 프롬프트를 클립보드로 넘깁니다"><svg class="i"><use href="#i-apply"/></svg><span>스타일 적용</span></button>
+          <button class="btn btn-primary" id="btnApply" title="스타일 적용"><svg class="i"><use href="#i-apply"/></svg><span>스타일 적용</span></button>
           <button class="btn" id="btnApplySave"><svg class="i"><use href="#i-down"/></svg><span>작업 JSON</span></button>
         </div>
       </div>
@@ -248,13 +253,13 @@
               <button class="btn btn-icon btn-sm is-toggle is-on" data-tool="pick" title="선택"><svg class="i"><use href="#i-eye"/></svg></button>
               <i class="fbtools-sep"></i>
               <button class="btn btn-icon btn-sm is-toggle" data-tool="note" title="메모"><svg class="i"><use href="#i-note"/></svg></button>
-              <button class="btn btn-icon btn-sm is-toggle" data-tool="region" title="영역 메모 — 영역을 잡고 쪽지를 붙인다"><svg class="i"><use href="#i-region"/></svg></button>
+              <button class="btn btn-icon btn-sm is-toggle" data-tool="region" title="영역 메모"><svg class="i"><use href="#i-region"/></svg></button>
               <i class="fbtools-sep"></i>
               <button class="btn btn-icon btn-sm is-toggle" data-tool="line" title="선"><svg class="i"><use href="#i-line"/></svg></button>
               <button class="btn btn-icon btn-sm is-toggle" data-tool="arrow" title="화살표 (직선)"><svg class="i"><use href="#i-arrow"/></svg></button>
-              <button class="btn btn-icon btn-sm is-toggle" data-tool="curve" title="화살표 (곡선) — 끈 자취를 따라간다"><svg class="i"><use href="#i-curve"/></svg></button>
+              <button class="btn btn-icon btn-sm is-toggle" data-tool="curve" title="곡선 화살표"><svg class="i"><use href="#i-curve"/></svg></button>
               <i class="fbtools-sep"></i>
-              <button class="btn btn-icon btn-sm btn-quiet-danger" id="btnFbClear" title="제거 — 이 영상의 피드백 전부"><svg class="i"><use href="#i-eraser"/></svg></button>
+              <button class="btn btn-icon btn-sm btn-quiet-danger" id="btnFbClear" title="모두 지우기"><svg class="i"><use href="#i-eraser"/></svg></button>
             </div>
             <select class="input input-sm" id="fbLang" title="어느 완성본을 볼지"></select>
           </div>
@@ -297,21 +302,21 @@
           <div class="panel-head">
             <h2 class="panel-title"><svg class="i"><use href="#i-prompt"/></svg><span>지시</span></h2>
             <div class="head-actions">
-              <button class="btn btn-ai btn-sm" id="btnFbEdit" title="재편집 (AI, 1차 편집이 끝난 뒤): 프롬프트 · 쪽지 · 고친 자막을 저장하고 Claude 작업으로 넘깁니다 - 컷 · 연출 · 판단이 필요한 고침"><svg class="i"><use href="#i-ai"/></svg><span>재편집</span></button>
-              <button class="btn btn-ghost btn-sm" id="btnFbCopy" title="피드백 전부 복사 — 클로드에게 넘길 것"><svg class="i"><use href="#i-copy"/></svg></button>
+              <button class="btn btn-ai btn-sm" id="btnFbEdit" title="재편집"><svg class="i"><use href="#i-ai"/></svg><span>재편집</span></button>
+              <button class="btn btn-ghost btn-sm" id="btnFbCopy" title="복사"><svg class="i"><use href="#i-copy"/></svg></button>
             </div>
           </div>
           <div class="panel-body prompt-body">
             <textarea class="input fb-prompt" id="fbPrompt" rows="3"
-                      placeholder="영상 전반에 대한 지시 — 컷 간격, 말소리가 잘린다, 여백이 길다 … (영상 위에는 쪽지 · 영역 · 화살표로 자리를 짚는다)"></textarea>
-            <p class="hint"><span id="promptChars">0</span>자 · 예상 <span id="promptTokens">0</span> 토큰 · 1차 편집은 왼쪽 <b>스타일 적용</b>, 그 뒤 고칠 때는 <b>재편집</b></p>
+                      placeholder="지시"></textarea>
+            <p class="hint"><span id="promptChars">0</span>자 · <span id="promptTokens">0</span> 토큰</p>
             <div class="prompt-opts">
               <svg class="i" title="자막 언어"><use href="#i-lang"/></svg>
-              <input type="text" class="input input-sm" id="langInput" placeholder="자막 언어 (예: ko, en, ja) - 자막만 다국어">
-              <select class="input input-sm" id="aiPolicy" title="AI 호출 정책 - 대시보드는 API 를 부르지 않는다. 작업 정의와 프롬프트만 만들고 실행은 Claude Code">
-              <option value="on-demand" selected>필요할 때만 호출 (토큰 절약)</option>
+              <input type="text" class="input input-sm" id="langInput" placeholder="자막 언어 (ko, en, ja)">
+              <select class="input input-sm" id="aiPolicy" title="AI 호출">
+              <option value="on-demand" selected>필요할 때만</option>
               <option value="always">단계마다 호출</option>
-              <option value="manual">호출 안 함 (프롬프트만 생성)</option>
+              <option value="manual">호출 안 함</option>
               </select>
             </div>
             <div class="lang-chips" id="langChips"></div>
@@ -348,7 +353,7 @@
           <button class="itab is-active" data-sub="src" role="tab">원본</button>
           <button class="itab" data-sub="out" role="tab">편집</button>
         </div>
-        <label class="fb-ripple is-on" id="fbRipple" title="리플 켬: 뺀 자리를 당겨 붙이고 되살린 만큼 뒤를 민다&#10;리플 끔: 뒤 시각을 그대로 둔다 - 뺀 자리는 빈 틈(검은 화면 · 무음), 되살린 말은 옆 내용을 덮어쓴다">
+        <label class="fb-ripple is-on" id="fbRipple" title="리플">
           <input type="checkbox" checked><span class="sw" aria-hidden="true"></span><span class="lb">리플</span>
         </label>
       </div>
@@ -381,7 +386,7 @@
       <div class="ue-fxlib" id="ueFxLib" hidden></div>
     </section>
     <section class="ue-pane ue-vpane">
-      <div class="ue-head ue-vhead"><span>타임라인 <i class="ue-tag" id="ueTag" hidden title="완성본은 아직 안 구웠습니다 - 원본 사본에서 지금 컷대로 이어 트는 미리보기입니다. 다 고친 뒤 렌더 탭에서 한 번 굽습니다">렌더 전</i></span><span class="ue-tc" id="ueTc">00:00:00:00</span></div>
+      <div class="ue-head ue-vhead"><span>타임라인 <i class="ue-tag" id="ueTag" hidden title="렌더 전">렌더 전</i></span><span class="ue-tc" id="ueTc">00:00:00:00</span></div>
       <div class="ue-viewer" id="ueViewer"><div class="ue-msg" id="ueEmpty">프로젝트를 열면 여기에</div></div>
       <div class="ue-transport">
         <button class="ue-btn" id="ueStart" title="처음으로 (Home)"><svg class="i"><use href="#i-tostart"/></svg></button><button class="ue-btn" id="uePrev" title="앞 편집 점 (위 화살표)"><svg class="i"><use href="#i-prevedit"/></svg></button>
@@ -420,51 +425,49 @@
           <div class="field">
             <label class="field-label" for="rndCodec">코덱</label>
             <select class="input input-sm" id="rndCodec">
-              <option value="h264">H.264 - 어디서나 열림</option>
-              <option value="hevc">H.265 (HEVC) - 같은 화질에 파일이 작음</option>
+              <option value="h264">H.264</option>
+              <option value="hevc">H.265</option>
             </select>
           </div>
           <div class="field">
             <label class="field-label" for="rndEnc">인코더</label>
             <select class="input input-sm" id="rndEnc">
-              <option value="">자동 - 그래픽 카드 먼저 (빠름)</option>
-              <option value="soft">소프트웨어 - 느리지만 화질이 가장 좋음</option>
+              <option value="">자동</option>
+              <option value="soft">소프트웨어</option>
             </select>
           </div>
           <div class="field">
             <label class="field-label" for="rndQ">화질 <span class="rnd-qlab" id="rndQLab"></span></label>
             <div class="rnd-q"><input type="range" id="rndQ" min="12" max="32" step="1" value="20"><input type="number" class="input input-sm" id="rndQN" min="12" max="32" step="1" value="20"></div>
-            <p class="hint">숫자가 작을수록 화질이 좋고 파일이 큽니다 (기본 20 · 두 번 눌러 기본)</p>
-          </div>
+                      </div>
           <div class="field">
             <label class="field-label" for="rndSize">해상도</label>
             <select class="input input-sm" id="rndSize"></select>
-            <p class="hint" id="rndSizeHint"></p>
+            <p class="hint" id="rndSizeHint" hidden></p>
           </div>
           <div class="field">
             <label class="field-label" for="rndFps">프레임</label>
             <select class="input input-sm" id="rndFps">
-              <option value="">프리셋 그대로</option>
+              <option value="">기본</option>
               <option value="24">24</option><option value="25">25</option><option value="30">30</option><option value="50">50</option><option value="60">60</option>
             </select>
           </div>
           <div class="rnd-h">소리</div>
           <div class="field">
-            <label class="field-label" for="rndAbr">비트레이트 (AAC)</label>
+            <label class="field-label" for="rndAbr">비트레이트</label>
             <select class="input input-sm" id="rndAbr">
-              <option value="128">128 kbps</option><option value="">192 kbps (기본)</option><option value="256">256 kbps</option><option value="320">320 kbps</option>
+              <option value="128">128 kbps</option><option value="">192 kbps</option><option value="256">256 kbps</option><option value="320">320 kbps</option>
             </select>
           </div>
           <div class="field">
             <label class="field-label" for="rndLufs">목표 크기</label>
             <select class="input input-sm" id="rndLufs">
-              <option value="">프리셋 그대로</option>
-              <option value="-14">-14 LUFS (크게)</option><option value="-16">-16 LUFS</option><option value="-18">-18 LUFS</option><option value="-23">-23 LUFS (방송 기준)</option>
+              <option value="">기본</option>
+              <option value="-14">-14 LUFS</option><option value="-16">-16 LUFS</option><option value="-18">-18 LUFS</option><option value="-23">-23 LUFS</option>
             </select>
-            <p class="hint">고정 이득 한 번으로 맞춥니다 - 소리 필터는 걸지 않습니다</p>
-          </div>
-          <button class="btn btn-ghost btn-sm rnd-reset" id="rndReset" title="코덱 · 화질 · 해상도 · 프레임 · 소리 설정을 기본으로"><svg class="i"><use href="#i-sync"/></svg><span>설정 초기화</span></button>
-          <p class="hint" id="rndNote"></p>
+                      </div>
+          <button class="btn btn-ghost btn-sm rnd-reset" id="rndReset" title="초기화"><svg class="i"><use href="#i-sync"/></svg><span>초기화</span></button>
+          <p class="hint" id="rndNote" hidden></p>
         </div>
         <div class="rnd-foot">
           <div class="rnd-prog" id="rndProg" hidden>
@@ -473,7 +476,7 @@
             <div class="rnd-meta" id="rndMeta"></div>
             <div class="rnd-log" id="rndLog"></div>
           </div>
-          <button class="btn btn-primary ue-render-btn" id="btnFbRender" title="렌더 (AI 없음): 사용자 편집 타임라인 · 고친 자막 그대로 바로 다시 굽습니다"><svg class="i"><use href="#i-render"/></svg><span>렌더</span></button>
+          <button class="btn btn-primary ue-render-btn" id="btnFbRender" title="렌더"><svg class="i"><use href="#i-render"/></svg><span>렌더</span></button>
         </div>
       </div>
     </section>
@@ -482,7 +485,9 @@
       <i class="ue-sep"></i>
       <button class="ue-btn" id="ueSplit" title="재생 위치에서 자르기 (Ctrl+B)"><svg class="i"><use href="#i-cut"/></svg></button><button class="ue-btn" id="ueDel" title="지우기 (Delete)"><svg class="i"><use href="#i-trash"/></svg></button>
       <i class="ue-sep"></i>
-      <button class="ue-btn" id="ueSnapBtn" title="붙기 (N)"><svg class="i"><use href="#i-magnet"/></svg></button><button class="ue-btn" id="ueRipBtn" title="리플 - 지우고 줄이면 뒤가 당겨진다"><svg class="i"><use href="#i-ripple"/></svg></button><button class="ue-btn" id="ueLinkBtn" title="연결 - 켜면 영상과 그 소리를 같이 고르고 옮긴다, 끄면 따로"><svg class="i"><use href="#i-link"/></svg></button>
+      <button class="ue-btn" id="ueSnapBtn" title="붙기 (N)"><svg class="i"><use href="#i-magnet"/></svg></button><button class="ue-btn" id="ueRipBtn" title="리플"><svg class="i"><use href="#i-ripple"/></svg></button><button class="ue-btn" id="ueLinkBtn" title="연결"><svg class="i"><use href="#i-link"/></svg></button>
+      <i class="ue-sep"></i>
+      <button class="ue-btn ue-btn-txt" id="ueAddCap" title="자막 추가"><svg class="i"><use href="#i-caption"/></svg><span>자막</span></button>
       <i class="ue-sep"></i>
       <button class="ue-btn" id="ueUndo" title="되돌리기 (Ctrl+Z)"><svg class="i"><use href="#i-undo"/></svg></button><button class="ue-btn" id="ueRedo" title="다시 (Ctrl+Shift+Z)"><svg class="i"><use href="#i-redo"/></svg></button>
       <span class="ue-fill"></span>

@@ -133,6 +133,7 @@
 
   /* ---------- 단축키 ---------- */
   function isTyping(t) {
+    if (t && t.tagName === 'INPUT' && /^(range|checkbox|radio|button|color)$/.test(t.type)) return false;   // 슬라이더를 만진 뒤에도 Ctrl+Z
     return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
   }
 
@@ -298,7 +299,8 @@
         if (!d || !d.ok || !d.project) return;
         var disk = d.project.savedAt || '';
         var mine = saved.diskAt || '';      // 마지막으로 읽어 온 폴더의 시각
-        if (!disk || disk === mine) return;
+        if (!disk) return;
+        if (disk === mine) { D.Projects.diskAt = disk; return; }   // 같으면 이 시각을 안다 - 안 채우면 자동 저장이 '폴더가 더 새것' 으로 계속 건너뛰었다 (2026-10-03)
         if (D.Projects.dirty) {
           /* **"프로젝트 매니저에서 열면 됩니다" 로 넘기지 않는다.**
              그렇게 두면 사용자는 옛 자막 목록을 계속 보면서 "'컷 편집 후'
