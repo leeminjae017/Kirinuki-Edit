@@ -15,20 +15,9 @@
   var GUTTERS = [
     {
       sel: '#gAiC1', axis: 'x', grid: '.ai-grid', v: '--ai-c1', label: '스타일 패널 너비',
-      sizeFrom: '#paneStyle', flexSel: '#paneLog', dir: 1, min: 240, flexMin: 260
+      sizeFrom: '#paneStyle', flexSel: '#view-ai .fb-main', dir: 1, min: 240, flexMin: 340
     },
-    {
-      sel: '#gAiC2', axis: 'x', grid: '.ai-grid', v: '--ai-c2', label: '추가 프롬프트 너비',
-      sizeFrom: '#panePrompt', flexSel: '#paneLog', dir: 1, min: 220, flexMin: 260
-    },
-    {
-      sel: '#gFbC1', axis: 'x', grid: '.fb-grid', v: '--fb-c1', label: '왼쪽 칸 너비',
-      sizeFrom: '#paneSrc', flexSel: '.fb-main', dir: 1, min: 200, flexMin: 340
-    },
-    {
-      sel: '#gFbR1', axis: 'y', grid: '.fb-grid', v: '--fb-r1', label: '추가 소스 높이',
-      sizeFrom: '#paneSrc', flexSel: '#paneNotes', dir: 1, min: 120, flexMin: 150
-    },
+    /* 추가 프롬프트 · 로그 칸과 피드백 탭 왼쪽 칸 (추가 소스 / 메모) 은 2026-10-03 AI 편집 탭으로 합치며 없앴다 */
     /* 영상과 (프롬프트+렌더링) 사이. 가로 영상이면 위아래로 갈리고,
        세로 영상이면 좌우로 갈린다 (지시) - 방향도 기억하는 값도 바뀐다.
        값을 따로 두는 까닭은, 가로에서 잡아 둔 높이가 세로의 너비로

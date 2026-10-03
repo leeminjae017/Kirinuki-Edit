@@ -5,10 +5,18 @@
   gap:0;
   grid-template-rows:minmax(0,1fr);
   grid-template-columns:
-    var(--ai-c1, 380px) var(--gut)
-    var(--ai-c2, 320px) var(--gut)
+    var(--ai-c1, 360px) var(--gut)
     minmax(0, 1fr);
 }
+/* 피드백 탭을 합친 뒤 (2026-10-03): 오른쪽은 .fb-main 하나 - 영상 + (지시 · 메모) */
+.ai-grid .fb-grid{min-width:0;min-height:0;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);grid-template-areas:"main"}
+.ai-grid .fb-side{display:grid;gap:var(--gut);grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr)}
+.ai-grid .fb-grid.is-vert .fb-side{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1.2fr) minmax(0,1fr)}
+.ai-grid .fb-side #paneNotes{grid-area:auto}
+.prompt-opts{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px}
+.prompt-opts .i{width:14px;height:14px;opacity:.7}
+.prompt-opts #langInput{flex:1 1 140px;min-width:0}
+.prompt-opts #aiPolicy{flex:0 1 auto;max-width:100%}
 
 /* 서브 탭 */
 .subtabs{display:flex;gap:4px}

@@ -119,7 +119,20 @@ const COMMANDS = {
   async preview() {
     const P = project(args[0]);
     const pieces = await cuts(P);
-    const s = buildScene(P.dir, P.edit, P.loaded, estimateBody(P.dir, P.edit, P.loaded.preset, pieces), pieces);
+    let s = buildScene(P.dir, P.edit, P.loaded, estimateBody(P.dir, P.edit, P.loaded.preset, pieces), pieces);
+    /* A first edit is not baked either (user 2026-10-03: "첫번째 편집때도 렌더는 진행하지 않을 것") - then body never ran and the
+       preview has no background. Make only the light preview background (540 wide, 30fps), long enough for this cut */
+    const bgFile = P.loaded.preset.brand?.background?.path, bgp = path.join(P.dir, 'bg_preview.mp4');
+    if (bgFile && fs.existsSync(bgFile)) {
+      const have = fs.existsSync(bgp) ? +spawnSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', bgp], { encoding: 'utf8' }).stdout || 0 : 0;
+      if (have < s.duration + 0.5) {
+        const C = P.loaded.preset.canvas, d = Math.max(60, s.duration + 10);
+        const r = spawnSync('ffmpeg', ['-y', '-v', 'error', '-stream_loop', '-1', '-ss', String(P.loaded.preset.brand.background.offset || 0), '-i', bgFile,
+          '-t', d.toFixed(2), '-vf', `scale=${C.width}:${C.height},fps=30,scale=540:-2`, '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '26',
+          '-pix_fmt', 'yuv420p', '-movflags', '+faststart', bgp], { stdio: 'inherit' });
+        if (r.status === 0) { log(`preview background: ${d.toFixed(0)}s`); s = buildScene(P.dir, P.edit, P.loaded, estimateBody(P.dir, P.edit, P.loaded.preset, pieces), pieces); }
+      }
+    }
     log(`preview scene: ${pieces.length} pieces, ${s.captions.length} captions, ${s.duration}s (not rendered)`);
   },
 
