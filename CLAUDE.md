@@ -127,6 +127,11 @@ ebur128 로 재서 `min(-16 - I, -1.5 - TP)` 만큼 올린다.
   끔 = 소리는 A1 에 두고 V1 화면만 비움 (userClips vhide -> keep vhide -> body.mjs drawbox 검정, 미리보기 PlanRange 투명). 원본 파일에서 온 덧 영상을 V1 에 놓으면 (끌기 · 우클릭) 화면만 비운 클립을 되살리거나
   빈 자리에 원본 클립으로 돌아간다 (두 프레임 안 겹침은 옆에 붙임). review.source · srcSize 는 export_shortsmith.py 가 쓴다 - 옛 프로젝트는 내보내기를 다시 해야 옮길 수 있다.
   렌더 render.mjs 는 덧 영상 crop 을 scale 앞에, 미리보기 Layers.tsx 는 같은 비율로 넓힌 영상을 상자 안에서 민다.
+- **이펙트 탭 (2026-10-03):** 왼쪽 칸 탭 소스 / 이펙트. 갈래 셋 - 화면 효과 (얼굴 확대 · 천천히 다가가기 / 물러나기 · 흔들기 · 흐리게 = 원본 클립 V1 에만),
+  색 (흑백 · 따뜻하게 · 차갑게 · 선명하게 · 바랜 색 · 청록 주황 · 밝게 · 어둡게 = 클립 color 를 통째로 바꿈, 원본 · 덧 클립), 전환 (다섯 가지, 0.5초). **소리 효과는 없다** (소리 필터 금지).
+  클립 위에 끌어 놓거나 (골라 둔 클립 위면 고른 것 전부 · 그룹은 늘 같이) 눌러서 고른 클립에. 화면 효과는 userClips[].fx [{type, z | z0 z1 | amp | sigma}] ->
+  apply_review.py 가 fx.json "fx" 에 `"user": true` + 숫자 시각 (클립 편집 시각) 으로 (매번 user 표만 지우고 다시 씀, AI 연출은 그대로) -> scene.fx -> 렌더 · 미리보기는 원래 창 효과 그대로.
+  굽지 않은 미리보기는 planScene 이 user 표를 빼고 지금 클립 자리에서 다시 넣는다. 내보내기는 user 효과를 걸친 조각 (review.clips[].fx) 에 되싣는다. 인스펙터 비디오 탭 "효과" = 값 슬라이더 · 빼기.
 - **렌더는 마지막에 한 번 (2026-10-02, 사용자: "매번 렌더링 할게 아니라 마지막에 한 번만 렌더링하고 그 전까지는 미리보기에서만", "렌더링 시간이 오래 걸리잖아 토큰도 더 많이 먹고").**
   1차 편집 · AI 피드백 판은 **`shortsmith build` 를 돌리지 않는다.** 순서: 1) `python tools/apply_review.py <편> projects/<id>/project.json` (사용자가 대시보드에서 고친 컷 · 자막을
   편 폴더에 넣는다 - 안 하면 2 의 내보내기가 사용자 편집 탭 컷을 지운다) 2) edit.json · captions.csv · fx.json 고침 3) `python tools/preview_update.py <편> <id>`

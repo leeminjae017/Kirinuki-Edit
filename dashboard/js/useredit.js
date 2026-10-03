@@ -102,6 +102,7 @@
       if (c.tf) o.tf = c.tf;                   // 변형 {x, y (창 px), z (배율), r (도)} - AI 화면 잡기 위에 얹는다 (2026-10-03)
       if (c.g) o.g = c.g;                      // 그룹 id (review.userGroups)
       if (c.vhide) o.vhide = true;             // 화면은 V2.. 로 옮기고 소리만 A1 에 남은 클립
+      if (c.fx && c.fx.length) o.fx = c.fx;    // 화면 효과 [{type: zoom | push | shake | blur, ...}] (이펙트 탭, 2026-10-03)
       return o;
     });
     layersOut();
@@ -124,7 +125,7 @@
   function now() { var v = video(); return v ? v.currentTime || 0 : (drag && drag.t != null ? drag.t : 0); }
   function viewerMsg(msg) {
     var host = D.$('#ueViewer');
-    var m = host.querySelector('.ue-msg');
+    var m = host.querySelector('.ue-msg:not(#ueEmpty)');            // #ueEmpty 는 남긴다 - 지우면 프로젝트를 다시 열 때 load 가 멈췄다
     if (!msg) { if (m) m.remove(); return; }
     if (!m) { m = D.el('div', { class: 'ue-msg' }); host.appendChild(m); }
     m.textContent = msg;
@@ -220,6 +221,7 @@
         else if (kv[0] === 'v') {
           film(el, mm.th, c.s, len(c), LANE_H - 6 - 16);
           el.appendChild(D.el('span', { class: 'ue-clip-name', text: (i + 1) + '  ' + stc(c.s) + ' - ' + stc(c.e) }));
+          if (c.fx && c.fx.length) el.appendChild(D.el('span', { class: 'ue-fxb', text: 'fx', title: c.fx.map(fxName).join(' · ') }));
         } else {
           wave(el, waveData() || mm.wave, c.s, len(c), LANE_H - 8);
           if (c.vol) el.appendChild(D.el('span', { class: 'ue-clip-name ue-vol', text: (c.vol > 0 ? '+' : '') + c.vol + 'dB' }));
@@ -473,6 +475,12 @@
     return { area: a, track: n, t: Math.max(0, snapT(T(cx(ev)), null)) };
   }
   function onDragOver(ev) {
+    if (FXDRAG) {                          // 이펙트 끌기: 아래 클립에 표
+      var tg = fxTarget(ev), ok = tg && !fxWhy(FXDRAG, tg.o);
+      fxHL(ok ? tg.el : null);
+      if (ok) { ev.preventDefault(); ev.dataTransfer.dropEffect = 'copy'; }
+      return;
+    }
     if (!ev.dataTransfer || Array.prototype.indexOf.call(ev.dataTransfer.types || [], DRAGTYPE) < 0) return;
     ev.preventDefault();
     ev.dataTransfer.dropEffect = 'copy';
@@ -480,6 +488,14 @@
     m.hidden = false; m.style.left = X(d.t) + 'px';
   }
   function onDrop(ev) {
+    if (FXDRAG) {
+      ev.preventDefault();
+      var it = FXDRAG, tg = fxTarget(ev);
+      FXDRAG = null; fxHL(null);
+      if (!tg) { D.toast('클립 위에 놓아 주세요'); return; }
+      applyFx(it, [tg.o], true);
+      return;
+    }
     var raw = ev.dataTransfer && ev.dataTransfer.getData(DRAGTYPE);
     D.$('#ueDrop').hidden = true;
     if (!raw) return;
@@ -856,6 +872,131 @@
   }
   /* 전환 (2026-10-02 다섯째) - 앞 클립에서 이 클립으로 넘어갈 때. 컷 가운데에 걸리고 양쪽 클립 바깥 원본 (손잡이) 을 쓴다 - 길이 · 자막 시각 그대로 */
   var TRANS = [['', '없음 (컷)'], ['dissolve', '디졸브'], ['black', '검은 화면 거쳐'], ['white', '흰 화면 거쳐'], ['wipe', '닦아내기'], ['slide', '밀어내기']];
+  /* ---------- 이펙트 탭 (2026-10-03 사용자: "소스 / 이펙트로 탭 분리 , 이펙트 카테고리 별로 정리해서 드래그 -> 클립에 적용 가능하게") ----------
+     화면 효과 = 원본 클립 (V1) 의 창에 걸리는 scene fx (lib/render.mjs windowFx · src/parts/Window.tsx 그대로) - 클립 fx [{type, ...}] ->
+     tools/apply_review.py 가 fx.json "fx" 에 user 표 + 숫자 시각 (클립 시작 ~ 끝) 으로 쓴다. 색 = 클립 color 를 통째로 바꾼다 (원본 · 덧 클립).
+     전환 = 클립 tin (앞 클립에서). 소리 효과는 없다 - 소리에는 사용자가 말하기 전에 필터를 걸지 않는다 (CLAUDE.md) */
+  var FXTYPE = 'application/x-kirinuki-fx', FXDRAG = null, PTAB = 'src', FXOPEN = {};
+  var FXLIB = [
+    { cat: '화면 효과', note: '원본 클립 (V1)', items: [
+      { id: 'zoom', name: '얼굴 확대', icon: 'fx-zoom', fx: { type: 'zoom', z: 1.2 } },
+      { id: 'pushin', name: '천천히 다가가기', icon: 'fx-pushin', fx: { type: 'push', z0: 1, z1: 1.15 } },
+      { id: 'pushout', name: '천천히 물러나기', icon: 'fx-pushout', fx: { type: 'push', z0: 1.15, z1: 1 } },
+      { id: 'shake', name: '흔들기', icon: 'fx-shake', fx: { type: 'shake', amp: 12 } },
+      { id: 'blur', name: '흐리게', icon: 'fx-blur', fx: { type: 'blur', sigma: 8 } }] },
+    { cat: '색', note: '원본 · 덧 클립 (색을 바꿔 넣음)', items: [
+      { id: 'c-mono', name: '흑백', sw: 'linear-gradient(135deg,#eee,#555)', color: { saturation: 0 } },
+      { id: 'c-warm', name: '따뜻하게', sw: 'linear-gradient(135deg,#ffd9a8,#c8743c)', color: { gain: { r: 8, b: -8 }, lift: { r: 2, b: -2 } } },
+      { id: 'c-cool', name: '차갑게', sw: 'linear-gradient(135deg,#cfe6ff,#3d6fae)', color: { gain: { r: -6, b: 10 }, lift: { b: 2 } } },
+      { id: 'c-vivid', name: '선명하게', sw: 'linear-gradient(135deg,#ff4f7b,#2fb4ff)', color: { contrast: 1.15, saturation: 1.35 } },
+      { id: 'c-faded', name: '바랜 색', sw: 'linear-gradient(135deg,#e6dccb,#8f8a80)', color: { contrast: 0.85, saturation: 0.7, lift: { w: 10 } } },
+      { id: 'c-teal', name: '청록 · 주황', sw: 'linear-gradient(135deg,#ffb36b,#1f6f78)', color: { contrast: 1.08, lift: { r: -3, b: 6 }, gain: { r: 6, b: -5 } } },
+      { id: 'c-bright', name: '밝게', sw: 'linear-gradient(135deg,#fff,#bbb)', color: { gamma: { w: 25 } } },
+      { id: 'c-dark', name: '어둡게', sw: 'linear-gradient(135deg,#777,#111)', color: { gamma: { w: -25 } } }] },
+    { cat: '전환', note: '앞 클립에서 넘어오기 (0.5초)', items: TRANS.filter(function (kv) { return kv[0]; }).map(function (kv) {
+      return { id: 't-' + kv[0], name: kv[1], icon: 'fx-t-' + kv[0], tin: { type: kv[0], d: 0.5 } }; }) }];
+  var FXNAME = { zoom: '얼굴 확대', push: '밀기', shake: '흔들기', blur: '흐리게', mono: '흑백' };
+  var FXPARAM = {                           // [칸, 이름, 최소, 최대, 걸음, 단위, 기본]
+    zoom: [['z', '배율', 1.05, 2, 0.01, '배', 1.2]],
+    push: [['z0', '시작 배율', 1, 1.6, 0.01, '배', 1], ['z1', '끝 배율', 1, 1.6, 0.01, '배', 1.15]],
+    shake: [['amp', '세기', 2, 40, 1, 'px', 12]],
+    blur: [['sigma', '세기', 1, 30, 1, '', 8]] };
+  function fxName(f) { return f.type === 'push' ? (f.z1 >= f.z0 ? '천천히 다가가기' : '천천히 물러나기') : FXNAME[f.type] || f.type; }
+  function setPTab(t) {
+    PTAB = t;
+    D.$$('#view-edit [data-ptab]').forEach(function (b) { b.classList.toggle('is-on', b.dataset.ptab === t); });
+    D.$('#ueBins').hidden = t !== 'src'; D.$('#ueAddFolder').hidden = t !== 'src'; D.$('#ueFxLib').hidden = t !== 'fx';
+    if (t === 'fx') drawFxLib();
+  }
+  function drawFxLib() {
+    var host = D.$('#ueFxLib');
+    if (!host) return;
+    host.textContent = '';
+    FXLIB.forEach(function (g) {
+      var open = FXOPEN[g.cat] !== false;
+      var h = D.el('div', { class: 'ue-fxcat' + (open ? ' is-open' : '') });
+      h.appendChild(D.icon('chev')); h.appendChild(D.el('b', { text: g.cat })); h.appendChild(D.el('small', { text: g.note }));
+      h.addEventListener('click', function () { FXOPEN[g.cat] = !open; drawFxLib(); });
+      host.appendChild(h);
+      if (!open) return;
+      var grid = D.el('div', { class: 'ue-fxgrid' });
+      g.items.forEach(function (it) {
+        var t = D.el('div', { class: 'ue-fxt', title: it.name + ' - 클립 위에 끌어 놓기 (누르면 고른 클립에)' });
+        t.dataset.fx = it.id;
+        var sw = D.el('div', { class: 'ue-fxt-sw' });
+        if (it.sw) sw.style.background = it.sw; else sw.appendChild(D.icon(it.icon));
+        t.appendChild(sw); t.appendChild(D.el('span', { text: it.name }));
+        t.draggable = true;
+        t.addEventListener('dragstart', function (ev) { FXDRAG = it; ev.dataTransfer.setData(FXTYPE, it.id); ev.dataTransfer.effectAllowed = 'copy'; });
+        t.addEventListener('dragend', function () { FXDRAG = null; fxHL(null); });
+        t.addEventListener('click', function () {
+          var T = selected().concat(selX());
+          if (!T.length) { D.toast('클립을 고르거나 클립 위에 끌어 놓으세요'); return; }
+          applyFx(it, T);
+        });
+        grid.appendChild(t);
+      });
+      host.appendChild(grid);
+    });
+  }
+  function fxTarget(ev) {
+    var ce = (document.elementsFromPoint(ev.clientX, ev.clientY) || []).filter(function (e) { return e.matches && e.matches('#ueContent .ue-clip'); })[0];   // 전환 표 · 그룹 테 아래 클립도
+    if (!ce) return null;
+    var o = ce.dataset.xid ? exById(ce.dataset.xid) : byId(+ce.dataset.id);
+    return o ? { o: o, el: ce } : null;
+  }
+  function fxWhy(it, o) {                   // 못 거는 까닭 (걸 수 있으면 null)
+    var main = CL.indexOf(o) >= 0;
+    if (it.fx) return main ? null : '화면 효과는 원본 클립 (V1) 에만 걸립니다';
+    if (!main && o.kind === 'audio') return '소리 클립에는 색 · 전환이 없습니다';
+    if (it.tin && main && sorted().indexOf(o) <= 0) return '첫 클립에는 앞 클립이 없습니다';
+    return null;
+  }
+  function fxHL(el) {
+    D.$$('#ueContent .is-fxdrop').forEach(function (e) { if (e !== el) e.classList.remove('is-fxdrop'); });
+    if (el) el.classList.add('is-fxdrop');
+  }
+  function applyFx(it, list, drop) {        // drop: 끌어 놓은 클립 - 골라 둔 클립 위에 놓았을 때만 고른 것 전부에 (그룹은 늘 같이)
+    var T = [];
+    list.forEach(function (o) {
+      var M = drop && !SEL[o.id] ? CL.concat(EX).filter(function (y) { return y === o || (o.g && y.g === o.g && fam(y) === fam(o)); }) : mates(o);
+      M.forEach(function (m) { if (T.indexOf(m) < 0) T.push(m); });
+    });
+    var why = null, ok = T.filter(function (o) { var w = fxWhy(it, o); if (w) why = w; return !w; });
+    if (!ok.length) { D.toast(why || '걸 수 있는 클립이 없습니다'); return; }
+    remember();
+    ok.forEach(function (o) {
+      if (it.fx) o.fx = (o.fx || []).filter(function (f) { return f.type !== it.fx.type; }).concat([JSON.parse(JSON.stringify(it.fx))]);
+      if (it.color) o.color = JSON.parse(JSON.stringify(it.color));
+      if (it.tin) o.tin = { type: it.tin.type, d: (o.tin && o.tin.d) || it.tin.d };
+    });
+    CSEL = null; SEL = {}; SEL[ok[0].id] = true;
+    if (it.tin && CL.indexOf(ok[0]) < 0 && !prevOnTrack(ok[0])) D.toast('"' + it.name + '" 를 걸었지만 같은 트랙에 맞닿은 앞 클립이 없어 아직 안 먹습니다');
+    else D.toast('"' + it.name + '" 적용' + (ok.length > 1 ? ' (' + ok.length + '개 클립)' : ''));
+    showPane('ins');
+    changed();
+  }
+  function fxRows(ins, c) {
+    sub(ins, '효과');
+    if (!c.fx || !c.fx.length) { ins.appendChild(D.el('div', { class: 'ue-ins-empty', text: '왼쪽 이펙트 탭에서 클립에 끌어 놓으면 여기에' })); return; }
+    c.fx.forEach(function (f) {
+      var head = D.el('div', { class: 'ue-fxrow' });
+      head.appendChild(D.icon('fx')); head.appendChild(D.el('b', { text: fxName(f) }));
+      var del = D.el('button', { class: 'ue-btn ue-btn-sm', title: '이 효과 빼기' });
+      del.appendChild(D.icon('x'));
+      del.addEventListener('click', function () {
+        remember();
+        mates(c).forEach(function (t) { if (!t.fx) return; t.fx = t.fx.filter(function (g) { return g.type !== f.type; }); if (!t.fx.length) delete t.fx; });
+        changed();
+      });
+      head.appendChild(del);
+      ins.appendChild(head);
+      (FXPARAM[f.type] || []).forEach(function (p) {
+        sliderRow(ins, p[1], { val: f[p[0]] != null ? f[p[0]] : p[6], min: p[2], max: p[3], step: p[4], unit: p[5], def: p[6],
+          set: function (v) { mates(c).forEach(function (t) { if (t.fx) t.fx = t.fx.map(function (g) { if (g.type !== f.type) return g; var n = Object.assign({}, g); n[p[0]] = v; return n; }); }); } });
+      });
+    });
+  }
   function clipTransRows(ins, c) {
     var S = sorted(), i = S.indexOf(c);
     ins.appendChild(D.el('div', { class: 'ue-ins-sub', text: '전환 (앞 클립에서)' }));
@@ -1351,6 +1492,7 @@
       transformMain(ins, c);
       colorPanel(ins, c);
       clipTransRows(ins, c);
+      fxRows(ins, c);
     } else volRows(ins, c, '소리 (A1)');
   }
   function parseT(s) {
@@ -1401,7 +1543,7 @@
     t = fr(t);
     if (!c || t <= c.at + MIN / FPS || t >= end(c) - MIN / FPS) return false;
     var cut = c.s + (t - c.at);
-    var c2 = { id: UID++, s: cut, e: c.e, at: t, vol: c.vol, color: c.color, tf: c.tf, g: c.g, vhide: c.vhide };
+    var c2 = { id: UID++, s: cut, e: c.e, at: t, vol: c.vol, color: c.color, tf: c.tf, g: c.g, vhide: c.vhide, fx: c.fx };
     c.e = cut;
     CL.push(c2);
     return true;
@@ -2142,6 +2284,7 @@
         if (from && from.tin) c.tin = from.tin;
         if (from && from.tf) c.tf = from.tf;
         if (from && from.vhide) c.vhide = true;
+        if (from && from.fx) c.fx = JSON.parse(JSON.stringify(from.fx));
         if (r[4] && r[4].g) c.g = r[4].g;
         return c;
       });
@@ -2149,7 +2292,7 @@
     EX = JSON.parse(JSON.stringify((R && R.userLayers) || []));
     EX.forEach(function (x) { var n = parseInt(String(x.id || '').slice(1), 10); if (!x.id) x.id = 'x' + (UID++); else if (n >= UID) UID = n + 1; });
     VS = 0; AS = 0;
-    D.$('#ueEmpty').hidden = !!CL.length;
+    if (D.$('#ueEmpty')) D.$('#ueEmpty').hidden = !!CL.length;
     loadMedia();
     drawBins();
     draw();
@@ -2182,6 +2325,7 @@
     sc.addEventListener('dragover', onDragOver);
     sc.addEventListener('dragleave', function (ev) { if (!sc.contains(ev.relatedTarget)) D.$('#ueDrop').hidden = true; });
     sc.addEventListener('drop', onDrop);
+    D.$$('#view-edit [data-ptab]').forEach(function (b) { b.addEventListener('click', function () { setPTab(b.dataset.ptab); }); });
     D.$$('#view-edit [data-tool]').forEach(function (b) { b.addEventListener('click', function () { setTool(b.dataset.tool); }); });
     D.$('#ueSnapBtn').addEventListener('click', function () { setSnap(!SNAP); });
     D.$('#ueRipBtn').addEventListener('click', function () { setRipple(!RIP); });

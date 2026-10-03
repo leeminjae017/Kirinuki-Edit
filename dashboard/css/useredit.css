@@ -266,3 +266,28 @@
 /* 트랙 옮기기 (2026-10-03): 놓일 자리 그림자 · 화면을 옮긴 원본 클립 */
 .ue-lane-ghost{position:absolute;top:3px;bottom:3px;border:2px dashed var(--on);border-radius:4px;background:rgba(243,156,56,.12);pointer-events:none;z-index:5}
 .ue-clip.is-vhide{background:repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 6px,transparent 6px 12px),#26262c !important}
+
+/* 왼쪽 칸 탭 (소스 / 이펙트, 2026-10-03) */
+.ue-ptabs{gap:2px;padding-left:4px}
+.ue-ptab{display:flex;align-items:center;gap:5px;height:22px;padding:0 9px;border:0;border-radius:4px;background:none;color:var(--ue-dim, #9a9aa3);font:inherit;font-size:12px;font-weight:600;cursor:pointer}
+.ue-ptab:hover{background:#2c2c33;color:var(--ue-txt)}
+.ue-ptab.is-on{background:#33333b;color:var(--ue-txt)}
+.ue-fxlib{flex:1;min-height:0;overflow:auto;padding:4px 0 10px}
+.ue-fxcat{display:flex;align-items:center;gap:6px;padding:6px 10px 4px;cursor:pointer;user-select:none}
+.ue-fxcat .i{width:12px;height:12px;transform:rotate(-90deg);transition:transform .12s;opacity:.7}
+.ue-fxcat.is-open .i{transform:none}
+.ue-fxcat b{font-size:12px}
+.ue-fxcat small{font-size:10.5px;color:var(--ue-dim, #9a9aa3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ue-fxgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px;padding:2px 10px 6px}
+.ue-fxt{display:flex;flex-direction:column;gap:4px;padding:5px;border-radius:5px;background:#26262c;border:1px solid transparent;cursor:grab;user-select:none}
+.ue-fxt:hover{border-color:#4a4a54;background:#2c2c33}
+.ue-fxt:active{cursor:grabbing}
+.ue-fxt-sw{height:30px;border-radius:3px;background:#1b1b20;display:flex;align-items:center;justify-content:center;color:#d8d8de}
+.ue-fxt-sw .i{width:22px;height:22px}
+.ue-fxt span{font-size:11px;line-height:1.25;color:var(--ue-txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ue-clip.is-fxdrop{outline:2px solid var(--on, #ff8a3d);outline-offset:-2px;z-index:3}
+.ue-fxb{position:absolute;right:3px;top:2px;padding:0 4px;border-radius:3px;background:rgba(255,138,61,.85);color:#111;font-size:9.5px;font-weight:700;line-height:13px;pointer-events:none}
+.ue-fxrow{display:flex;align-items:center;gap:6px;margin:6px 0 2px}
+.ue-fxrow .i{width:13px;height:13px;opacity:.8}
+.ue-fxrow b{flex:1;font-size:12px}
+.ue-pool [hidden]{display:none!important}

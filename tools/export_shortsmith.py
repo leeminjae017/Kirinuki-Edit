@@ -153,6 +153,15 @@ review = {"video": {"ko": FINAL.replace(os.sep, "/")} if os.path.exists(FINAL) e
 # (shortsmith preview / tools/preview_update.py 로 고친 판) 피드백 · 사용자 편집 미리보기가 완성본 대신 원본 사본에서 컷대로 이어 튼다
 # 덧 트랙 (edit.json layers -> 사용자 편집 탭 V2.. · A2.., 2026-10-02) - 내보낼 때마다 파일 쪽이 정본
 review["userLayers"] = [dict({k: v for k, v in L.items() if k != "src"}, path=L["src"]) for L in (E.get("layers") or []) if L.get("src")]
+# 사용자 편집 클립 화면 효과 (fx.json "fx" 의 user 표, 2026-10-03) 를 그 시각에 걸친 조각에 되싣는다 - 사용자 편집 탭이 다시 열어도 클립에 남게
+_fxp = E.get("fx") or "fx.json"
+if os.path.exists(_fxp):
+    for _f in (json.load(io.open(_fxp, encoding="utf-8")).get("fx") or []):
+        if not _f.get("user") or not isinstance(_f.get("from"), (int, float)) or not isinstance(_f.get("to"), (int, float)):
+            continue
+        for _c in review["clips"]:
+            if min(_c["oe"], _f["to"]) - max(_c["os"], _f["from"]) > 0.5 * (_c["oe"] - _c["os"]):
+                _c.setdefault("fx", []).append({k: v for k, v in _f.items() if k not in ("from", "to", "user", "at")})
 # 원본 (사본 아님) 경로와 크기 - 사용자 편집 탭에서 원본 클립을 V2.. 로 옮기면 그 파일을 덧 클립으로 쓴다 (2026-10-03)
 _src_abs = SRC if os.path.isabs(SRC) else os.path.join(WORK, SRC)
 review["source"] = os.path.abspath(_src_abs).replace(os.sep, "/")

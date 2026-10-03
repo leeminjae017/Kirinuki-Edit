@@ -313,6 +313,22 @@ if (CUT or gone) and E.get("fx") and os.path.exists(E["fx"]):
     if gone:
         print("말이 다 빠져 버린 자막 줄 %d: %s" % (len(gone), " / ".join(gone)))
 print("자막 %d줄 -> %s (고친 줄 %d, 연출 참조 %d곳 따라 바꿈, 컷 따라 옮긴 연출 시각 %d)" % (len(caps), out, len(ren), n, moved))
+
+# 사용자 편집 클립 화면 효과 (이펙트 탭에서 끌어 놓은 확대 · 밀기 · 흔들기 · 흐림, 2026-10-03): fx.json "fx" 에 "user": true 를 달고
+# 숫자 시각 (클립 편집 시각 = 출력 시각) 으로 쓴다. 매번 user 표가 붙은 것을 다 지우고 지금 클립에서 다시 쓴다 - AI 가 쓴 연출은 그대로
+if UC:
+    fxp = E.get("fx") or "fx.json"
+    F = json.load(io.open(fxp, encoding="utf-8")) if os.path.exists(fxp) else {}
+    old = F.get("fx") or []
+    mine = [dict({k: v for k, v in f.items() if k not in ("s", "e")}, **{"from": round(c["at"], 3), "to": round(c["at"] + c["e"] - c["s"], 3), "user": True})
+            for c in UC for f in (c.get("fx") or []) if f.get("type")]
+    new = [f for f in old if not f.get("user")] + mine
+    if new != old:
+        if os.path.exists(fxp) and not os.path.exists(fxp + ".bak"):
+            shutil.copyfile(fxp, fxp + ".bak")
+        F["fx"] = new
+        io.open(fxp, "w", encoding="utf-8").write(json.dumps(F, ensure_ascii=False, indent=1) + chr(10))
+        print("화면 효과 (사용자 편집) %d개 -> %s" % (len(mine), fxp))
 if not CUT and any(c.get("os2") is not None or c.get("oe2") is not None for c in caps):
     print("알림: 원본 시각 고침은 컷이라 이번 렌더에 안 들어갑니다 - '편집'(AI)으로 넘기세요")
 
