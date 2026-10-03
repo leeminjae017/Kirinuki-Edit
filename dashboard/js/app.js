@@ -8,11 +8,12 @@
 
   /* ---------- 탭 ---------- */
   function showView(name) {
+    if (name === 'user') name = 'ai';          // 피드백 탭은 AI 편집 탭에 합쳤다 (2026-10-03)
     D.$$('.mtab').forEach(function (b) { b.classList.toggle('is-active', b.dataset.view === name); });
     D.$$('.view').forEach(function (v) { v.classList.toggle('is-active', v.id === 'view-' + name); });
     /* 숨어 있는 동안 창이 바뀌었을 수 있으므로 보이는 시점에 다시 맞춘다 */
     D.Split.reflow(true);
-    if (name === 'user') { D.Feedback.refresh(); if (D.Feedback.livePreview) D.Feedback.livePreview(); }
+    if (name === 'ai') { D.Feedback.refresh(); if (D.Feedback.livePreview) D.Feedback.livePreview(); }
     if (D.UserEdit) D.UserEdit.shown(name === 'edit');
   }
 
@@ -146,7 +147,7 @@
         ev.preventDefault(); saveProject(); return;
       }
       if (isTyping(ev.target)) return;
-      var userView = D.$('#view-user').classList.contains('is-active');
+      var userView = D.$('#view-ai').classList.contains('is-active');      // 영상 칸 (옛 피드백 탭) 은 AI 편집 탭에 있다
       if ((ev.ctrlKey || ev.metaKey) && ev.shiftKey && ev.key.toLowerCase() === 'p') {
         ev.preventDefault(); D.Projects.showManager(!D.Projects.isManagerOpen()); return;
       }
@@ -203,8 +204,7 @@
       if (e.target === e.currentTarget) D.modal.close();
     });
 
-    D.$('#btnLogCopy').addEventListener('click', function () { D.copy(D.Log.text(), '로그'); });
-    D.$('#btnLogClear').addEventListener('click', function () { D.Log.clear(); });
+    /* 로그 칸은 뺐다 (2026-10-03 사용자: "로그 창 제거") - 기록은 D.Log 에 그대로 쌓여 프로젝트와 같이 저장된다 */
 
     D.$('#btnProjSave').addEventListener('click', saveProject);
 

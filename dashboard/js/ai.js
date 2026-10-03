@@ -20,6 +20,14 @@
   function videosOf(key) {
     return D.flatten(AI.drops[key] || []).filter(function (n) { return n.kind === 'video'; });
   }
+  /* 지시 글 (AI 편집 탭 지시 칸, review.prompt) 과 영상 위 쪽지 - 작업 글에 싣는다 */
+  function promptNow() { var el = D.$('#fbPrompt'); return ((el ? el.value : AI.prompt) || '').trim(); }
+  function notesBlock() {
+    var t = D.Feedback && D.Feedback.notesText ? D.Feedback.notesText() : '';
+    if (!t) return '';
+    var src = D.Feedback.sourceName ? D.Feedback.sourceName() : '';
+    return '## 영상 위 지시 (' + (src ? '원본 ' + src + ' 시각' : '영상 시각') + ' · 쪽지 자리는 화면 비율 0-1)\n' + t + '\n';
+  }
   function baseName(name) { return String(name).replace(/\.[^.]+$/, ''); }
 
   /* ---------- 언어 ---------- */
@@ -332,7 +340,7 @@
         original: { roots: rootsOf('analyze.src'), files: pathsOf('analyze.src') },
         edited: { roots: rootsOf('analyze.edited'), files: pathsOf('analyze.edited') }
       },
-      extraPrompt: AI.prompt || '',
+      extraPrompt: promptNow(),
       aiPolicy: AI.policy,
       note: '경로는 드랍한 폴더 기준 상대 경로입니다.'
     };
@@ -354,7 +362,8 @@
       aspect: AI.aspect || null,             // 화면 비율 (비우면 스타일 그대로, 2026-10-03)
       outputs: outs,
       outputCount: outs.length,
-      extraPrompt: AI.prompt || '',
+      extraPrompt: promptNow(),
+      notes: (D.Feedback && D.Feedback.notesFor) ? D.Feedback.notesFor() : [],   // 영상 위 쪽지 (원본 시각, 2026-10-03)
       aiPolicy: AI.policy,
       note: '다국어는 자막에만 적용됩니다. 영상 · 오디오 트랙은 언어별로 동일합니다.'
     };
@@ -390,7 +399,7 @@
       '- 오디오: 라우드니스, 배경음 덕킹, 효과음 사용 지점',
       '- 페이싱: 평균 클립 길이, 분당 컷 수, 인트로 · 아웃트로 처리',
       '',
-      AI.prompt ? '## 추가 지시\n' + AI.prompt + '\n' : '',
+      promptNow() ? '## 추가 지시\n' + promptNow() + '\n' : '',
       '## 출력 형식',
       '아래 JSON 한 덩어리만 출력해줘. 대시보드의 "분석 결과 등록"에 그대로 붙여넣는다.',
       '',
@@ -433,11 +442,16 @@
         : j.outputs.slice(0, 20).map(function (o) { return '- ' + o.file + '  <- ' + o.source + '  [' + o.lang + ']'; }).join('\n')
           + (j.outputs.length > 20 ? '\n- 외 ' + (j.outputs.length - 20) + '개' : ''),
       '',
-      AI.prompt ? '## 추가 지시\n' + AI.prompt + '\n' : '',
+      promptNow() ? '## 추가 지시\n' + promptNow() + '\n' : '',
+      notesBlock(),
       '## 실행 원칙',
       '- AI 호출 정책: ' + AI.policy + ' (필요한 단계에서만 모델을 쓰고, 결정적으로 처리 가능한 구간은 스크립트로 처리)',
-      '- 렌더링은 마지막에 한 번만 수행한다.',
-      '- 파이프라인: render/body.py (컷 · 크롭, ffmpeg QSV) -> fx.json -> render/make_scene.py -> render/render.mjs (React 오버레이 + ffmpeg 합성). 한 편마다 손으로 쓰는 것은 fx.json 뿐이다.'
+      '- **렌더하지 말 것 (1차 편집도).** shortsmith build 를 돌리지 않는다 - edit.json · captions.csv · fx.json 을 쓴 뒤 python tools/preview_update.py <편 폴더> <프로젝트 id> '
+        + '(= shortsmith preview: 컷 + 장면만, 영상은 안 굽는다 + export_shortsmith.py) 로 대시보드 미리보기만 만든다. 완성본은 사용자가 사용자 편집 > 렌더 에서 마지막에 한 번 굽는다.',
+      '- 화면 잡기 · 확대 · 위치는 원본을 건드리지 않는 값으로만 둔다 (edit.json 조각 crop · camera, fx.json zoom · push) - 사용자가 사용자 편집 탭에서 '
+        + '원본 클립 변형 (이동 · 확대 · 회전 - 원본에서 다시 잘라 화질 그대로) 으로 눈으로 보며 고친다. 그래서 1.5배를 1.6배로 잡았어도 되돌릴 수 있어야 한다.',
+      '- 영상 위 지시 (쪽지) 의 시각은 편집 대상 원본 시각, 자리는 화면 비율 (0-1) 이다.',
+      '- 파이프라인: shortsmith CLI (편 폴더 edit.json · fx.json -> cuts -> body -> scene -> render). 한 편마다 손으로 쓰는 것은 edit.json · fx.json 뿐이다 (CLAUDE.md).'
     ].join('\n');
   }
 
@@ -484,7 +498,7 @@
         zones[key] = D.DropZone.init(el, {
           key: key,
           nodes: AI.drops[key] || [],
-          onChange: function () { renderOutputs(); }
+          onChange: function () { renderOutputs(); if (key === 'apply.target' && D.Feedback && D.Feedback.srcChanged) D.Feedback.srcChanged(); }
         });
       });
 
@@ -498,9 +512,8 @@
         });
       });
 
-      /* 추가 프롬프트 */
-      var pt = D.$('#extraPrompt');
-      pt.value = AI.prompt || '';
+      /* 지시 (2026-10-03: 피드백 탭의 지시 칸 하나로 합쳤다 - 글은 review.prompt 가 정본, feedback.js 가 채운다) */
+      var pt = D.$('#fbPrompt');
       function syncPrompt() {
         AI.prompt = pt.value;
         D.$('#promptChars').textContent = pt.value.length;
@@ -665,7 +678,6 @@
     },
 
     refresh: function () {
-      D.$('#extraPrompt').value = AI.prompt || '';
       D.$('#langInput').value = (AI.langs || []).join(', ');
       D.$('#aiPolicy').value = AI.policy;
       if (AI.paintAspect) AI.paintAspect();

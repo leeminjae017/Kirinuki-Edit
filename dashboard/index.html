@@ -103,9 +103,6 @@
     <button class="mtab is-active" data-view="ai" role="tab">
       <svg class="i"><use href="#i-ai"/></svg><span>AI 편집</span>
     </button>
-    <button class="mtab" data-view="user" role="tab">
-      <svg class="i"><use href="#i-note"/></svg><span>피드백</span>
-    </button>
     <button class="mtab" data-view="edit" role="tab">
       <svg class="i"><use href="#i-edit"/></svg><span>사용자 편집</span>
     </button>
@@ -130,7 +127,14 @@
   </div>
 </header>
 
-<!-- ===================== AI 편집 ===================== -->
+<!-- ===================== AI 편집 (피드백 탭을 합침, 2026-10-03) ===================== -->
+<!--
+  사용자: "피드백 탭을 AI 편집 탭과 합칠 것 -> 1차 편집에서도 영상 위에 지시가능하게 탭이름은 AI 편집".
+      스타일 적용 / 분석 | 영상 (쪽지 · 영역 · 선 · 화살표)
+                         | 지시 (프롬프트 · 자막 언어 · 정책) + 메모
+  1차 편집 전에는 영상 칸이 "편집 대상" 에 놓은 원본을 튼다 (쪽지 시각 = 원본 시각, feedback.js targetVideo).
+  로그 칸은 뺐다 (사용자: "로그 창 제거") - D.info / warn 은 프로젝트 기록에 그대로 쌓인다.
+-->
 <main class="view is-active" id="view-ai">
   <div class="ai-grid">
 
@@ -234,105 +238,8 @@
 
     <div class="gutter gutter-x" id="gAiC1" title="드래그: 너비 조절 · 더블클릭: 기본값"><i></i></div>
 
-    <!-- 중: 추가 프롬프트 (공통) -->
-    <section class="panel" id="panePrompt">
-      <div class="panel-head">
-        <h2 class="panel-title"><svg class="i"><use href="#i-prompt"/></svg>추가 프롬프트 <span class="tag">공통</span></h2>
-      </div>
-      <div class="panel-body">
-        <div class="field grow">
-          <label class="field-label">지시문</label>
-          <textarea class="input mono grow-area" id="extraPrompt" placeholder="예) 컷 간격을 조금 더 촘촘하게. 리액션 구간은 남기고 침묵 0.4초 이상만 제거."></textarea>
-          <p class="hint"><span id="promptChars">0</span>자 · 예상 <span id="promptTokens">0</span> 토큰</p>
-        </div>
-
-        <div class="field">
-          <label class="field-label"><svg class="i"><use href="#i-lang"/></svg>다국어 설정</label>
-          <input type="text" class="input" id="langInput" placeholder="예: ko, en, ja">
-          <p class="hint">쉼표로 구분 · <b>자막만</b> 다국어로 생성됩니다</p>
-          <div class="lang-chips" id="langChips"></div>
-        </div>
-
-        <details class="foldout">
-          <summary>AI 호출 정책</summary>
-          <select class="input" id="aiPolicy">
-            <option value="on-demand" selected>필요할 때만 호출 (토큰 절약)</option>
-            <option value="always">단계마다 호출</option>
-            <option value="manual">호출 안 함 (프롬프트만 생성)</option>
-          </select>
-          <p class="hint">Claude API를 직접 호출하지 않습니다. 작업 정의와 프롬프트만 만들고, 실행은 Claude Code에서 합니다.</p>
-        </details>
-      </div>
-    </section>
-
-    <div class="gutter gutter-x" id="gAiC2" title="드래그: 너비 조절 · 더블클릭: 기본값"><i></i></div>
-
-    <!-- 우: 로그 (공통) -->
-    <section class="panel" id="paneLog">
-      <div class="panel-head">
-        <h2 class="panel-title"><svg class="i"><use href="#i-log"/></svg>로그 <span class="tag">공통</span></h2>
-        <div class="head-actions">
-          <select class="input input-sm log-level" title="표시 단계">
-            <option value="INFO" selected>INFO</option>
-            <option value="WARNING">WARNING</option>
-            <option value="ERROR">ERROR</option>
-          </select>
-          <button class="btn btn-ghost btn-sm" id="btnLogCopy" title="로그 복사"><svg class="i"><use href="#i-copy"/></svg></button>
-          <button class="btn btn-ghost btn-sm" id="btnLogClear" title="로그 지우기"><svg class="i"><use href="#i-trash"/></svg></button>
-        </div>
-      </div>
-      <div class="panel-body log-body">
-        <ol class="log" data-log-view></ol>
-      </div>
-      <div class="panel-foot log-foot">
-        <span data-log-count="INFO">INFO 0</span>
-        <span data-log-count="WARNING">WARNING 0</span>
-        <span data-log-count="ERROR">ERROR 0</span>
-      </div>
-    </section>
-  </div>
-</main>
-
-<!-- ===================== 피드백 ===================== -->
-<!--
-  클립을 만지는 편집기가 아니다. 클로드가 낸 1차 작업본을 놓고 그 위에
-  고칠 데를 짚어 주는 화면이다. 그래서 타임라인도 인스펙터도 없다.
-
-      추가 소스 | 영상 (+ 피드백 레이어)
-      자막      | 프롬프트 + 재 편집
--->
-<main class="view" id="view-user">
-  <div class="fb-grid">
-
-    <!-- ---------- 왼쪽: 추가 소스 / 자막 ---------- -->
-    <section class="panel" id="paneSrc">
-      <div class="panel-head">
-        <h2 class="panel-title"><svg class="i"><use href="#i-folder"/></svg><span>추가 소스</span></h2>
-        <div class="head-actions">
-          <button class="btn btn-ghost btn-sm" id="btnSrcClear" title="비우기"><svg class="i"><use href="#i-trash"/></svg></button>
-        </div>
-      </div>
-      <div class="panel-body src-body">
-        <div class="dropzone dropzone-sm" data-dz="feedback.src" data-hint="더 넣을 영상 · 소리 · 그림 끌어다 놓기"></div>
-      </div>
-    </section>
-
-    <div class="gutter gutter-y" id="gFbR1" title="드래그: 크기 조절 · 더블클릭: 기본값"><i></i></div>
-
-    <section class="panel" id="paneNotes">
-      <div class="panel-head">
-        <h2 class="panel-title"><svg class="i"><use href="#i-note"/></svg><span>메모</span></h2>
-      </div>
-      <div class="panel-body notes-body"><div class="fb-notes" id="fbNotes"></div></div>
-    </section>
-
-    <div class="gutter gutter-x" id="gFbC1" title="드래그: 크기 조절 · 더블클릭: 기본값"><i></i></div>
-
-    <!-- ---------- 오른쪽: 영상 + 프롬프트 + 재 편집 ----------
-         가로 영상: 영상이 위, 그 아래 프롬프트 | 재 편집
-         세로 영상: 왼쪽에 프롬프트 / 재 편집, 오른쪽에 영상 통째로
-         (지시) 배치는 .fb-grid.is-vert 하나로 갈린다. -->
-    <div class="fb-main">
+    <div class="fb-grid">
+      <div class="fb-main">
       <section class="panel" id="paneVideo">
         <div class="panel-head">
           <h2 class="panel-title"><svg class="i"><use href="#i-video"/></svg><span>영상</span></h2>
@@ -385,27 +292,56 @@
 
       <div class="gutter" id="gFbR2" title="드래그: 크기 조절 · 더블클릭: 기본값"><i></i></div>
 
-      <div class="fb-side">
+        <div class="fb-side">
         <section class="panel" id="panePromptFb">
           <div class="panel-head">
-            <h2 class="panel-title"><svg class="i"><use href="#i-prompt"/></svg><span>프롬프트</span></h2>
+            <h2 class="panel-title"><svg class="i"><use href="#i-prompt"/></svg><span>지시</span></h2>
             <div class="head-actions">
-              <button class="btn btn-ai btn-sm" id="btnFbEdit" title="편집 (AI): 프롬프트 · 쪽지 · 고친 자막을 저장하고 Claude 작업으로 넘깁니다 - 컷 · 연출 · 판단이 필요한 고침"><svg class="i"><use href="#i-ai"/></svg><span>편집</span></button>
+              <button class="btn btn-ai btn-sm" id="btnFbEdit" title="재편집 (AI, 1차 편집이 끝난 뒤): 프롬프트 · 쪽지 · 고친 자막을 저장하고 Claude 작업으로 넘깁니다 - 컷 · 연출 · 판단이 필요한 고침"><svg class="i"><use href="#i-ai"/></svg><span>재편집</span></button>
               <button class="btn btn-ghost btn-sm" id="btnFbCopy" title="피드백 전부 복사 — 클로드에게 넘길 것"><svg class="i"><use href="#i-copy"/></svg></button>
             </div>
           </div>
           <div class="panel-body prompt-body">
             <textarea class="input fb-prompt" id="fbPrompt" rows="3"
-                      placeholder="영상 전반에 대한 지시 — 말소리가 잘린다, 여백이 길다 …"></textarea>
+                      placeholder="영상 전반에 대한 지시 — 컷 간격, 말소리가 잘린다, 여백이 길다 … (영상 위에는 쪽지 · 영역 · 화살표로 자리를 짚는다)"></textarea>
+            <p class="hint"><span id="promptChars">0</span>자 · 예상 <span id="promptTokens">0</span> 토큰 · 1차 편집은 왼쪽 <b>스타일 적용</b>, 그 뒤 고칠 때는 <b>재편집</b></p>
+            <div class="prompt-opts">
+              <svg class="i" title="자막 언어"><use href="#i-lang"/></svg>
+              <input type="text" class="input input-sm" id="langInput" placeholder="자막 언어 (예: ko, en, ja) - 자막만 다국어">
+              <select class="input input-sm" id="aiPolicy" title="AI 호출 정책 - 대시보드는 API 를 부르지 않는다. 작업 정의와 프롬프트만 만들고 실행은 Claude Code">
+              <option value="on-demand" selected>필요할 때만 호출 (토큰 절약)</option>
+              <option value="always">단계마다 호출</option>
+              <option value="manual">호출 안 함 (프롬프트만 생성)</option>
+              </select>
+            </div>
+            <div class="lang-chips" id="langChips"></div>
           </div>
         </section>
+        <section class="panel" id="paneNotes">
+          <div class="panel-head">
+        <h2 class="panel-title"><svg class="i"><use href="#i-note"/></svg><span>메모</span></h2>
+      </div>
+      <div class="panel-body notes-body"><div class="fb-notes" id="fbNotes"></div></div>
+    </section>
 
+        </div>
       </div>
     </div>
-
   </div>
   <!-- 옛 자막 칸 (2026-10-02 사용자 편집 탭으로 옮김) - feedback.js 가 아직 참조해서 숨겨 둔다 -->
   <div class="fb-legacy" hidden>
+    <section class="panel" id="paneSrc">
+      <div class="panel-head">
+        <h2 class="panel-title"><svg class="i"><use href="#i-folder"/></svg><span>추가 소스</span></h2>
+        <div class="head-actions">
+          <button class="btn btn-ghost btn-sm" id="btnSrcClear" title="비우기"><svg class="i"><use href="#i-trash"/></svg></button>
+        </div>
+      </div>
+      <div class="panel-body src-body">
+        <div class="dropzone dropzone-sm" data-dz="feedback.src" data-hint="더 넣을 영상 · 소리 · 그림 끌어다 놓기"></div>
+      </div>
+    </section>
+
     <section class="panel" id="paneSubs">
       <div class="panel-head">
         <div class="itabs" role="tablist">
