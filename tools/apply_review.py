@@ -133,9 +133,22 @@ elif CUT:
     P = M
 
 
-def planned(t):                               # 원본 시각 -> 새 편집 시각 (feedback.js planned)
+# 원본 파일에서 온 덧 클립 (V1 클립을 V2.. 로 올린 것, 2026-10-03): 같은 원본 구간이 거기서 재생되므로 그 구간 자막은
+# 덧 클립 시각에 남긴다 (안 그러면 "말이 다 빠진 줄" 로 버려졌다). 자막에만 쓴다 - 컷 (keep) · 연출 시각은 P 그대로.
+# feedback.js planScene 의 PC 와 같은 계산
+def _np(p):
+    return str(p or "").replace(chr(92), "/").lower()
+
+
+SRCP = {_np(R.get("source")), _np((R.get("srcPreview") or {}).get("path"))} - {""}
+PC = P + [[float(L["s"]), float(L["e"]), float(L["at"])] for L in (R.get("userLayers") or [])
+          if UC and L.get("kind") in ("video", "audio") and _np(L.get("path")) in SRCP
+          and float(L.get("e", 0)) - float(L.get("s", 0)) > 0.01]
+
+
+def planned(t, PP=None):                      # 원본 시각 -> 새 편집 시각 (feedback.js planned)
     best = None
-    for r in P:
+    for r in (PP or P):
         if r[0] <= t < r[1]: return r[2] + (t - r[0])
         if r[1] <= t and (best is None or r[1] > best[1]): best = r
     return best[2] + best[1] - best[0] if best else 0.0
@@ -149,20 +162,20 @@ def to_src(t):
     return r["s"] + (t - r["os"]) if r else None
 
 
-def remap(x, end=False):                      # 지금 편집 시각 -> 컷을 반영한 편집 시각 (feedback.js toPlanT)
+def remap(x, end=False, PP=None):             # 지금 편집 시각 -> 컷을 반영한 편집 시각 (feedback.js toPlanT)
     if not CUT or not RIP:                    # 리플을 끄면 뒤 시각이 안 바뀐다
         return x
     q = x - EDGE if end else x
     sv = to_src(q)
-    return x if sv is None else planned(sv) + (x - q)
+    return x if sv is None else planned(sv, PP) + (x - q)
 
 
-def kept_of(s0, e0):                          # 자막 줄이 걸친 원본 구간 가운데 남는 길이 (feedback.js keptOf)
+def kept_of(s0, e0, PP=None):                 # 자막 줄이 걸친 원본 구간 가운데 남는 길이 (feedback.js keptOf)
     a, b = to_src(s0), to_src(e0 - EDGE)
     if a is None or b is None:
         return 1.0
     b += EDGE
-    return sum(max(0.0, min(b, r[1]) - max(a, r[0])) for r in P)
+    return sum(max(0.0, min(b, r[1]) - max(a, r[0])) for r in (PP or P))
 
 
 TOTAL = max(r[2] + r[1] - r[0] for r in P) if CUT else None
@@ -248,13 +261,13 @@ with io.open(out if (caps or UCAPS) else os.devnull, "w", encoding="utf-8-sig", 
             elif c.get("os2") is not None and c.get("oe2") is not None:
                 # 원본 시각으로 고친 줄 (사용자 편집 인스펙터, 2026-10-02 - 컷도 같이 고쳤다): 그 원본 시각에 선다 (feedback.js planScene 과 같다)
                 a, b = c["os2"], c["oe2"]
-                if sum(max(0.0, min(b, r[1]) - max(a, r[0])) for r in P) < 0.1:
+                if sum(max(0.0, min(b, r[1]) - max(a, r[0])) for r in PC) < 0.1:
                     gone[txt] = planned(a)
                     continue
-                s0, e0 = planned(a), min(planned(b), TOTAL)
+                s0, e0 = planned(a, PC), min(planned(b, PC), TOTAL)
             else:
-                s1, e1 = remap(s0), remap(e0, True)
-                if e1 - s1 < 0.05 or kept_of(s0, e0) < 0.1:    # 이 줄의 말이 다 빠졌다
+                s1, e1 = remap(s0, False, PC), remap(e0, True, PC)
+                if e1 - s1 < 0.05 or kept_of(s0, e0, PC) < 0.1:    # 이 줄의 말이 다 빠졌다
                     gone[txt] = s1
                     continue
                 s0, e0 = s1, min(e1, TOTAL)

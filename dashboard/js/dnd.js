@@ -111,7 +111,7 @@
     if (!nodes.length) {
       var e = D.el('div', { class: 'dz-empty' });
       e.appendChild(D.icon('folder'));
-      e.appendChild(D.el('span', { text: zone.dataset.hint || '파일 또는 폴더를 끌어다 놓기' }));
+      e.appendChild(D.el('span', { text: zone.dataset.hint || '파일 · 폴더' }));
       zone.appendChild(e);
     } else {
       var list = D.el('div', { class: 'dz-list' });
@@ -140,7 +140,7 @@
     var foot = D.el('div', { class: 'dz-foot' });
     var files = D.flatten(nodes);
     foot.appendChild(D.el('span', {
-      text: nodes.length ? (nodes.length + '개 항목 · 파일 ' + files.length + '개 · ' + D.fmtBytes(D.sumSize(nodes))) : '드래그 & 드랍'
+      text: nodes.length ? (nodes.length + '개 항목 · 파일 ' + files.length + '개 · ' + D.fmtBytes(D.sumSize(nodes))) : ''
     }));
     var b1 = D.el('button', { class: 'browse', text: '파일 선택' });
     b1.addEventListener('click', function () { browse(zone, false); });
@@ -177,7 +177,14 @@
   function addNodes(zone, nodes) {
     if (!nodes.length) return;
     if (!zone._multiple) zone._nodes = [];
-    zone._nodes = zone._nodes.concat(nodes);
+    /* 같은 파일 (경로 · 크기) 을 다시 놓으면 옛 항목을 바꾼다 - 새로 고친 뒤 File 이 없는 항목에 다시 놓을 때 겹쳐 쌓였다 */
+    var key = function (n) { return (n.isDir ? 'd:' : 'f:') + n.path + (n.isDir ? '' : ':' + n.size); };
+    var cur = zone._nodes.slice();
+    nodes.forEach(function (n) {
+      for (var i = 0; i < cur.length; i++) if (key(cur[i]) === key(n)) { cur[i] = n; return; }
+      cur.push(n);
+    });
+    zone._nodes = cur;
     renderZone(zone);
     zone._sync();
     var files = D.flatten(nodes);

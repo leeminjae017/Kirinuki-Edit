@@ -672,7 +672,7 @@
     if (!P.list.length) {
       grid.appendChild(D.el('div', {
         class: 'pm-empty',
-        text: '아직 프로젝트가 없습니다. 왼쪽 카드로 하나 만들거나, 위의 "프로젝트 불러오기"로 편집 JSON을 가져오세요.'
+        text: '프로젝트 없음'
       }));
     } else if (!shown.length) {
       grid.appendChild(D.el('div', { class: 'pm-empty', text: '"' + filter + '"에 맞는 프로젝트가 없습니다.' }));
@@ -713,7 +713,6 @@
     D.modal.open({
       title: '새 프로젝트 추가',
       body: D.el('div', {}, [
-        D.el('p', { class: 'hint', text: '편집 한 편이 프로젝트 하나입니다. 지금 열려 있는 편집은 먼저 저장됩니다.' }),
         inp
       ]),
       buttons: [

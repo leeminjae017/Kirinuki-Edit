@@ -328,16 +328,23 @@ window.D = window.D || {};
       else if (opt.body) body.appendChild(opt.body);
       var foot = D.$('#modalFoot');
       foot.innerHTML = '';
+      D.modal._cancel = opt.onCancel || null;    // 취소 · X · Esc · 바깥 누르기로 닫히면 부른다
       (opt.buttons || [{ label: '닫기' }]).forEach(function (b) {
         var btn = D.el('button', { class: 'btn ' + (b.class || ''), text: b.label });
         btn.addEventListener('click', function () {
-          if (!b.onClick || b.onClick() !== false) D.modal.close();
+          if (b.onClick && b.onClick() === false) return;
+          if (b.onClick) D.modal._cancel = null;
+          D.modal.close();
         });
         foot.appendChild(btn);
       });
       bd.hidden = false;
     },
-    close: function () { D.$('#modalBackdrop').hidden = true; }
+    close: function () {
+      D.$('#modalBackdrop').hidden = true;
+      var c = D.modal._cancel; D.modal._cancel = null;
+      if (c) c();
+    }
   };
 
   /* ---------- 클립보드 / 다운로드 ---------- */
