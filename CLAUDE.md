@@ -132,6 +132,11 @@ ebur128 로 재서 `min(-16 - I, -1.5 - TP)` 만큼 올린다.
   클립 위에 끌어 놓거나 (골라 둔 클립 위면 고른 것 전부 · 그룹은 늘 같이) 눌러서 고른 클립에. 화면 효과는 userClips[].fx [{type, z | z0 z1 | amp | sigma}] ->
   apply_review.py 가 fx.json "fx" 에 `"user": true` + 숫자 시각 (클립 편집 시각) 으로 (매번 user 표만 지우고 다시 씀, AI 연출은 그대로) -> scene.fx -> 렌더 · 미리보기는 원래 창 효과 그대로.
   굽지 않은 미리보기는 planScene 이 user 표를 빼고 지금 클립 자리에서 다시 넣는다. 내보내기는 user 효과를 걸친 조각 (review.clips[].fx) 에 되싣는다. 인스펙터 비디오 탭 "효과" = 값 슬라이더 · 빼기.
+- **렌더 설정 · 화면 비율 (2026-10-03):** 사용자 편집 > 렌더 탭 = 파일 (작업 폴더 · 내보낼 곳 · 기준 언어) / 영상 (코덱 H.264 · H.265, 인코더 자동 · 소프트웨어, 화질 12-32 (기본 20),
+  해상도 = 프리셋 캔버스 비율 그대로 짧은 변 720 · 1080 · 1440 · 2160 - 세로면 세로 크기만, 프레임) / 소리 (AAC 비트레이트, 목표 크기 LUFS = 고정 이득 한 번, 리미터 없음 - 최고점 한도에 걸리면 덜 올라간다),
+  렌더 단추는 맨 아래. project.json render.opts -> apply_review.py 가 edit.json `output` -> scene.output -> render.mjs outVideo: 조각 (캐시) 은 그대로 두고 조각과 다른 것이 있을 때만
+  이어 붙인 그림을 마지막에 한 번 더 인코딩 (encoder.mjs outputEncoder, 하드웨어 먼저 시험해 고름, hevc 는 hvc1 표). 기본이면 -c:v copy 그대로.
+  AI 편집 > 스타일 적용에 화면 비율 (스타일 기본 · 9:16 · 16:9 · 1:1 · 4:5, ai.aspect) - 작업 글에 "화면 비율" 줄로 실린다.
 - **렌더는 마지막에 한 번 (2026-10-02, 사용자: "매번 렌더링 할게 아니라 마지막에 한 번만 렌더링하고 그 전까지는 미리보기에서만", "렌더링 시간이 오래 걸리잖아 토큰도 더 많이 먹고").**
   1차 편집 · AI 피드백 판은 **`shortsmith build` 를 돌리지 않는다.** 순서: 1) `python tools/apply_review.py <편> projects/<id>/project.json` (사용자가 대시보드에서 고친 컷 · 자막을
   편 폴더에 넣는다 - 안 하면 2 의 내보내기가 사용자 편집 탭 컷을 지운다) 2) edit.json · captions.csv · fx.json 고침 3) `python tools/preview_update.py <편> <id>`

@@ -16,7 +16,8 @@
 import csv, io, json, os, shutil, sys
 
 work, pj = os.path.abspath(sys.argv[1]), sys.argv[2]
-R = (json.load(io.open(pj, encoding="utf-8")).get("review") or {})
+PJD = json.load(io.open(pj, encoding="utf-8"))
+R = (PJD.get("review") or {})
 os.chdir(work)
 E = json.load(io.open("edit.json", encoding="utf-8"))
 caps = R.get("captions") or []
@@ -354,4 +355,16 @@ if "userLayers" in R:
             E2.pop("layers", None)
         io.open("edit.json", "w", encoding="utf-8").write(json.dumps(E2, ensure_ascii=False, indent=1) + chr(10))
         print("덧 트랙 %d 클립 -> edit.json layers" % len(LY))
+# 렌더 설정 (사용자 편집 > 렌더 탭, 2026-10-03: "렌더 시 필요한 모든 설정 커스텀 가능하게") -> edit.json "output" -> scene.output ->
+# render.mjs outVideo (조각과 다른 것이 있을 때만 마지막에 한 번 더 인코딩) · 목표 크기는 고정 이득 한 번 그대로
+RO = ((PJD.get("render") or {}).get("opts")) or {}
+OUT = {k: RO[k] for k in ("codec", "soft", "q", "size", "fps", "abr", "lufs") if RO.get(k) not in (None, "", 0, False, [])}
+E3 = json.load(io.open("edit.json", encoding="utf-8"))
+if (E3.get("output") or {}) != OUT:
+    if OUT:
+        E3["output"] = OUT
+    else:
+        E3.pop("output", None)
+    io.open("edit.json", "w", encoding="utf-8").write(json.dumps(E3, ensure_ascii=False, indent=1) + chr(10))
+    print("렌더 설정 -> edit.json output: %s" % (json.dumps(OUT, ensure_ascii=False) if OUT else "기본"))
 json.dump({"sig": user_sig(R)}, io.open("applied_review.json", "w", encoding="utf-8"))

@@ -37,7 +37,8 @@
     D.state.render = {
       dir: (data.render && data.render.dir) || '',
       out: (data.render && data.render.out) || '',
-      base: (data.render && data.render.base) || 'ko'
+      base: (data.render && data.render.base) || 'ko',
+      opts: (data.render && data.render.opts) || null
     };
     if (data.ai) {
       D.state.ai.drops = data.ai.drops || { 'analyze.src': [], 'analyze.edited': [], 'apply.target': [], 'apply.assets': [] };
@@ -50,6 +51,7 @@
       D.state.ai.prompt = data.ai.prompt || '';
       D.state.ai.langs = data.ai.langs || [];
       D.state.ai.outputMode = data.ai.outputMode || 'each';
+      D.state.ai.aspect = data.ai.aspect || '';
       D.state.ai.policy = data.ai.policy || 'on-demand';
     }
     D.state.layout = data.layout || null;

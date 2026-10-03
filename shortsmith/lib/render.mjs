@@ -21,7 +21,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { encoder } from './encoder.mjs';
+import { encoder, outputEncoder } from './encoder.mjs';
 import { animLen } from './animlen.mjs';
 
 const HERE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -341,7 +341,7 @@ export async function renderScene(scenePath, outPath) {
   scene.dir = dir.split(path.sep).join('/');
   body = JSON.parse(fs.readFileSync(path.join(dir, 'body.json'), 'utf8'));
   VENC = encoder().args;
-  const TARGET_I = scene.style.audio?.targetLufs ?? -16, TARGET_TP = scene.style.audio?.maxTruePeakDb ?? -1.5;
+  const TARGET_I = scene.output?.lufs ?? scene.style.audio?.targetLufs ?? -16, TARGET_TP = scene.style.audio?.maxTruePeakDb ?? -1.5;
   const { bundleKey, bundleDir } = await ensureBundle();
   const cache = path.join(dir, 'cache'), ovDir = path.join(cache, 'ov');
   fs.mkdirSync(ovDir, { recursive: true });
@@ -421,6 +421,20 @@ async function capture(need, ovDir, bundleDir) {
   log('overlay captured');
 }
 
+/* Render tab settings (scene.output from edit.json output, 2026-10-03): codec · quality · size · fps. The chunks stay as they are
+   (cache) - only when something differs from them is the joined picture encoded once more here, else it is copied */
+function outVideo() {
+  const O = scene.output || {};
+  const size = Array.isArray(O.size) && O.size.length === 2 && (O.size[0] !== scene.width || O.size[1] !== scene.height) ? O.size : null;
+  const fps = O.fps && +O.fps !== scene.fps ? +O.fps : null;
+  const q = O.q ?? 20;
+  if (!size && !fps && (O.codec || 'h264') === 'h264' && !O.soft && q === 20) return ['-c:v', 'copy'];
+  const E = outputEncoder({ codec: O.codec || 'h264', soft: !!O.soft, q });
+  const vf = [size ? `scale=${size[0]}:${size[1]}:flags=lanczos` : '', fps ? `fps=${fps}` : ''].filter(Boolean);
+  log(`output: ${E.name} q${q}${size ? ' ' + size.join('x') : ''}${fps ? ' ' + fps + 'fps' : ''}`);
+  return [...(vf.length ? ['-vf', vf.join(',')] : []), ...E.args];
+}
+
 /* Join the chunk list (concat lines) and add the window audio with one fixed gain; drop chunks / overlays unused for 7 days */
 async function finish(lines, cache, outPath, ovDir, TARGET_I, TARGET_TP) {
   // audio: measure the window audio and apply one fixed gain
@@ -446,7 +460,7 @@ async function finish(lines, cache, outPath, ovDir, TARGET_I, TARGET_TP) {
   });
   if (aud.length) fc.push(`[m]${aud.map((_, j) => `[x${j}]`).join('')}amix=inputs=${aud.length + 1}:normalize=0:duration=first[aout]`);
   const r = spawnSync('ffmpeg', ['-y', '-v', 'error', '-f', 'concat', '-safe', '0', '-i', list, '-i', path.join(dir, scene.body.window), ...ain,
-    '-map', '0:v', ...(aud.length ? ['-filter_complex', fc.join(';'), '-map', '[aout]'] : ['-map', '1:a', '-af', wa]), '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k',
+    '-map', '0:v', ...(aud.length ? ['-filter_complex', fc.join(';'), '-map', '[aout]'] : ['-map', '1:a', '-af', wa]), ...outVideo(), '-c:a', 'aac', '-b:a', `${scene.output?.abr || 192}k`,
     '-t', scene.duration.toFixed(3), '-movflags', '+faststart', path.resolve(outPath)], { stdio: 'inherit' });
   if (aud.length) log(`mixed ${aud.length} extra audio clip(s)`);
   if (r.status) process.exit(1);

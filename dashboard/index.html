@@ -201,6 +201,18 @@
           <p class="hint" id="styleMeta">스타일 분석 탭에서 먼저 등록하세요.</p>
         </div>
 
+        <!-- 화면 비율 (2026-10-03 사용자: "스타일 적용 시에 화면 비율 선택 란 추가") - 작업 글에 실려 AI 가 그 비율의 프리셋 · 캔버스로 만든다 -->
+        <div class="field">
+          <label class="field-label">화면 비율</label>
+          <div class="seg aspect-seg" id="aspectSeg">
+            <button type="button" data-aspect="" title="스타일 (프리셋) 에 적힌 비율 그대로">스타일 기본</button>
+            <button type="button" data-aspect="9:16" title="세로 - 쇼츠 · 릴스 · 틱톡">9:16</button>
+            <button type="button" data-aspect="16:9" title="가로 - 유튜브 본편">16:9</button>
+            <button type="button" data-aspect="1:1" title="정사각형">1:1</button>
+            <button type="button" data-aspect="4:5" title="세로 조금 - 인스타 피드">4:5</button>
+          </div>
+        </div>
+
         <div class="field grow">
           <div class="out-head">
             <label class="field-label">출력 예정</label>
@@ -451,29 +463,82 @@
       <div class="ue-ins" id="ueIns" data-pane="ins"></div>
       <div class="ue-words" id="ueWords" data-pane="words" hidden></div>
       <div class="ue-rnd" data-pane="render" hidden>
-        <button class="btn btn-primary ue-render-btn" id="btnFbRender" title="렌더 (AI 없음): 사용자 편집 타임라인 · 고친 자막 그대로 바로 다시 굽습니다"><svg class="i"><use href="#i-render"/></svg><span>렌더</span></button>
-
-            <div class="rnd-prog" id="rndProg" hidden>
-              <div class="rnd-prog-head"><span id="rndStep">준비</span><b id="rndPct">0%</b></div>
-              <div class="rnd-bar"><i id="rndBar"></i></div>
-              <div class="rnd-meta" id="rndMeta"></div>
-              <div class="rnd-log" id="rndLog"></div>
-            </div>
-            <div class="field">
-              <label class="field-label" for="rndDir">작업 폴더</label>
-              <input class="input input-sm" id="rndDir" placeholder="edit/네모비틱">
-            </div>
-            <div class="field">
-              <label class="field-label" for="rndOut">내보낼 곳</label>
-              <input class="input input-sm" id="rndOut" placeholder="비우면 파이프라인 기본값">
-            </div>
-            <div class="field">
-              <label class="field-label" for="rndBase">기준 언어</label>
-              <select class="input input-sm" id="rndBase">
-                <option value="ko">한국어</option>
-                <option value="en">English</option>
-              </select>
-            </div>
+        <div class="rnd-scroll">
+          <div class="rnd-h">파일</div>
+          <div class="field">
+            <label class="field-label" for="rndDir">작업 폴더</label>
+            <input class="input input-sm" id="rndDir" placeholder="edit/네모비틱">
+          </div>
+          <div class="field">
+            <label class="field-label" for="rndOut">내보낼 곳</label>
+            <input class="input input-sm" id="rndOut" placeholder="비우면 파이프라인 기본값">
+          </div>
+          <div class="field">
+            <label class="field-label" for="rndBase">기준 언어</label>
+            <select class="input input-sm" id="rndBase">
+              <option value="ko">한국어</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+          <div class="rnd-h">영상</div>
+          <div class="field">
+            <label class="field-label" for="rndCodec">코덱</label>
+            <select class="input input-sm" id="rndCodec">
+              <option value="h264">H.264 - 어디서나 열림</option>
+              <option value="hevc">H.265 (HEVC) - 같은 화질에 파일이 작음</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field-label" for="rndEnc">인코더</label>
+            <select class="input input-sm" id="rndEnc">
+              <option value="">자동 - 그래픽 카드 먼저 (빠름)</option>
+              <option value="soft">소프트웨어 - 느리지만 화질이 가장 좋음</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field-label" for="rndQ">화질 <span class="rnd-qlab" id="rndQLab"></span></label>
+            <div class="rnd-q"><input type="range" id="rndQ" min="12" max="32" step="1" value="20"><input type="number" class="input input-sm" id="rndQN" min="12" max="32" step="1" value="20"></div>
+            <p class="hint">숫자가 작을수록 화질이 좋고 파일이 큽니다 (기본 20 · 두 번 눌러 기본)</p>
+          </div>
+          <div class="field">
+            <label class="field-label" for="rndSize">해상도</label>
+            <select class="input input-sm" id="rndSize"></select>
+            <p class="hint" id="rndSizeHint"></p>
+          </div>
+          <div class="field">
+            <label class="field-label" for="rndFps">프레임</label>
+            <select class="input input-sm" id="rndFps">
+              <option value="">프리셋 그대로</option>
+              <option value="24">24</option><option value="25">25</option><option value="30">30</option><option value="50">50</option><option value="60">60</option>
+            </select>
+          </div>
+          <div class="rnd-h">소리</div>
+          <div class="field">
+            <label class="field-label" for="rndAbr">비트레이트 (AAC)</label>
+            <select class="input input-sm" id="rndAbr">
+              <option value="128">128 kbps</option><option value="">192 kbps (기본)</option><option value="256">256 kbps</option><option value="320">320 kbps</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field-label" for="rndLufs">목표 크기</label>
+            <select class="input input-sm" id="rndLufs">
+              <option value="">프리셋 그대로</option>
+              <option value="-14">-14 LUFS (크게)</option><option value="-16">-16 LUFS</option><option value="-18">-18 LUFS</option><option value="-23">-23 LUFS (방송 기준)</option>
+            </select>
+            <p class="hint">고정 이득 한 번으로 맞춥니다 - 소리 필터는 걸지 않습니다</p>
+          </div>
+          <button class="btn btn-ghost btn-sm rnd-reset" id="rndReset" title="코덱 · 화질 · 해상도 · 프레임 · 소리 설정을 기본으로"><svg class="i"><use href="#i-sync"/></svg><span>설정 초기화</span></button>
+          <p class="hint" id="rndNote"></p>
+        </div>
+        <div class="rnd-foot">
+          <div class="rnd-prog" id="rndProg" hidden>
+            <div class="rnd-prog-head"><span id="rndStep">준비</span><b id="rndPct">0%</b></div>
+            <div class="rnd-bar"><i id="rndBar"></i></div>
+            <div class="rnd-meta" id="rndMeta"></div>
+            <div class="rnd-log" id="rndLog"></div>
+          </div>
+          <button class="btn btn-primary ue-render-btn" id="btnFbRender" title="렌더 (AI 없음): 사용자 편집 타임라인 · 고친 자막 그대로 바로 다시 굽습니다"><svg class="i"><use href="#i-render"/></svg><span>렌더</span></button>
+        </div>
       </div>
     </section>
     <div class="ue-toolbar">

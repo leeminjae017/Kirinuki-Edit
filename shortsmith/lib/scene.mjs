@@ -174,6 +174,7 @@ export function buildScene(projectDir, edit, loaded, body, cutsList) {
   const W = preset.layout.window;
   const scene = {
     fps: preset.canvas.fps, width: preset.canvas.width, height: preset.canvas.height, duration: dur,
+    ...(edit.output && typeof edit.output === 'object' ? { output: edit.output } : {}),   // render tab settings (lib/render.mjs outVideo)
     style: preset,
     body: { window: 'window.mkv', windowPreview: 'window_preview.mp4', bg: 'bg.mp4',
       ...(fs.existsSync(path.join(projectDir, 'bg_preview.mp4')) ? { bgPreview: 'bg_preview.mp4' } : {}),

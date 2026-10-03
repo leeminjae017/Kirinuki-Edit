@@ -75,3 +75,7 @@
   border-radius:var(--r-sm);background:#26262a;border:1px solid #3d3d41;font-size:11.5px;color:var(--txt-dim);
 }
 .out-summary b{color:var(--txt);font-size:13px}
+
+/* 화면 비율 고르기 (스타일 적용) */
+.aspect-seg{display:flex;flex-wrap:wrap}
+.aspect-seg button{flex:1 1 auto}

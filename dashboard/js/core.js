@@ -124,7 +124,7 @@ window.D = window.D || {};
          dir  굽는 스크립트가 있는 폴더 (import_project.py -> build_edit.py
               -> apply_captions*.py 를 서버가 여기서 돌린다)
          out  다 구운 영상이 저장될 폴더. 비우면 스크립트에 적힌 자리로 간다 */
-    render: { dir: '', out: '', base: 'ko' },
+    render: { dir: '', out: '', base: 'ko', opts: null },   // opts: 렌더 탭 설정 {codec, soft, q, size, fps, abr, lufs} (2026-10-03)
     ai: {
       drops: { 'analyze.src': [], 'analyze.edited': [], 'apply.target': [], 'apply.assets': [] },
       styleName: '',
@@ -406,7 +406,7 @@ window.D = window.D || {};
       layout: D.state.layout,
       editNotes: D.state.editNotes,
       log: D.Log.forProject(D.state.project.id || ''),
-      render: { dir: D.state.render.dir, out: D.state.render.out, base: D.state.render.base },
+      render: { dir: D.state.render.dir, out: D.state.render.out, base: D.state.render.base, opts: D.state.render.opts || null },
       ai: {
         drops: D.state.ai.drops,
         styleName: D.state.ai.styleName,
@@ -414,6 +414,7 @@ window.D = window.D || {};
         prompt: D.state.ai.prompt,
         langs: D.state.ai.langs,
         outputMode: D.state.ai.outputMode || 'each',
+        aspect: D.state.ai.aspect || '',
         policy: D.state.ai.policy
       },
       editor: {
