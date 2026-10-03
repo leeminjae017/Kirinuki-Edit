@@ -41,6 +41,8 @@ export type Layer = {
   box?: { x: number; y: number; w: number; h: number }; opacity?: number; vol?: number; mute?: boolean; fin?: number; fout?: number;
   color?: { brightness?: number; contrast?: number; saturation?: number } & ColorTone;   // tone: lib/color.mjs
   rot?: number;                                                         // degrees about the box centre
+  crop?: { x: number; y: number; w: number; h: number };                 // part of the file shown in the box (file px)
+  w0?: number; h0?: number;                                             // file size
   keys?: { t: number; x: number; y: number; w: number; h: number }[];   // motion: box keyframes, t = seconds into the clip
   ease?: boolean;                                                       // smoothstep between keys (else linear)
   tin?: { type: 'dissolve' | 'black' | 'white' | 'wipe' | 'slide'; d: number };   // from the clip that ends here on this track
@@ -77,7 +79,8 @@ export type Scene = {
            ranges: { at: number; s: number; e: number; crop: { x: number; y: number; w: number; h: number }; vol?: number;
                      color?: Layer['color'];                                 // piece colour (1 = unchanged)
                      tin?: { type: 'dissolve' | 'black' | 'white' | 'wipe' | 'slide'; d: number };   // transition into this range
-                     tf?: Tf }[] };                                          // user move / zoom / rotate of the window picture
+                     tf?: Tf;                                                // user move / zoom / rotate of the window picture
+                     vhide?: boolean }[] };                                  // picture moved to an upper track - sound only
 };
 
 export type Env = {

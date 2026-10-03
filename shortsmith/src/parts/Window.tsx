@@ -173,7 +173,7 @@ const PlanRange: React.FC<{ scene: Scene; env: Env; fps: number; r: PlanR; len: 
     return (
       <div style={{ position: 'absolute', left: dx, top: 0, width: W.w, height: W.h, overflow: 'hidden', opacity: op, clipPath: clip }}>   {/* no zIndex - it lifted the video over the caption layer */}
         <ToneDefs c={r.color} />
-        <div style={{ position: 'absolute', inset: 0, transform: tf.r ? `rotate(${tf.r}deg)` : undefined }}>
+        <div style={{ position: 'absolute', inset: 0, transform: tf.r ? `rotate(${tf.r}deg)` : undefined, opacity: r.vhide ? 0 : 1 }}>
           <Video src={env.url(abs(scene.dir, P.src))} startFrom={Math.round(r.s * fps) - h0} volume={vol}
             acceptableTimeShiftInSeconds={0.3}
             style={{ position: 'absolute', left: -crop.x * k, top: -crop.y * k, width: P.srcW * k, height: P.srcH * k, maxWidth: 'none',

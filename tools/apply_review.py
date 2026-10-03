@@ -169,7 +169,7 @@ if CUT:
     # 클립 소리 크기 (사용자 편집 인스펙터 '소리', dB, 2026-10-02) - 그 클립에서 나온 조각의 gainDb 에 더한다
     # 색 (color) 은 그 클립의 모든 조각에, 전환 (tin: 앞 클립에서 넘어오는 것) 은 그 클립의 첫 조각에 (2026-10-02)
     # 변형 (tf: 이동 · 확대 · 회전) 은 색처럼 그 클립의 모든 조각에 (2026-10-03)
-    UVOL = [(c["at"], c["at"] + c["e"] - c["s"], float(c.get("vol") or 0), c.get("color"), c.get("tin"), c.get("tf")) for c in UC] if UC else []
+    UVOL = [(c["at"], c["at"] + c["e"] - c["s"], float(c.get("vol") or 0), c.get("color"), c.get("tin"), c.get("tf"), c.get("vhide")) for c in UC] if UC else []
     for a, b, at in sorted(P, key=lambda r: r[2]):
         a0, at0 = a, at
         if at > cur + 0.01:
@@ -197,6 +197,8 @@ if CUT:
             tf = u[5] if u else (inside or {}).get("tf")
             if tf:
                 ent["tf"] = tf
+            if (u[6] if u else (inside or {}).get("vhide")):     # 화면을 V2.. 로 옮기고 소리만 남긴 클립 (2026-10-03)
+                ent["vhide"] = True
             tin = (u[4] if u else (inside or {}).get("tin")) if abs(x - a) < 1e-3 else None
             if tin and tin.get("d"):
                 ent["tin"] = tin

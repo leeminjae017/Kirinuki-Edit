@@ -101,6 +101,7 @@
       if (c.tin && c.tin.d) o.tin = c.tin;     // 앞 클립에서 넘어오는 전환 {type, d}
       if (c.tf) o.tf = c.tf;                   // 변형 {x, y (창 px), z (배율), r (도)} - AI 화면 잡기 위에 얹는다 (2026-10-03)
       if (c.g) o.g = c.g;                      // 그룹 id (review.userGroups)
+      if (c.vhide) o.vhide = true;             // 화면은 V2.. 로 옮기고 소리만 A1 에 남은 클립
       return o;
     });
     layersOut();
@@ -211,11 +212,12 @@
     var lv = laneEl('v', 1), la = laneEl('a', 1), mp = R && R.srcPreview && R.srcPreview.path, mm = mp ? med(mp, 'video') : {};
     sorted().forEach(function (c, i) {
       [['v', lv], ['a', la]].forEach(function (kv) {
-        var el = D.el('div', { class: 'ue-clip ue-' + kv[0] + (SEL[c.id] ? ' is-sel' : '') });
+        var el = D.el('div', { class: 'ue-clip ue-' + kv[0] + (SEL[c.id] ? ' is-sel' : '') + (kv[0] === 'v' && c.vhide ? ' is-vhide' : '') });
         el.style.left = X(c.at) + 'px';
         el.style.width = Math.max(2, X(len(c))) + 'px';
         el.dataset.id = c.id;
-        if (kv[0] === 'v') {
+        if (kv[0] === 'v' && c.vhide) el.appendChild(D.el('span', { class: 'ue-clip-name', text: '화면은 위 트랙으로 (소리만 A1)' }));
+        else if (kv[0] === 'v') {
           film(el, mm.th, c.s, len(c), LANE_H - 6 - 16);
           el.appendChild(D.el('span', { class: 'ue-clip-name', text: (i + 1) + '  ' + stc(c.s) + ' - ' + stc(c.e) }));
         } else {
@@ -552,6 +554,8 @@
       grp.forEach(function (g) { g.at = Math.max(0, fr(g.at + d)); });
       var hit = document.elementFromPoint(ev.clientX, ev.clientY), ln = hit && hit.closest && hit.closest('#ueContent .ue-lane');
       if (ln && ln.dataset.area === areaOf(x) && +ln.dataset.track >= 2) x.track = +ln.dataset.track;   // 같은 칸 안에서만 트랙을 옮긴다
+      drag.toMain = !!(ln && ln.dataset.area === 'v' && +ln.dataset.track === 1 && x.kind === 'video');
+      laneGhost(drag.toMain ? 1 : null, x.at, xlen(x));
     } else if (drag.kind === 'xl') {
       var lo = x.kind === 'image' ? -Infinity : 0;
       var ns = Math.max(lo, Math.min(o.s + dt, o.e - m));
@@ -571,6 +575,14 @@
     draw();
   }
   function xUp(d) {
+    laneGhost(null);
+    if (d.kind === 'xmove' && d.toMain) {
+      var mv = exById(d.id), at0 = mv && mv.at;
+      EX = JSON.parse(d.base).x || [];
+      remember();
+      if (toMain(exById(d.id), at0)) changed(); else { UNDO.pop(); draw(); }
+      return;
+    }
     EX.forEach(function (x) { if (SEL[x.id]) settle(x); });
     var after = JSON.stringify(EX);
     EX = JSON.parse(d.base).x || []; remember(); EX = JSON.parse(after);
@@ -1389,7 +1401,7 @@
     t = fr(t);
     if (!c || t <= c.at + MIN / FPS || t >= end(c) - MIN / FPS) return false;
     var cut = c.s + (t - c.at);
-    var c2 = { id: UID++, s: cut, e: c.e, at: t, vol: c.vol, color: c.color, tf: c.tf, g: c.g };
+    var c2 = { id: UID++, s: cut, e: c.e, at: t, vol: c.vol, color: c.color, tf: c.tf, g: c.g, vhide: c.vhide };
     c.e = cut;
     CL.push(c2);
     return true;
@@ -1463,7 +1475,7 @@
     var kind = off < EDGEPX ? 'l' : off > r.width - EDGEPX ? 'r' : 'move';
     CSEL = null;
     if (!SEL[c.id] || kind !== 'move') { if (!ev.shiftKey) SEL = {}; SEL[c.id] = true; }
-    drag = { kind: kind, id: c.id, x0: cx(ev), base: snapshot(), o: { s: c.s, e: c.e, at: c.at }, moved: false };
+    drag = { kind: kind, id: c.id, x0: cx(ev), y0: ev.clientY, base: snapshot(), o: { s: c.s, e: c.e, at: c.at }, moved: false };
     draw();
     ev.preventDefault();
   }
@@ -1473,7 +1485,7 @@
     if (drag.kind === 'box') { marquee(ev); return; }
     if (drag.kind.charAt(0) === 'x') { if (drag.moved || Math.abs(cx(ev) - drag.x0) >= 3 || Math.abs(ev.clientY - (drag.y0 || ev.clientY)) >= 6) { drag.moved = true; xMove(ev); } return; }
     var dx = cx(ev) - drag.x0;
-    if (!drag.moved && Math.abs(dx) < 3) return;
+    if (!drag.moved && Math.abs(dx) < 3 && (drag.kind !== 'move' || Math.abs(ev.clientY - drag.y0) < 6)) return;   // 세로만 끌어도 (V2 로 올리기)
     drag.moved = true;
     var dt = T(dx), o = drag.o;
     CL = JSON.parse(drag.base).c;
@@ -1491,9 +1503,11 @@
       a = Math.abs(sa - a) <= Math.abs(se - a) ? sa : se;
       drag.at = fr(a);
       showSnap(a !== Math.max(0, o.at + dt) ? (a === sa ? a : a + (o.e - o.s)) : null);
+      var hit = document.elementFromPoint(ev.clientX, ev.clientY), ln = hit && hit.closest && hit.closest('#ueContent .ue-lane');
+      drag.lane = ln && ln.dataset.area === 'v' && +ln.dataset.track >= 2 && !c.vhide ? +ln.dataset.track : null;   // V2.. 로 올리기 (2026-10-03)
     }
     draw();
-    if (drag.kind === 'move') ghost(drag.id, drag.at);
+    if (drag.kind === 'move') { ghost(drag.id, drag.at); laneGhost(drag.lane, drag.at, o.e - o.s); }
   }
   function onUp() {
     if (!drag) return;
@@ -1503,6 +1517,13 @@
     if (d.kind === 'ph' || !d.moved) { draw(); return; }
     if (d.kind.charAt(0) === 'x') { xUp(d); return; }
     var after = null;
+    laneGhost(null);
+    if (d.kind === 'move' && d.lane) {      // 위 트랙에 놓았다: 덧 클립으로
+      CL = JSON.parse(d.base).c;
+      remember();
+      if (toLayer(byId(d.id), d.lane, d.at)) changed(); else { UNDO.pop(); draw(); }
+      return;
+    }
     if (d.kind === 'move') {
       CL = JSON.parse(d.base).c;
       var c = byId(d.id);
@@ -1742,8 +1763,8 @@
     var out = [];
     sorted().forEach(function (c) {
       if (b <= c.s || a >= c.e) { out.push(c); return; }
-      if (a > c.s + 1e-3) out.push({ id: c.id, s: c.s, e: a, at: c.at, vol: c.vol, color: c.color, tin: c.tin, tf: c.tf, g: c.g });
-      if (b < c.e - 1e-3) out.push({ id: UID++, s: b, e: c.e, at: c.at + (b - c.s), vol: c.vol, color: c.color, tf: c.tf, g: c.g });
+      if (a > c.s + 1e-3) out.push({ id: c.id, s: c.s, e: a, at: c.at, vol: c.vol, color: c.color, tin: c.tin, tf: c.tf, g: c.g, vhide: c.vhide });
+      if (b < c.e - 1e-3) out.push({ id: UID++, s: b, e: c.e, at: c.at + (b - c.s), vol: c.vol, color: c.color, tf: c.tf, g: c.g, vhide: c.vhide });
     });
     CL = out;
     if (RIP) pack();
@@ -1788,7 +1809,7 @@
       var l = out[out.length - 1];
       if (l && Math.abs(l.e - c.s) < 0.002 && Math.abs(end(l) - c.at) < 0.002 && (l.vol || 0) === (c.vol || 0) && !c.tin
           && JSON.stringify(l.color || null) === JSON.stringify(c.color || null) && JSON.stringify(l.tf || null) === JSON.stringify(c.tf || null)
-          && (l.g || null) === (c.g || null)) l.e = c.e;
+          && (l.g || null) === (c.g || null) && !l.vhide === !c.vhide) l.e = c.e;
       else out.push(c);
     });
     CL = out;
@@ -1827,6 +1848,83 @@
       box.appendChild(p);
     });
     box.scrollTop = keep;
+  }
+
+  /* ---------- 트랙 사이 옮기기 (2026-10-03 사용자: "트랙 이동 기능 예) v1 <-> v2등등 , 오디오도 같이 움직일건지 따로 움직일 건지 선택 가능하게 아이콘") ----------
+     원본 클립 (V1) 을 V2.. 에 놓으면 같은 원본 구간 · 같은 화면 (AI 크롭 + 변형) 의 덧 영상이 된다 (review.source 원본 파일, crop 칸).
+     연결 (고리) 이 켜져 있으면 소리도 A2.. 로 같이 옮기고 V1 · A1 에는 빈 틈이 남는다. 꺼져 있으면 소리는 A1 에 남고 V1 화면만 비운다 (vhide).
+     덧 영상 (원본 파일에서 온 것) 을 V1 에 놓으면 다시 원본 클립이 된다 (화면만 비운 클립이 그 자리에 있으면 그것을 되살린다) */
+  function srcPath() { return (R && (R.source || (R.srcPreview && R.srcPreview.path))) || null; }
+  function srcWH() { return (R && R.srcSize) || (R && R.srcPreview && { w: R.srcPreview.w, h: R.srcPreview.h }) || { w: 1920, h: 1080 }; }
+  function normP(p) { return String(p || '').replace(/\\/g, '/').toLowerCase(); }
+  function isSrc(p) { var a = normP(p); return !!a && (a === normP(R.source) || a === normP((R.srcPreview || {}).path)); }
+  function pieceOf(c) { return ((R && R.clips) || []).filter(function (k) { return c.s >= k.s - 0.01 && c.s < k.e; })[0] || null; }
+  function laneGhost(n, at, L) {
+    D.$$('.ue-lane-ghost').forEach(function (g) { g.remove(); });
+    if (!n) return;
+    var ln = laneEl('v', n);
+    if (!ln) return;
+    var g = D.el('div', { class: 'ue-lane-ghost' });
+    g.style.left = X(at) + 'px'; g.style.width = Math.max(2, X(L)) + 'px';
+    ln.appendChild(g);
+  }
+  function toLayer(c, track, at) {
+    var p = srcPath();
+    if (!c || !p || !SC) { D.toast('원본 경로를 몰라 옮길 수 없습니다 - 내보내기를 다시 해 주세요'); return false; }
+    if (LINK && CL.length <= 1) { D.toast('마지막 원본 클립은 옮길 수 없습니다 (연결을 끄면 화면만 옮깁니다)'); return false; }
+    var W = SC.window, S = srcWH(), pc = pieceOf(c), cr = (pc && pc.crop) || (R.srcPreview && R.srcPreview.crop) || { x: 0, y: 0, w: S.w, h: S.h };
+    var A = W.w / W.h, V = cr.w / cr.h > A ? { w: cr.h * A, h: cr.h } : { w: cr.w, h: cr.w / A };
+    V.x = cr.x + (cr.w - V.w) / 2; V.y = cr.y + (cr.h - V.h) / 2;
+    var f = tfOf(c), name = '원본 ' + stc(c.s) + ' - ' + stc(c.e);
+    var v = { id: 'x' + (UID++), kind: 'video', path: p, name: name, track: track, at: fr(at), s: c.s, e: c.e, dur: srcDur() === Infinity ? null : srcDur(),
+              w0: S.w, h0: S.h, crop: { x: Math.round(V.x), y: Math.round(V.y), w: Math.round(V.w), h: Math.round(V.h) },
+              box: rbox({ x: W.x + W.w / 2 + f.x - W.w * f.z / 2, y: W.y + W.h / 2 + f.y - W.h * f.z / 2, w: W.w * f.z, h: W.h * f.z }),
+              opacity: 1, vol: 0, fin: 0, fout: 0 };
+    if (c.color) v.color = c.color;
+    if (f.r) v.rot = f.r;
+    if (c.g) v.g = c.g;
+    var made = [v];
+    if (LINK) {
+      var a = { id: 'x' + (UID++), kind: 'audio', path: p, name: name, track: 2, at: v.at, s: c.s, e: c.e, dur: v.dur,
+                vol: +((c.vol || 0) + ((pc && pc.gain) || 0)).toFixed(2), fin: 0, fout: 0, link: v.id };   // AI 조각 이득도 같이
+      v.link = a.id; made.push(a);
+      CL = CL.filter(function (x) { return x !== c; });                                // V1 · A1 에는 빈 틈 (리플 안 함)
+    } else c.vhide = true;
+    made.forEach(function (x) { EX.push(x); settle(x); });
+    SEL = {}; made.forEach(function (x) { SEL[x.id] = true; });
+    D.toast(LINK ? '영상 + 소리를 V' + v.track + ' · A' + (made[1] && made[1].track) + ' 로 옮겼습니다' : '화면만 V' + v.track + ' 로 옮겼습니다 (소리는 A1)');
+    return true;
+  }
+  function toMain(x, at) {
+    if (!x || x.kind !== 'video' || !isSrc(x.path)) { D.toast('이 편 원본에서 온 영상만 V1 로 옮길 수 있습니다'); return false; }
+    var p = partner(x);
+    var hid = CL.filter(function (c) { return c.vhide && Math.abs(c.s - x.s) < 0.02 && Math.abs(c.e - x.e) < 0.02; })[0];
+    if (hid) delete hid.vhide;                                                          // 화면만 옮겼던 클립: 되살린다
+    else {
+      at = fr(at);
+      var L = x.e - x.s, tol = 2.5 / FPS, sE = x.e;                                   // 두 프레임 안 겹침은 옆 클립에 붙인다 (반올림 찌꺼기)
+      CL.forEach(function (c) {
+        if (end(c) > at && end(c) - at <= tol && c.at < at) at = end(c);
+        if (c.at < at + L && at + L - c.at <= tol && c.at > at) L = c.at - at;
+      });
+      var hit = L < 1 / FPS || CL.some(function (c) { return at < end(c) - 1e-6 && at + L > c.at + 1e-6; });
+      if (hit) { D.toast('V1 의 그 자리에 다른 클립이 있습니다'); return false; }
+      sE = x.s + L;
+      var c = { id: UID++, s: x.s, e: sE, at: at };
+      if (x.color) c.color = x.color;
+      if (x.g) c.g = x.g;
+      CL.push(c);
+    }
+    EX = EX.filter(function (y) { return y !== x && y !== p; });                       // 소리는 원본 클립이 다시 낸다
+    SEL = {};
+    D.toast('원본 트랙 (V1 · A1) 으로 옮겼습니다');
+    return true;
+  }
+  function moveSelTrack(dir) {             // 우클릭: 원본 클립 하나를 V2 로 / 덧 영상 하나를 V1 로
+    var S = selected(), SX = selX().filter(function (x) { return x.kind === 'video'; });
+    remember();
+    var ok = dir > 0 && S.length === 1 ? toLayer(S[0], 2, S[0].at) : dir < 0 && SX.length === 1 ? toMain(SX[0], SX[0].at) : false;
+    if (ok) changed(); else UNDO.pop();
   }
 
   /* ---------- I · O 구간 (2026-10-03 사용자: "영역 선택 시작 부는 i, 끝은 o, 선택 부분 외에는 어둡게 처리") ----------
@@ -1960,6 +2058,8 @@
     var objs = selObjs(), items = [];
     if (objs.length >= 2) items.push(['그룹 만들기', makeGroup]);
     if (objs.some(function (o) { return o.g; })) { items.push(['그룹 전체 고르기', selectGroup]); items.push(['그룹 이름 바꾸기', renameGroup]); items.push(['그룹 풀기', ungroup]); }
+    if (selected().length === 1 && !selected()[0].vhide) items.push(['위 트랙 (V2) 으로 옮기기' + (LINK ? ' (소리 같이)' : ' (화면만)'), function () { moveSelTrack(1); }]);
+    if (selX().filter(function (x) { return x.kind === 'video' && isSrc(x.path); }).length === 1) items.push(['원본 트랙 (V1) 으로 옮기기', function () { moveSelTrack(-1); }]);
     if (objs.length) { items.push(['재생 위치에서 자르기', splitAtPlayhead]); items.push(['지우기', removeSel]); }
     if (RANGE.i != null && RANGE.o != null) items.push(['I-O 구간 빼기', removeRange]);
     if (!items.length) return;
@@ -2041,6 +2141,7 @@
         if (from && from.color) c.color = from.color;
         if (from && from.tin) c.tin = from.tin;
         if (from && from.tf) c.tf = from.tf;
+        if (from && from.vhide) c.vhide = true;
         if (r[4] && r[4].g) c.g = r[4].g;
         return c;
       });

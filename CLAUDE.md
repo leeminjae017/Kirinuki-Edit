@@ -122,6 +122,11 @@ ebur128 로 재서 `min(-16 - I, -1.5 - TP)` 만큼 올린다.
   변형: 원본 클립 tf {x, y, z, r} = AI 크롭 위에 얹는 이동 · 확대 · 회전 (body.mjs tfCropVf 가 원본에서 다시 크롭 - 화질 그대로, 밖은 검정, 카메라 편은 tfPostVf),
   뷰어에서 원본 클립도 상자로 끈다. 덧 클립 rot, 자막 · 설명 딱지 tf (captions.csv tf 칸 "x y z r", Caption.tsx 가 렌더 · 미리보기 같이).
   **server.py 자막 합치기는 글 (orig) · 화자로 같은 줄을 찾는다** - 시작 시각만 보던 때 같은 시각에 시작하는 딱지 고침이 옆 자막 글을 덮었다.
+- **트랙 사이 옮기기 (2026-10-03):** 원본 클립 (V1) 을 끌어 V2.. 에 놓거나 우클릭 "위 트랙 (V2) 으로" = 같은 원본 구간 · 같은 화면 (AI 크롭 창 비율 + 변형 tf -> 상자 · rot, 색 · 그룹 따라감) 의 덧 영상
+  (userLayers kind video, path = review.source, crop {x, y, w, h} 원본 px · w0 h0). 그 칸이 차 있으면 빈 위 칸으로 간다. **연결 (고리) 켬 = 소리도 A2.. 로 (조각 이득 더한 dB), V1 · A1 에는 빈 틈**,
+  끔 = 소리는 A1 에 두고 V1 화면만 비움 (userClips vhide -> keep vhide -> body.mjs drawbox 검정, 미리보기 PlanRange 투명). 원본 파일에서 온 덧 영상을 V1 에 놓으면 (끌기 · 우클릭) 화면만 비운 클립을 되살리거나
+  빈 자리에 원본 클립으로 돌아간다 (두 프레임 안 겹침은 옆에 붙임). review.source · srcSize 는 export_shortsmith.py 가 쓴다 - 옛 프로젝트는 내보내기를 다시 해야 옮길 수 있다.
+  렌더 render.mjs 는 덧 영상 crop 을 scale 앞에, 미리보기 Layers.tsx 는 같은 비율로 넓힌 영상을 상자 안에서 민다.
 - **렌더는 마지막에 한 번 (2026-10-02, 사용자: "매번 렌더링 할게 아니라 마지막에 한 번만 렌더링하고 그 전까지는 미리보기에서만", "렌더링 시간이 오래 걸리잖아 토큰도 더 많이 먹고").**
   1차 편집 · AI 피드백 판은 **`shortsmith build` 를 돌리지 않는다.** 순서: 1) `python tools/apply_review.py <편> projects/<id>/project.json` (사용자가 대시보드에서 고친 컷 · 자막을
   편 폴더에 넣는다 - 안 하면 2 의 내보내기가 사용자 편집 탭 컷을 지운다) 2) edit.json · captions.csv · fx.json 고침 3) `python tools/preview_update.py <편> <id>`

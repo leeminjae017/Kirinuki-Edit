@@ -153,7 +153,8 @@ function layerGraph(a, b, firstInput, base) {
     // a moving clip is scaled once to its largest box and placed per frame by perspective (overlay cannot take a picture
     // whose size changes - scale eval=frame keeps the first frame's size, tried 2026-10-03)
     const MW = moving ? ev(Math.max(...K.map((k) => k.w))) : ev(B.w), MH = moving ? ev(Math.max(...K.map((k) => k.h))) : ev(B.h);
-    const f = [`fps=${fps}`, `scale=${MW}:${MH}`];
+    // crop: a part of the file (source px) - a main clip moved to an upper track keeps the edit's framing (2026-10-03)
+    const f = [`fps=${fps}`, ...(L.crop ? [`crop=${Math.round(L.crop.w)}:${Math.round(L.crop.h)}:${Math.round(L.crop.x)}:${Math.round(L.crop.y)}`] : []), `scale=${MW}:${MH}`];
     if ((c.contrast ?? 1) !== 1 || (c.saturation ?? 1) !== 1) f.push(`eq=contrast=${(c.contrast ?? 1).toFixed(3)}:saturation=${(c.saturation ?? 1).toFixed(3)}`);
     f.push('format=rgba');
     if (br !== 1 || op !== 1) f.push(`colorchannelmixer=rr=${br.toFixed(3)}:gg=${br.toFixed(3)}:bb=${br.toFixed(3)}:aa=${op.toFixed(3)}`);
