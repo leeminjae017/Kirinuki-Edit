@@ -63,9 +63,29 @@
   }
   function byId(id) { for (var i = 0; i < CL.length; i++) if (CL[i].id === id) return CL[i]; return null; }
   function selected() { return CL.filter(function (c) { return SEL[c.id]; }); }
-  function pack() {                        // 리플: 순서대로 틈 없이
-    var t = 0;
-    sorted().forEach(function (c) { c.at = fr(t); t = c.at + len(c); });
+  /* 리플: 고친 자리 뒤를 당기고 밀되 그 밖의 틈은 지킨다 (리졸브처럼). 전에는 전체를 틈 없이 붙여서, 위 트랙으로 올리며
+     남긴 빈 자리가 다른 클립을 자르거나 지울 때 메워졌다 - 덧 클립이 엉뚱한 장면 위에 얹혔다 (2026-10-03).
+     G = 고치기 전 gapsOf() - 클립마다 [id, 앞 틈, 시작, 끝]. 지운 클립의 틈은 다음 클립이 물려받는다, 새 클립 (자른 뒤쪽) 은 틈 0.
+     덧 클립 (V2.. · A2..) 과 새 자막도 같이 밀고 당긴다 (shiftRest) - 전에는 놓은 시각 그대로라 V1 만 당겨져 어긋났다 */
+  function gapsOf() {
+    var G = [], t = 0;
+    sorted().forEach(function (c) { var g = c.at - t; G.push([c.id, g > 0.5 / FPS ? g : 0, c.at, end(c)]); t = Math.max(t, end(c)); });
+    return G;
+  }
+  function pack(G) {
+    var gap = {}, acc = 0, t = 0;
+    (G || []).forEach(function (r) { if (byId(r[0])) { gap[r[0]] = acc + r[1]; acc = 0; } else acc += r[1]; });
+    sorted().forEach(function (c) { c.at = fr(t + (gap[c.id] || 0)); t = c.at + len(c); });
+    shiftRest(G);
+  }
+  function shiftRest(G) {                  // 옛 타임라인 시각 t 가 얼마나 움직였나: t 가 든 (또는 그 뒤) 클립이 움직인 만큼
+    if (!G || !G.length) return;
+    var A = G.map(function (r) { var c = byId(r[0]); return { o1: r[3], d: c ? c.at - r[2] : null }; });
+    var newEnd = CL.reduce(function (a, c) { return Math.max(a, end(c)); }, 0), tail = newEnd - G.reduce(function (a, r) { return Math.max(a, r[3]); }, 0);
+    for (var i = A.length - 1; i >= 0; i--) if (A[i].d == null) A[i].d = i + 1 < A.length ? A[i + 1].d : tail;
+    var sh = function (t) { for (var k = 0; k < A.length; k++) if (t < A[k].o1 - 1e-6) return A[k].d; return tail; };
+    EX.forEach(function (x) { var d = sh(x.at); if (Math.abs(d) > 1e-6) x.at = fr(Math.max(0, x.at + d)); });
+    ((R && R.userCaps) || []).forEach(function (o) { var d = sh(o.at); if (Math.abs(d) > 1e-6) o.at = +Math.max(0, o.at + d).toFixed(4); });
   }
   function clipAt(t) {
     var r = null;
@@ -155,7 +175,7 @@
     var wrap = D.$('.fb-stage-wrap');
     if (wrap && wrap.parentNode !== D.$('#ueViewer')) D.$('#ueViewer').appendChild(wrap);
     if (!D.Feedback.ready()) {
-      if (!R.srcPreview && R.scene) viewerMsg('원본 사본이 없어 컷을 고친 미리보기를 못 합니다 - 내보내기를 다시 해 주세요 (tools/src_preview.py)');
+      if (!R.srcPreview && R.scene) viewerMsg('원본 사본 없음');          // 옛 프로젝트 - tools/src_preview.py (내보내기) 가 만든다
       MOUNTING = true;
       setTimeout(function () { MOUNTING = false; if (SHOWN) mountPlayer(); }, 400);
       return;
@@ -265,6 +285,7 @@
     drawRange(w);
     drawGroups();
     drawPlayhead();
+    if (drag && drag.moved) return;          // 끄는 동안은 인스펙터 · 낱말 칸을 다시 만들지 않는다 (놓을 때 그린다 - 끌기 한 번에 23ms 중 대부분)
     side();
     drawWords();
   }
@@ -338,8 +359,11 @@
     if (inV) VS -= ev.deltaY; else AS += ev.deltaY;
     vscroll();
   }
+  var RULK = '';
   function drawRuler(w) {
-    var ru = D.$('#ueRuler');
+    var ru = D.$('#ueRuler'), k = w + '|' + PPS + '|' + FPS;
+    if (k === RULK && ru.firstChild) return;     // 폭 · 배율이 그대로면 눈금은 그대로 (끌기마다 수백 개를 다시 만들었다)
+    RULK = k;
     ru.textContent = '';
     var steps = [1 / FPS * 5, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300], step = 300;
     for (var i = 0; i < steps.length; i++) if (X(steps[i]) >= 90) { step = steps[i]; break; }
@@ -1470,13 +1494,18 @@
     }
     return w._b;
   }
+  var WAVEC = {}, WAVEN = 0;               // 그린 파형 캔버스 - draw() 가 칸을 비우면 떨어지므로 같은 것을 다시 붙인다
   function wave(el, w, s, L, H) {          // 파일 시각 [s, s + L] 의 파형을 클립 폭에 (칸 높이를 다 쓴다)
     var B = waveBytes(w);
     if (!B) return;
     var hz = w.hz || 50, dpr = window.devicePixelRatio || 1, LO = w._lo, HI = w._hi;
     var CW = Math.max(2, Math.round(X(L))), Wd = Math.min(4000, CW);
     H = Math.max(20, H || 40);
+    var ck = [B.length, LO, HI, s.toFixed(4), L.toFixed(4), CW, H, dpr].join('|'), hit = WAVEC[ck];
+    if (hit && !hit.isConnected) { el.appendChild(hit); return; }
+    if (WAVEN > 400) { WAVEC = {}; WAVEN = 0; }
     var cv = document.createElement('canvas');
+    WAVEC[ck] = cv; WAVEN++;
     cv.className = 'ue-wave';
     cv.width = Math.round(Wd * dpr); cv.height = Math.round(H * dpr);
     cv.style.width = CW + 'px'; cv.style.height = H + 'px';   // 4000px 넘는 클립은 늘여 그린다
@@ -1601,7 +1630,7 @@
     return { prev: S[i - 1] || null, next: S[i + 1] || null };
   }
   function applyTrim(c, o, side_, dt) {
-    var m = MIN / FPS, nb = neighbors(c);
+    var m = MIN / FPS, nb = neighbors(c), G = RIP ? gapsOf() : null;
     if (side_ === 'r') {
       var e = Math.min(Math.max(o.e + dt, o.s + m), srcDur());
       if (!RIP && nb.next) e = Math.min(e, o.s + (nb.next.at - o.at));
@@ -1615,7 +1644,7 @@
       }
       c.s = fr(s);
     }
-    if (RIP) pack();
+    if (RIP) pack(G);
   }
   function split(c, t) {                   // 편집 시각 t 에서 둘로
     t = fr(t);
@@ -1646,11 +1675,12 @@
     if (!S.length) return;
     if (S.length === CL.length) { D.toast('클립을 전부 지울 수는 없습니다'); return; }
     remember();
+    var G = gapsOf();
     CL = CL.filter(function (c) { return !SEL[c.id]; });
     EX = EX.filter(function (x) { return !SEL[x.id]; });
     EX.forEach(function (x) { if (x.link && !exById(x.link)) x.link = null; });
     SEL = {};
-    if (RIP) pack();
+    if (RIP) pack(G);
     changed();
   }
   function snapT(t, skip) {               // 재생 위치 · 다른 클립 끝에 붙기
@@ -1747,8 +1777,9 @@
     var dx = cx(ev) - drag.x0;
     if (!drag.moved && Math.abs(dx) < 3 && (drag.kind !== 'move' || Math.abs(ev.clientY - drag.y0) < 6)) return;   // 세로만 끌어도 (V2 로 올리기)
     drag.moved = true;
-    var dt = T(dx), o = drag.o;
-    CL = JSON.parse(drag.base).c;
+    var dt = T(dx), o = drag.o, B0 = JSON.parse(drag.base);
+    CL = B0.c;
+    if (RIP && (drag.kind === 'l' || drag.kind === 'r')) { EX = B0.x || []; if (R && B0.uc) R.userCaps = B0.uc; }   // 리플 끝 끌기는 덧 클립 · 새 자막도 민다 - 매번 끌기 전 상태에서
     var c = byId(drag.id);
     D.$('#ueSnap').hidden = true;
     if (drag.kind === 'r') {
@@ -1769,7 +1800,20 @@
     draw();
     if (drag.kind === 'move') { ghost(drag.id, drag.at); laneGhost(drag.area, drag.lane, drag.at, o.e - o.s); }
   }
+  /* 마우스 이동은 화면 한 번에 한 번만 처리한다 - 이동 이벤트가 그리기보다 잦으면 (고주사율 마우스) 끌기마다 전체를 다시 그려 밀렸다 */
+  var MOVEQ = null, MOVEF = 0;
+  function onMoveQ(ev) {
+    if (!drag) { hover(ev); return; }
+    MOVEQ = ev;
+    if (!MOVEF) MOVEF = requestAnimationFrame(flushMove);
+  }
+  function flushMove() {
+    if (MOVEF) { cancelAnimationFrame(MOVEF); MOVEF = 0; }
+    var e = MOVEQ; MOVEQ = null;
+    if (e) onMove(e);
+  }
   function onUp() {
+    flushMove();
     if (!drag) return;
     var d = drag; drag = null;
     D.$('#ueSnap').hidden = true;
@@ -1806,7 +1850,12 @@
         /* 옮기는 클립은 놓은 시작점, 다른 클립은 가운데로 줄 세운다 - 둘 다 가운데로 재니 맨 앞에 놓아도 첫 클립 뒤로 갔다 */
         var mid = function (x) { return x === c ? d.at + 1e-3 : x.at + len(x) / 2; };
         var ord = CL.slice().sort(function (p, q) { return mid(p) - mid(q); }), t = 0;
-        ord.forEach(function (x) { x.at = fr(t); t = x.at + len(x); });
+        var G = gapsOf(), gp = {}, oi = -1;          // 틈은 지킨다 - 옮긴 클립의 앞 틈은 원래 뒤 클립이 물려받는다
+        G.forEach(function (r, i) { gp[r[0]] = r[1]; if (r[0] === c.id) oi = i; });
+        if (oi >= 0 && oi + 1 < G.length) gp[G[oi + 1][0]] += gp[c.id];
+        gp[c.id] = 0;
+        ord.forEach(function (x) { x.at = fr(t + (gp[x.id] || 0)); t = x.at + len(x); });
+        shiftRest(G.filter(function (r) { return r[0] !== c.id; }));   // 옮긴 클립 자리 밖의 덧 클립 · 새 자막도 같이
       } else {                             // 빈 자리에만 놓는다 - 겹치면 되돌림
         var hit = CL.some(function (x) { return x !== c && d.at < end(x) - 1e-6 && d.at + len(c) > x.at + 1e-6; });
         if (hit) { D.toast('다른 클립과 겹칩니다 - 리플을 켜면 끼워 넣습니다'); draw(); return; }
@@ -1814,7 +1863,10 @@
       }
     }
     after = JSON.stringify(CL);
-    CL = JSON.parse(d.base).c; remember(); CL = JSON.parse(after);
+    var B = JSON.parse(d.base), afX = EX, afU = R && R.userCaps;     // 되돌리기에는 끌기 전 상태 (리플이 덧 클립 · 새 자막도 옮겼다)
+    CL = B.c; EX = B.x || []; if (R && B.uc) R.userCaps = B.uc;
+    remember();
+    CL = JSON.parse(after); EX = afX; if (R && afU) R.userCaps = afU;
     changed();
   }
   function ghost(id, at) {                // 옮기는 클립 그림자
@@ -2098,14 +2150,14 @@
     return null;
   }
   function removeSrc(a, b) {
-    var out = [];
-    sorted().forEach(function (c) {
+    var out = [], G = gapsOf();
+    sorted().forEach(function (c) {          // 나머지 칸 (색 · 변형 · 효과 · 화면 / 소리 옮김 · 그룹) 은 그대로 - 전에는 효과 · ahide 가 빠졌다
       if (b <= c.s || a >= c.e) { out.push(c); return; }
-      if (a > c.s + 1e-3) out.push({ id: c.id, s: c.s, e: a, at: c.at, vol: c.vol, color: c.color, tin: c.tin, tf: c.tf, g: c.g, vhide: c.vhide });
-      if (b < c.e - 1e-3) out.push({ id: UID++, s: b, e: c.e, at: c.at + (b - c.s), vol: c.vol, color: c.color, tf: c.tf, g: c.g, vhide: c.vhide });
+      if (a > c.s + 1e-3) out.push(Object.assign({}, c, { e: a }));
+      if (b < c.e - 1e-3) { var c2 = Object.assign({}, c, { id: UID++, s: b, at: c.at + (b - c.s) }); delete c2.tin; out.push(c2); }
     });
     CL = out;
-    if (RIP) pack();
+    if (RIP) pack(G);
   }
   function restoreSrc(a, b) {
     var parts = [[Math.max(0, a), Math.min(b, srcDur())]];
@@ -2304,8 +2356,9 @@
       if (b < cb - 1e-3) { var c2 = Object.assign({}, c, { id: UID++, s: c.s + (b - ca), at: b }); delete c2.tin; out.push(c2); }
     });
     if (!out.length) { UNDO.pop(); D.toast('클립을 전부 지울 수는 없습니다'); return; }
+    var G = gapsOf();
     CL = out;
-    if (RIP) pack();
+    if (RIP) pack(G);
     RANGE = { i: null, o: null };
     changed();
     D.toast('구간을 뺐습니다 (Ctrl+Z 로 되돌림)');
@@ -2572,7 +2625,8 @@
     EX = JSON.parse(JSON.stringify((R && R.userLayers) || []));
     EX.forEach(function (x) { var n = parseInt(String(x.id || '').slice(1), 10); if (!x.id) x.id = 'x' + (UID++); else if (n >= UID) UID = n + 1; });
     VS = 0; AS = 0;
-    if (D.$('#ueEmpty')) D.$('#ueEmpty').hidden = !!CL.length;
+    var em = D.$('#ueEmpty');
+    if (em) { em.hidden = !!CL.length; em.textContent = R ? '컷 정보 없음' : '프로젝트 없음'; }   // 컷 정보 = review.clips (옛 내보내기에는 없다)
     rFill();
     loadMedia();
     drawBins();
@@ -2599,7 +2653,7 @@
     var sc = scroller();
     if (!sc) return;
     sc.addEventListener('mousedown', onDown);
-    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mousemove', onMoveQ);
     document.addEventListener('mouseup', onUp);
     D.$('#view-edit .ue-timeline').addEventListener('wheel', onWheel, { passive: false });   // 그냥: 칸마다 트랙 넘김, Ctrl: 가로, Alt: 확대
     sc.addEventListener('contextmenu', ctxMenu);

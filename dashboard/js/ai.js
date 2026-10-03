@@ -49,7 +49,6 @@
       c.appendChild(D.el('span', { text: l }));
       wrap.appendChild(c);
     });
-    if (!AI.langs.length) wrap.appendChild(D.el('span', { class: 'hint', text: '비워두면 자막 원본 언어 1개만 생성합니다.' }));
     renderOutputs();
   }
 
@@ -112,7 +111,7 @@
     list.appendChild(sum);
 
     if (!outs.length) {
-      list.appendChild(D.el('li', { class: 'hint', text: '편집 대상 폴더를 드랍하면 생성될 결과 영상이 여기에 표시됩니다.' }));
+      list.appendChild(D.el('li', { class: 'hint', text: '없음' }));
       return;
     }
     outs.slice(0, 40).forEach(function (o, i) {
@@ -240,9 +239,9 @@
     var cur = currentStyle();
     D.$('#styleMeta').textContent = cur
       ? (cur.status === 'ready'
-        ? '분석 완료된 스타일입니다. 등록일 ' + (cur.createdAt || '').slice(0, 10)
-        : '아직 분석 결과가 등록되지 않았습니다. 분석 탭에서 결과 JSON을 등록하세요.')
-      : '등록된 스타일이 없습니다. 스타일 분석 탭에서 먼저 등록하세요.';
+        ? '분석 완료 · ' + (cur.createdAt || '').slice(0, 10)
+        : '분석 대기')
+      : '스타일 없음';
   }
 
   /* 프리셋은 영어 이름으로 바뀌었다 (2026-09-17). 프로젝트에 저장된 옛 한국어 이름은 aliases 로 찾는다 */

@@ -160,11 +160,11 @@
       <div class="panel-body stab-body" data-stab-body="analyze">
         <div class="field">
           <label class="field-label"><svg class="i"><use href="#i-folder"/></svg>원본 파일 / 폴더</label>
-          <div class="dropzone" data-dz="analyze.src" data-hint="편집 전 원본 영상 폴더를 끌어다 놓기"></div>
+          <div class="dropzone" data-dz="analyze.src" data-hint="원본"></div>
         </div>
         <div class="field">
           <label class="field-label"><svg class="i"><use href="#i-folder"/></svg>편집본 파일 / 폴더</label>
-          <div class="dropzone" data-dz="analyze.edited" data-hint="같은 소재의 완성 편집본 폴더를 끌어다 놓기"></div>
+          <div class="dropzone" data-dz="analyze.edited" data-hint="편집본"></div>
         </div>
 
         <div class="field">
@@ -179,7 +179,7 @@
 
         <details class="foldout">
           <summary>분석 결과 등록</summary>
-          <textarea class="input mono" id="analyzeResult" rows="6" placeholder="{ &quot;name&quot;: &quot;담유이 숏폼 v3&quot;, &quot;cut&quot;: {}, &quot;caption&quot;: {} }&#10;&#10;JSON 파일을 여기에 끌어다 놓아도 됩니다 (styles/ 폴더)"></textarea>
+          <textarea class="input mono" id="analyzeResult" rows="6" placeholder="{ &quot;name&quot;: &quot;담유이 숏폼 v3&quot;, &quot;cut&quot;: {}, &quot;caption&quot;: {} }"></textarea>
           <div class="row-actions">
             <button class="btn btn-primary btn-sm" id="btnStyleRegister"><svg class="i"><use href="#i-plus"/></svg><span>스타일 목록에 등록</span></button>
           </div>
@@ -195,19 +195,19 @@
       <div class="panel-body stab-body is-active" data-stab-body="apply">
         <div class="field">
           <label class="field-label"><svg class="i"><use href="#i-folder"/></svg>편집 대상 파일 / 폴더</label>
-          <div class="dropzone" data-dz="apply.target" data-hint="편집할 원본 영상 폴더를 끌어다 놓기"></div>
+          <div class="dropzone" data-dz="apply.target" data-hint="원본"></div>
         </div>
 
         <!-- 연출 소스: 그림 · 사진 · 효과음 · 예시 캡처 등 편집에 넣을 재료 (2026-09-17 지시) -->
         <div class="field">
           <label class="field-label"><svg class="i"><use href="#i-file"/></svg>소스 파일 / 폴더 <span class="tag">선택</span></label>
-          <div class="dropzone" data-dz="apply.assets" data-hint="넣을 그림 · 사진 · 효과음 · 예시 캡처를 끌어다 놓기"></div>
+          <div class="dropzone" data-dz="apply.assets" data-hint="그림 · 효과음 · 캡처"></div>
         </div>
 
         <div class="field">
           <label class="field-label">스타일 선택</label>
           <select class="input" id="styleSelect"></select>
-          <p class="hint" id="styleMeta">스타일 분석 탭에서 먼저 등록하세요.</p>
+          <p class="hint" id="styleMeta">스타일 없음</p>
         </div>
 
         <!-- 화면 비율 (2026-10-03 사용자: "스타일 적용 시에 화면 비율 선택 란 추가") - 작업 글에 실려 AI 가 그 비율의 프리셋 · 캔버스로 만든다 -->
@@ -279,7 +279,7 @@
               </svg>
               <div class="fb-cards" id="fbCards"></div>
               <div class="fb-pins" id="fbPins"></div>
-              <div class="fb-empty" id="fbEmpty">완성본이 없습니다 — 편집을 먼저 내보내세요</div>
+              <div class="fb-empty" id="fbEmpty">완성본 없음</div>
             </div>
           </div>
           <div class="transport fb-transport">
@@ -343,7 +343,7 @@
         </div>
       </div>
       <div class="panel-body src-body">
-        <div class="dropzone dropzone-sm" data-dz="feedback.src" data-hint="더 넣을 영상 · 소리 · 그림 끌어다 놓기"></div>
+        <div class="dropzone dropzone-sm" data-dz="feedback.src" data-hint="영상 · 소리 · 그림"></div>
       </div>
     </section>
 
@@ -387,7 +387,7 @@
     </section>
     <section class="ue-pane ue-vpane">
       <div class="ue-head ue-vhead"><span>타임라인 <i class="ue-tag" id="ueTag" hidden title="렌더 전">렌더 전</i></span><span class="ue-tc" id="ueTc">00:00:00:00</span></div>
-      <div class="ue-viewer" id="ueViewer"><div class="ue-msg" id="ueEmpty">프로젝트를 열면 여기에</div></div>
+      <div class="ue-viewer" id="ueViewer"><div class="ue-msg" id="ueEmpty">프로젝트 없음</div></div>
       <div class="ue-transport">
         <button class="ue-btn" id="ueStart" title="처음으로 (Home)"><svg class="i"><use href="#i-tostart"/></svg></button><button class="ue-btn" id="uePrev" title="앞 편집 점 (위 화살표)"><svg class="i"><use href="#i-prevedit"/></svg></button>
         <button class="ue-btn ue-play" id="uePlay" title="재생 / 멈춤 (Space)"><svg class="i"><use href="#i-play"/></svg></button>
@@ -412,7 +412,7 @@
           </div>
           <div class="field">
             <label class="field-label" for="rndOut">내보낼 곳</label>
-            <input class="input input-sm" id="rndOut" placeholder="비우면 파이프라인 기본값">
+            <input class="input input-sm" id="rndOut" placeholder="기본값">
           </div>
           <div class="field">
             <label class="field-label" for="rndBase">기준 언어</label>
