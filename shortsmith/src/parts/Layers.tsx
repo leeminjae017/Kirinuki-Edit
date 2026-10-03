@@ -2,6 +2,7 @@ import React from 'react';
 import { Audio, Img, Sequence, Video, useCurrentFrame } from 'remotion';
 import { Env, Layer, Scene, abs } from '../scene';
 import { hasTone, toneTables } from '../../lib/color.mjs';
+import { isSlide, isXf, transIn, transOut } from '../../lib/trans.mjs';
 
 /* Extra tracks laid on the timeline by hand (dashboard user edit tab, 2026-10-02): video / image clips on V2.., audio on A2..
    Preview only - the render composites them with ffmpeg (lib/render.mjs) under the React overlay, so captions stay on top.
@@ -93,16 +94,15 @@ const LayerPic: React.FC<{ L: Layer; url: string; b: Box; fps: number }> = ({ L,
   const b = boxAt(L, t, b0);
   const pIn = L.xin ? Math.max(0, Math.min(1, t / L.xin.d)) : 1;
   const pOut = L.xout ? Math.max(0, Math.min(1, (t - (len - L.xout.d)) / L.xout.d)) : 0;
-  let clip: string | undefined, dx = 0, wash = 0, washC = '#000';
-  if (L.xin?.type === 'wipe' && pIn < 1) clip = `inset(0 0 0 ${((1 - pIn) * 100).toFixed(2)}%)`;
-  if (L.xin?.type === 'slide' && pIn < 1) dx = (1 - pIn) * b.w;
-  if (L.xout?.type === 'slide' && pOut > 0) dx = -pOut * b.w;
+  let clip: string | undefined, dx = 0, dy = 0, wash = 0, washC = '#000';
+  if (L.xin && isXf(L.xin.type) && pIn < 1) { const q = transIn(L.xin.type, pIn, b.w, b.h); clip = q.clip; dx = q.dx; dy = q.dy; }
+  if (L.xout && isSlide(L.xout.type) && pOut > 0) { const q = transOut(L.xout.type, pOut, b.w, b.h); dx = q.dx; dy = q.dy; }
   if (L.xin && DIP[L.xin.type] && pIn < 1) { wash = 1 - pIn; washC = DIP[L.xin.type]; }
   if (L.xout && DIP[L.xout.type] && pOut > 0) { wash = Math.max(wash, pOut); washC = DIP[L.xout.type]; }
   const ck = L.crop && L.w0 && L.h0 ? b.w / L.crop.w : 0;      // a part of the file (main clip moved up keeps its crop)
   const st: React.CSSProperties = ck
-    ? { position: 'absolute', left: dx - L.crop!.x * ck, top: -L.crop!.y * ck, width: L.w0! * ck, height: L.h0! * (b.h / L.crop!.h), objectFit: 'fill', maxWidth: 'none' }
-    : { position: 'absolute', left: dx, top: 0, width: b.w, height: b.h, objectFit: 'fill', maxWidth: 'none' };
+    ? { position: 'absolute', left: dx - L.crop!.x * ck, top: dy - L.crop!.y * ck, width: L.w0! * ck, height: L.h0! * (b.h / L.crop!.h), objectFit: 'fill', maxWidth: 'none' }
+    : { position: 'absolute', left: dx, top: dy, width: b.w, height: b.h, objectFit: 'fill', maxWidth: 'none' };
   return (
     <div style={{ position: 'absolute', inset: 0, opacity: (L.opacity ?? 1) * fadeAt(L, t) }}>
       <div style={{ position: 'absolute', left: b.x, top: b.y, width: b.w, height: b.h, overflow: 'hidden', clipPath: clip,
@@ -111,7 +111,7 @@ const LayerPic: React.FC<{ L: Layer; url: string; b: Box; fps: number }> = ({ L,
         <div style={{ position: 'absolute', inset: 0, filter: colorCss(L) }}>
           {L.kind === 'image' ? <Img src={url} style={st} /> : <Video src={url} startFrom={Math.round(L.s * fps)} muted style={st} />}
         </div>
-        {wash > 0 ? <div style={{ position: 'absolute', left: dx, top: 0, width: b.w, height: b.h, background: washC, opacity: wash }} /> : null}
+        {wash > 0 ? <div style={{ position: 'absolute', left: dx, top: dy, width: b.w, height: b.h, background: washC, opacity: wash }} /> : null}
       </div>
     </div>
   );

@@ -143,6 +143,14 @@ ebur128 로 재서 `min(-16 - I, -1.5 - TP)` 만큼 올린다.
   **1차 편집 전 (완성본 · 장면 없음) 은 "편집 대상" 에 놓은 첫 영상을 틀어** (브라우저 파일, 새로 고치면 다시 놓아야 함) 그 위에 쪽지를 그린다 - 쪽지 시각 = 원본 시각.
   스타일 적용 작업 글에 지시 · 쪽지 (원본 시각 · 화면 비율 0-1 자리) · 화면 비율이 실리고, "렌더하지 말 것 (1차 편집도) - preview_update.py 로 미리보기만, 화면 잡기 · 확대는 사용자가 원본 클립 변형으로 고칠 수 있는 값으로" 를 적는다.
   재편집 단추 (옛 편집) 는 장면이 생긴 뒤에만. 한 번도 안 구운 편은 body 가 없어 미리보기 배경이 비었다 - `shortsmith preview` 가 bg_preview.mp4 (540폭 30fps) 만 만든다.
+- **타임라인 다섯째 판 (2026-10-03):** 화면 사용법 전부는 `docs/대시보드_가이드.md` (화면에는 설명 글을 안 둔다 - 사용자: "부가 설명된거 다 지워, 단어 형태로", 초기화 단추 이름은 전부 "초기화").
+  트랙은 쓰는 데까지만 (원본만이면 V1 · A1), 끄는 동안 위 (오디오는 아래) 에 빈 트랙 하나 + 칸 끝에서 저절로 넘김. ST 트랙은 없앴다 - **자막은 비디오 트랙에** (review.capTracks = 글 -> 트랙, 없으면 V2 부터 빈 트랙, 끌어 옮김).
+  자막 단추 = review.userCaps [{id, at, d, text, speaker, kind, tf}] (출력 시각) -> apply_review.py 가 captions.csv 줄로 (자막 없던 편이면 edit.json captions 도) -> 내보내기 뒤로는 보통 자막. 완성본에서 자막은 늘 덧 클립 위 (트랙 순서는 렌더 순서가 아님).
+  A1 소리를 A2.. 로 끌면 덧 소리 + 원본 클립 ahide (keep ahide -> body.mjs volume=0, 미리보기 vol 0). 덧 소리를 A1 로 내리면 되살림. 연결 켬이면 영상 · 소리 같이.
+  되돌리기는 고른 것을 지키고 자막 트랙 · 새 자막까지, 슬라이더 뒤에도 (app.js isTyping 에서 range 뺌). 전환 표 = 전환만 고르기 · 양 끝 끌기로 길이 (가운데 고정).
+  전환 종류는 `shortsmith/lib/trans.mjs` 한 곳 (닦기 · 밀기 네 방향 · 원형, xfade 방향은 빨강->파랑 시험으로 잼) - body.mjs · render.mjs · Window.tsx · Layers.tsx 가 같이 읽는다.
+  화면 효과 셋 추가: flash (클립 시작 번쩍, eq brightness eval=frame), vignette, hflip (render.mjs fxGraph · Window.tsx). 바깥 파일은 /api/media/upload 로 projects/<id>/media 에 받고 review.srcFiles ("가져온 파일").
+  **새로 고친 뒤 자동 저장이 막히던 버그:** 폴더 시각 = 브라우저가 아는 시각이면 app.js 가 diskAt 을 안 채우고 돌아갔다 -> 저장마다 "폴더가 더 새것" 으로 건너뜀.
 - **렌더는 마지막에 한 번 (2026-10-02, 사용자: "매번 렌더링 할게 아니라 마지막에 한 번만 렌더링하고 그 전까지는 미리보기에서만", "렌더링 시간이 오래 걸리잖아 토큰도 더 많이 먹고").**
   1차 편집 · AI 피드백 판은 **`shortsmith build` 를 돌리지 않는다.** 순서: 1) `python tools/apply_review.py <편> projects/<id>/project.json` (사용자가 대시보드에서 고친 컷 · 자막을
   편 폴더에 넣는다 - 안 하면 2 의 내보내기가 사용자 편집 탭 컷을 지운다) 2) edit.json · captions.csv · fx.json 고침 3) `python tools/preview_update.py <편> <id>`

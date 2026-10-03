@@ -764,6 +764,48 @@ class Handler(SimpleHTTPRequestHandler):
         return self._json(200, {"ok": True, "path": path, "parent": "" if par == path else par,
                                 "dirs": dirs, "files": files})
 
+    def media_upload(self):
+        """바깥 파일 (탐색기에서 끌어 온 것) 을 projects/<id>/media 에 받는다 (2026-10-03) - 브라우저는 경로를 안 주므로 내용을 올린다.
+        이름 · 크기가 같은 파일이 이미 있으면 그것을 쓴다."""
+        from urllib.parse import urlparse, parse_qs
+        import re as _re
+        q = parse_qs(urlparse(self.path).query)
+        pid = _re.sub(r"[^\w-]", "", (q.get("project") or [""])[0])[:64]
+        name = os.path.basename((q.get("name") or [""])[0].replace("\\", "/")).strip()
+        n = int(self.headers.get("Content-Length") or 0)
+        if not pid or not name or not self._kind(name):
+            self.rfile.read(n)
+            return self._json(400, {"ok": False, "error": "영상 · 소리 · 그림만 받습니다: " + name})
+        d = os.path.join(self.projects_dir, pid, "media")
+        os.makedirs(d, exist_ok=True)
+        base, ext = os.path.splitext(name)
+        dest, k = os.path.join(d, name), 1
+        while os.path.exists(dest) and os.path.getsize(dest) != n:
+            dest, k = os.path.join(d, "%s (%d)%s" % (base, k, ext)), k + 1
+        if os.path.exists(dest):
+            left = n
+            while left > 0:
+                c = self.rfile.read(min(1 << 20, left))
+                if not c:
+                    break
+                left -= len(c)
+        else:
+            tmp, left = dest + ".part", n
+            with open(tmp, "wb") as f:
+                while left > 0:
+                    c = self.rfile.read(min(1 << 20, left))
+                    if not c:
+                        break
+                    f.write(c)
+                    left -= len(c)
+            if left:
+                os.remove(tmp)
+                return self._json(400, {"ok": False, "error": "받다가 끊겼습니다"})
+            os.replace(tmp, dest)
+            sys.stderr.write("  파일 받음: %s (%d bytes)\n" % (dest, n))
+        return self._json(200, {"ok": True, "path": os.path.abspath(dest).replace(os.sep, "/"), "name": os.path.basename(dest),
+                                "kind": self._kind(name), "size": n})
+
     def media_list(self, path):
         """소스 폴더 하나의 미디어 파일 (아래 폴더까지 3단, 800개까지). 이름은 폴더 기준 상대 경로."""
         path = os.path.abspath(path or "")
@@ -1265,7 +1307,8 @@ class Handler(SimpleHTTPRequestHandler):
             # 렌더 단추가 못 봤다)
             # userClips: 사용자 편집 탭 (2026-10-02) 의 클립 목록 [{s, e, at}] - 없으면 지운다 (초기화)
             # srcFolders: 사용자 편집 탭 소스 폴더 (절대 경로 목록) · userLayers: 덧 트랙 클립 (V2.. · A2.., 2026-10-02)
-            for k in ("prompt", "notes", "drop", "restore", "ripple", "restoreCaps", "userClips", "srcFolders", "userLayers", "userGroups"):   # userGroups: 클립 그룹 이름 (2026-10-03)
+            for k in ("prompt", "notes", "drop", "restore", "ripple", "restoreCaps", "userClips", "srcFolders", "userLayers", "userGroups",
+                      "userCaps", "capTracks", "srcFiles"):   # 새 자막 · 자막 트랙 · 가져온 파일 (2026-10-03)   # userGroups: 클립 그룹 이름 (2026-10-03)
                 if k in newr:
                     merged[k] = newr[k]
                 elif k in ("ripple", "userClips"):
@@ -1555,6 +1598,8 @@ class Handler(SimpleHTTPRequestHandler):
             sys.stderr.write("  페이지 닫힘 (남은 %d개)\n" % CLIENTS.alive())
             return self._json(200, {"ok": True})
 
+        if self.path.startswith("/api/media/upload"):
+            return self.media_upload()
         if self.path.startswith("/api/style/save"):
             return self.save_style(self._read())
         if self.path.startswith("/api/style/delete"):

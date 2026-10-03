@@ -141,7 +141,7 @@ export function planCuts(L, keep) {
     // color: { brightness, contrast, saturation } (1 = unchanged), tin: { type, d } transition into this piece from the one before -
     // both set on a clip in the dashboard user edit tab (2026-10-02)
     const extra = { ...(k.gainDb ? { gainDb: k.gainDb } : {}), ...(k.crop ? { crop: k.crop } : {}), ...(k.source ? { source: k.source } : {}),
-      ...(k.color ? { color: k.color } : {}), ...(k.tin ? { tin: k.tin } : {}), ...(k.tf ? { tf: k.tf } : {}), ...(k.vhide ? { vhide: true } : {}) };
+      ...(k.color ? { color: k.color } : {}), ...(k.tin ? { tin: k.tin } : {}), ...(k.tf ? { tf: k.tf } : {}), ...(k.vhide ? { vhide: true } : {}), ...(k.ahide ? { ahide: true } : {}) };
     // raw: taken as is (an outro file, or a stretch where the waveform must not decide). Other sources are always raw
     if (k.raw || k.source) { out.push({ s: k.s, e: k.e, group, raw: true, ...extra }); return; }
     for (const [s, e] of pieces(L, k.s, k.e, k)) out.push({ s, e, group, ...extra });

@@ -359,6 +359,7 @@
     return Store.save(id, meta, data, thumb).then(function () {
       P.dirty = false;
       P.diskAt = meta.savedAt;        // 방금 우리가 쓴 것이 파일의 최신본이다
+      D.state.diskAt = meta.savedAt;
       if (!opt.silent) {
         D.info('프로젝트 저장: ' + meta.name + ' (컷 ' + meta.cuts
           + ' · 자막 ' + meta.captions + ' · ' + D.fmtDur(meta.duration) + ')', 'project');

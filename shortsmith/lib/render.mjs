@@ -16,6 +16,7 @@ import { ensureBrowser, openBrowser, renderFrames, selectComposition } from '@re
 import { spawn, spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import { curvesVf } from './color.mjs';
+import { XFADE, isSlide, isXf } from './trans.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
@@ -139,8 +140,8 @@ function layerGraph(a, b, firstInput, base) {
     const k = firstInput + j, start = Math.max(a, L.at), end = Math.min(b, L.at + layerLen(L)), Lend = L.at + layerLen(L);
     // wipe / slide are ffmpeg xfade against a transparent clip, which needs the clip from the transition's first frame:
     // a chunk that starts inside one reads from there (rb) and trims after
-    const xi = L.xin && (L.xin.type === 'wipe' || L.xin.type === 'slide') && start < L.at + L.xin.d ? L.xin : null;
-    const xo = L.xout && L.xout.type === 'slide' && end > Lend - L.xout.d ? L.xout : null;
+    const xi = L.xin && isXf(L.xin.type) && start < L.at + L.xin.d ? L.xin : null;
+    const xo = L.xout && isSlide(L.xout.type) && end > Lend - L.xout.d ? L.xout : null;
     let rb = start;
     if (xi) rb = L.at;
     if (xo) rb = Math.max(L.at, Math.min(rb, Lend - L.xout.d));
@@ -167,11 +168,11 @@ function layerGraph(a, b, firstInput, base) {
       const ch = [head];
       let last = `s0${j}`;
       if (xi) {
-        ch.push(z(xi.d, 'i'), `[zi${j}][${last}]xfade=transition=${xi.type === 'wipe' ? 'wipeleft' : 'slideleft'}:duration=${xi.d.toFixed(4)}:offset=0[s1${j}]`);
+        ch.push(z(xi.d, 'i'), `[zi${j}][${last}]xfade=transition=${XFADE[xi.type]}:duration=${xi.d.toFixed(4)}:offset=0[s1${j}]`);
         last = `s1${j}`;
       }
       if (xo) {
-        ch.push(z(xo.d, 'o'), `[${last}][zo${j}]xfade=transition=slideleft:duration=${xo.d.toFixed(4)}:offset=${(Lend - xo.d - rb).toFixed(4)}[s2${j}]`);
+        ch.push(z(xo.d, 'o'), `[${last}][zo${j}]xfade=transition=${XFADE[xo.type]}:duration=${xo.d.toFixed(4)}:offset=${(Lend - xo.d - rb).toFixed(4)}[s2${j}]`);
         last = `s2${j}`;
       }
       g.push(...ch);
@@ -239,6 +240,11 @@ function fxGraph(a, b) {
   let cur = 'w', n = 0;
   const nx = () => `x${n++}`;
 
+  for (const f of fx.filter((f) => f.type === 'hflip')) {               // mirror
+    const s1 = nx(), s2 = nx(), c = nx(), o = nx();
+    g.push(`[${cur}]split[${s1}][${s2}]`, `[${s2}]hflip[${c}]`, `[${s1}][${c}]overlay=0:0:enable='${on([f])}'[${o}]`);
+    cur = o;
+  }
   const zooms = {};
   fx.filter((f) => f.type === 'zoom').forEach((f) => (zooms[f.z] ||= []).push(f));
   for (const [zs, list] of Object.entries(zooms)) {                     // hard zoom around the face, kept inside the window
@@ -275,6 +281,13 @@ function fxGraph(a, b) {
   }
   const monos = fx.filter((f) => f.type === 'mono');
   if (monos.length) { const o = nx(); g.push(`[${cur}]hue=s=0:enable='${on(monos)}'[${o}]`); cur = o; }
+  for (const f of fx.filter((f) => f.type === 'vignette')) {             // darker edges
+    const o = nx(); g.push(`[${cur}]vignette=angle=${(f.angle ?? 0.6).toFixed(3)}:enable='${on([f])}'[${o}]`); cur = o;
+  }
+  for (const f of fx.filter((f) => f.type === 'flash')) {                // white flash at the start, fading over d
+    const S = f.s.toFixed(3), d = (f.d ?? 0.3).toFixed(3), k = (f.k ?? 0.6).toFixed(3), o = nx();
+    g.push(`[${cur}]eq=brightness='if(between(t,${S},${S}+${d}),${k}*(1-(t-${S})/${d}),0)':eval=frame[${o}]`); cur = o;
+  }
   return { g, out: cur };
 }
 

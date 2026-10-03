@@ -45,7 +45,7 @@ export type Layer = {
   w0?: number; h0?: number;                                             // file size
   keys?: { t: number; x: number; y: number; w: number; h: number }[];   // motion: box keyframes, t = seconds into the clip
   ease?: boolean;                                                       // smoothstep between keys (else linear)
-  tin?: { type: 'dissolve' | 'black' | 'white' | 'wipe' | 'slide'; d: number };   // from the clip that ends here on this track
+  tin?: { type: string; d: number };   // from the clip that ends here on this track (lib/trans.mjs)
   dur?: number;                                                         // file length (how far a transition may run past e)
   xin?: { type: string; d: number }; xout?: { type: string; d: number };   // (derived, withTrans) this clip's part of a transition
 };
@@ -55,7 +55,10 @@ export type Fx =
   | { type: 'push'; s: number; e: number; z0: number; z1: number }
   | { type: 'shake'; s: number; e: number; amp?: number; hz?: number }
   | { type: 'mono'; s: number; e: number }
-  | { type: 'blur'; s: number; e: number; sigma: number };
+  | { type: 'blur'; s: number; e: number; sigma: number }
+  | { type: 'hflip'; s: number; e: number }
+  | { type: 'vignette'; s: number; e: number; angle?: number }
+  | { type: 'flash'; s: number; e: number; d?: number; k?: number };
 
 export type Scene = {
   fps: number; width: number; height: number; duration: number;
@@ -78,7 +81,7 @@ export type Scene = {
            camera?: { t: number; x: number; y: number; h: number; in?: string }[];   // edit.json camera.keys (source px / s) - dance
            ranges: { at: number; s: number; e: number; crop: { x: number; y: number; w: number; h: number }; vol?: number;
                      color?: Layer['color'];                                 // piece colour (1 = unchanged)
-                     tin?: { type: 'dissolve' | 'black' | 'white' | 'wipe' | 'slide'; d: number };   // transition into this range
+                     tin?: { type: string; d: number };   // transition into this range (lib/trans.mjs)
                      tf?: Tf;                                                // user move / zoom / rotate of the window picture
                      vhide?: boolean }[] };                                  // picture moved to an upper track - sound only
 };
