@@ -25,8 +25,6 @@ cd shortsmith
 npm install
 ```
 
-- 담유이 프리셋은 비공개라 `presets/` 에 따로 둡니다. 누구나 쓸 수 있는 프리셋은 `shortsmith/presets/` 에 있습니다.
-
 ## 대시보드 켜기
 
 ```bash
