@@ -1,6 +1,6 @@
 # Working rules for this folder
 
-Video editing for 담유이 (Damyui). Full history is in `PROGRESS.md`.
+Video editing for Korean stream clips (shorts and longform from VOD). The work log is the local file `PROGRESS.md` (not published).
 **Talk to the user in Korean** (progress, reports, questions). Internal docs (this file, `PROGRESS.md`,
 tool READMEs) are in English. User-facing docs (`README.md`, `docs/대시보드_가이드.md`) stay in Korean.
 
@@ -73,20 +73,19 @@ What is expensive is **dumping results into the conversation** and **re-renderin
 
 `shortsmith/` is the public package (CLI + React render + Claude Code skill). Put `edit.json` in the episode folder:
 
-    node E:/Edit/Claude/shortsmith/bin/shortsmith.mjs build <episode>     # cuts -> body -> scene -> render
+    node shortsmith/bin/shortsmith.mjs build <episode>     # cuts -> body -> scene -> render
     ... doctor --preset <id> · presets · cuts · body · scene · render · still <dir> <sec> <png> · map
 
 - **Per episode you write only `edit.json` (keep ranges, crop) and `fx.json`.** Never write ffmpeg filter strings,
   ASS or React per episode. If a look is missing, add it to the preset.
-- **Presets are English JSON** (proper nouns may stay Korean). Damyui presets are private and live in `presets/`
-  (working folder); public presets live in `shortsmith/presets/`. The old Korean style files are kept in
+- **Presets are English JSON** (proper nouns may stay Korean). Private presets live in `presets/`
+  (gitignored); public presets live in `shortsmith/presets/`. The old Korean style files are kept in
   `dashboard/styles/_legacy_ko/`. Measured values get `basis: "measured ..."`, guesses `"guess ..."`.
   **Presets never record where or from which video something was measured** (no measuredFrom, portedFrom, video or
   project names, YouTube URLs - user 2026-10-02). `basis` says only what was measured, e.g. "measured on one
   reference". Sources go into PROGRESS.md and tool comments.
-- All five Damyui presets render with React (2026-09-17). Old episodes were ported and compared pixel by pixel
-  with their old finals - 냉면 and the 삼성 copy (solo), 담아맷돌 (multi), 고구마 (donation), 악성메일단
-  (longform). Caption positions within 1-2 px. The port scripts were not kept (one-off).
+- All five private presets render with React (2026-09-17). Old episodes were ported and compared pixel by pixel
+  with their old finals (solo, multi, donation, longform). Caption positions within 1-2 px. The port scripts were not kept (one-off).
   Presets with `renderer: "legacy-ass"` are rejected by the CLI.
 - Cut computation is `shortsmith/lib/cuts.mjs` (port of the old audio.py; same 8 ranges as before on 봉누도2귀신).
 - React draws only the transparent overlay (rendering the video too costs 12 s per frame). The window effect maths
@@ -305,8 +304,8 @@ What is expensive is **dumping results into the conversation** and **re-renderin
   the window).** `python tools/dance_camera.py <episode> [--sheet]` writes the camera to `edit.json camera.keys` -
   isnet-anime (~/.u2net) extracts the body box (every 0.2 s, cached in the episode's char_masks.npz, about 3 min per
   30 s); optical flow fills the gaps so the body is measured every 1/30 s. The camera never moves before the body (user:
-  "it must not move early or late"). **Numbers are measured from the user's two answer pairs** (Damyui-n152-0 -> -1,
-  n153-0 -> -2: the frame box was found again in the source per frame with SIFT and compared with the body; 2026-10-01
+  "it must not move early or late"). **Numbers are measured from the user's two answer pairs** (two pairs of
+  original -> hand-edited clips: the frame box was found again in the source per frame with SIFT and compared with the body; 2026-10-01
   third: "you have the answers, analyse again"). The answers keep **scale and vertical position nearly fixed** (same
   value 87-91% and 84-86% of the time), body vertical centre = frame centre, median body height 0.78-0.87 of the frame.
   Only big jumps make it follow upwards while keeping a 0.04 top margin including hands, and only when the body
@@ -329,7 +328,7 @@ What is expensive is **dumping results into the conversation** and **re-renderin
   after that ("27~28 or early 29 is the normal case") it tightens again.
   No look-ahead (forward-backward smoothing, previewing a whole span's width) - every time, the camera moved early.
   Camera pieces are cut by frame count (cutting with 3-decimal -t gave 1797 frames for 18 pieces - picture lagged sound
-  by 50 ms). Numbers come from the user's reference Damyui-n152-1.mov (see the notes next to the tool constants).
+  by 50 ms). Numbers come from the user's reference clip (see the notes next to the tool constants).
   For a source with several dancers side by side, track one: `edit.json camera.region: [x0, x1]` (fraction of source
   width) - silhouettes are taken only in that band; choose the band so no other character enters it, measured with
   dark pixels etc. (가시나0 2026-10-02: only 하늘머리, [0.1, 0.45]).
@@ -434,9 +433,8 @@ First edits and single feedback rounds used to cost about the same number of tok
 When writing comments and `PROGRESS.md`, **state the basis.** "Measured 53.98 s" and "probably a viewer nickname" carry
 different weight, but side by side in a comment both read as fact in the next round.
 
-**Why:** a first edit changed Whisper's "담린이 남진" to "담린이 남긴" and commented "Whisper mishearing, 담린이 seems
-to be a viewer nickname". It was a guess, **but the next two rounds read it as fact and ranked it above the user's
-feedback.** The answer was "담유이 남친", and fixing it took three rounds.
+**Why:** a guess written into a comment as if it were fact was read as fact in the next rounds and ranked above the
+user's own feedback; correcting it took three rounds.
 
 **How to apply:** mark guesses with "(guess)" or "not verified". When it conflicts with user feedback the guess loses,
 even if a reason was written down.

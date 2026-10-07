@@ -1,7 +1,6 @@
 # DaVinci Resolve + ffmpeg automation - general technical notes
 
 Only **reusable methods** that do not depend on a specific channel or project.
-Channel-specific style values (fonts, colours, track layout) are in [editing-style.md](editing-style.md).
 
 ## 1. DaVinci Resolve scripting API limits (free edition, via the MCP server)
 

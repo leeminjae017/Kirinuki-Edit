@@ -1,7 +1,10 @@
 # Kirinuki-Edit - 미완성
 
 ## ※ 주의
-전체 코드를 Claude Code로 제작했으며, 개발자가 직접 수정하지 않았습니다
+
+- 전체 코드를 Claude Code로 제작했으며, 개발자가 직접 수정하지 않았습니다.
+- 개발은 중단될 예정입니다. 버그 수정이나 기능 추가, 문의 대응을 보장하지 않습니다.
+- 사용 전에 원본 영상과 작업 폴더를 반드시 백업하세요. 이 도구가 만든 파일이나 설정, 폴더가 기존 작업을 덮어쓰거나 망가뜨릴 수 있고, 그로 인한 손실에 책임지지 않습니다.
 
 ## 구조
 
@@ -15,7 +18,6 @@
 
 - 화면 사용법: [대시보드 가이드](docs/대시보드_가이드.md)
 - 작업 규칙 (영어): [CLAUDE.md](CLAUDE.md)
-- 지난 기록 (영어): [PROGRESS.md](PROGRESS.md)
 - 대시보드 코드 구조 (영어): [dashboard/README.md](dashboard/README.md)
 
 ## 준비
@@ -93,5 +95,9 @@ node bin/shortsmith.mjs build <편 폴더>
 
 ## 라이선스
 
+Copyright (C) 2026 seoldam82
+
 - 이 저장소: GPL-3.0 ([LICENSE](LICENSE))
 - `shortsmith/`: AGPL-3.0 ([shortsmith/LICENSE](shortsmith/LICENSE))
+- 영상 렌더링에 [Remotion](https://www.remotion.dev/) 을 씁니다. Remotion 은 개인과 3명 이하 회사는 무료이고, 그보다 큰 회사는 [Remotion 회사 라이선스](https://www.remotion.dev/license)가 필요합니다. 이 프로젝트가 쓰는 Remotion 패키지에는 Remotion 자체 라이선스가 그대로 적용됩니다.
+- 글꼴은 포함되어 있지 않습니다. 파일을 다시 배포하기 전에 각 글꼴의 라이선스를 확인하세요.
