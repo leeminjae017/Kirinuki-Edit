@@ -7,7 +7,8 @@
 -> <편 폴더>/word_level_words.json (word_level_*.json 과 같은 꼴: [{start,end,text,words:[{start,end,word}]}])
    <편 폴더>/transcript_words.txt
 
-1. faster-whisper large-v3, word_timestamps, **VAD 없이.** 위스퍼 낱말 시각은 쉼을 먹고 늘어난다
+1. whisper large-v3, word_timestamps, **VAD 없이.** 엔진은 tools/whisper_backend.py 가 고른다 - whisper.cpp
+   (whisper-cli, 맥 Metal GPU) 가 있으면 그것, 없으면 faster-whisper (CPU). WHISPER_BACKEND=cpp|faster 로 고정. 위스퍼 낱말 시각은 쉼을 먹고 늘어난다
    ("그런 거 아니지" 의 "거" 가 18.86-21.54, 2.7초) - 그건 2단계가 고친다.
    VAD 를 켜 봤다가 버렸다 (퍼리 취향 2026-09-29, 잰 것): 낱말 90 -> 71, "사람은 아직 믿어?" · "아 맞다 나 단미지" x2 ·
    "나 단미였구나 그럼" 이 통째로 빠졌다 - 조용한 소스(-37 LUFS)의 여린 말을 VAD 가 쉼으로 읽는다.
@@ -28,8 +29,6 @@ work = os.path.abspath(sys.argv[1])
 rest = [a for a in sys.argv[2:] if a != "--from" and a != FROM]
 wav = rest[0] if rest else "src_loud.wav"
 os.chdir(work)
-os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
-os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS", "1")
 
 
 def speech_chunks():
@@ -70,14 +69,8 @@ def speech_chunks():
 if FROM:
     out = json.load(io.open(FROM, encoding="utf-8"))
 else:
-    from faster_whisper import WhisperModel
-    m = WhisperModel("large-v3", device="cpu", compute_type="int8")
-    segments, _ = m.transcribe(wav, language="ko", word_timestamps=True, vad_filter=False,
-                               beam_size=5, condition_on_previous_text=False)
-    out = []
-    for s in segments:
-        out.append({"start": round(s.start, 2), "end": round(s.end, 2), "text": s.text.strip(),
-                    "words": [{"start": round(w.start, 2), "end": round(w.end, 2), "word": w.word} for w in (s.words or [])]})
+    from whisper_backend import transcribe              # whisper.cpp (맥 Metal) 또는 faster-whisper - tools/whisper_backend.py
+    out = transcribe(wav, language="ko")
 
 CH, basis = speech_chunks()
 

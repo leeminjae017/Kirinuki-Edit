@@ -38,13 +38,19 @@ npm install
 
 1. Homebrew 로 도구를 받습니다.
    ```bash
-   brew install python node ffmpeg
+   brew install python node ffmpeg whisper-cpp
    ```
-2. 엔진 패키지를 설치합니다.
+2. 엔진 패키지와 파이썬 패키지를 설치합니다.
    ```bash
-   cd shortsmith && npm install
+   (cd shortsmith && npm install)
+   python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
    ```
-3. Finder 에서 `dashboard/대시보드.command` 를 두 번 누르면 서버가 뜨고 브라우저가 열립니다.
+3. 전사 모델 (whisper.cpp large-v3, 약 3.1GB) 을 받습니다.
+   ```bash
+   mkdir -p ~/.cache/whisper.cpp
+   curl -L -o ~/.cache/whisper.cpp/ggml-large-v3.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin
+   ```
+4. Finder 에서 `dashboard/대시보드.command` 를 두 번 누르면 서버가 뜨고 브라우저가 열립니다.
    처음에 "확인되지 않은 개발자" 경고가 뜨면 파일을 우클릭 → **열기** 로 한 번 열어 주세요.
    터미널에서는 `python3 dashboard/server.py --open` 으로도 켤 수 있습니다.
 
@@ -54,6 +60,8 @@ npm install
 - 폰트는 `~/Library/Fonts`, `/Library/Fonts`, `/System/Library/Fonts` 에서 찾습니다.
   프리셋이 쓰는 폰트 (예: 쿠키런, 주아) 는 직접 설치해야 합니다 - `node bin/shortsmith.mjs doctor --preset <id>` 로 빠진 폰트를 확인하세요.
 - 대시보드의 폴더 고르기는 드라이브 글자 대신 홈 폴더와 외장 디스크 (`/Volumes`) 에서 시작합니다.
+- 전사는 faster-whisper (CPU) 대신 whisper.cpp 를 Metal GPU 로 돌립니다 (`tools/whisper_backend.py`).
+  다른 모델은 `WHISPER_CPP_MODEL=<경로>`, 원래 엔진은 `WHISPER_BACKEND=faster` 로 고릅니다.
 - 첫 렌더 때 Remotion 이 Chrome Headless Shell (약 90MB) 을 받습니다.
 
 ## 대시보드 켜기
@@ -110,7 +118,7 @@ node bin/shortsmith.mjs build <편 폴더>
 
 | 도구 | 하는 일 |
 |---|---|
-| `tools/transcribe_words.py <편>` | 낱말 단위 전사 (AI 를 씁니다 - `ALLOW_AI=1`) |
+| `tools/transcribe_words.py <편>` | 낱말 단위 전사 (위스퍼를 씁니다 - `ALLOW_AI=1`. 맥은 whisper.cpp) |
 | `tools/export_shortsmith.py <편> <id>` | 편 폴더 → 대시보드 프로젝트 |
 | `tools/apply_review.py <편> <project.json>` | 대시보드에서 고친 것 → 편 폴더 |
 | `tools/preview_update.py <편> <id>` | 완성본을 굽지 않고 미리보기만 갱신 |

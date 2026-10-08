@@ -1,0 +1,7 @@
+# tools/ 와 dashboard/ 가 쓰는 파이썬 패키지
+#   python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+numpy
+pillow
+scipy
+# 전사 엔진 - 맥은 whisper.cpp (brew install whisper-cpp) 를 쓰므로 필요 없다.
+# whisper.cpp 가 없는 컴퓨터에서만: pip install faster-whisper

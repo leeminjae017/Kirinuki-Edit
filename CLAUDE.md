@@ -10,7 +10,7 @@ tool READMEs) are in English. User-facing docs (`README.md`, `docs/대시보드_
 by default on the first edit, ask only for extra transcriptions"). Run it with `ALLOW_AI=1`.
 
 **Transcribe at word level** (user, 2026-09-29: "use word-level timestamps from now on"):
-`ALLOW_AI=1 python tools/transcribe_words.py <episode>` -> `word_level_words.json`, wired into `edit.json` as `"transcript"`.
+`ALLOW_AI=1 python tools/transcribe_words.py <episode>` (engine picked by `tools/whisper_backend.py`: whisper.cpp large-v3 on Metal when `whisper-cli` and `~/.cache/whisper.cpp/ggml-large-v3.bin` exist, else faster-whisper) -> `word_level_words.json`, wired into `edit.json` as `"transcript"`.
 Whisper word times swallow pauses and stretch (퍼리 취향: "거" lasted 2.7 s), so they are not used as is: speech runs are
 split at short pauses and the characters are spread at an even rate (median gap to caption start 0.96 -> 0.52 s).
 **Do not enable VAD** - on a quiet source it dropped soft speech entirely (90 -> 71 words). If a transcript already
