@@ -15,15 +15,15 @@
 치우침: 같은 화자 줄이 쉼 없이 이어지고(앞 끝 = 뒤 시작) 둘을 합친 글자 수에서 한쪽이 70% 를 넘으면 알린다.
 한 문장을 나눈 것인지는 이 스크립트가 모른다 - 알린 것 가운데 한 문장인 것만 고친다.
 """
-import csv, io, json, os, re, subprocess, sys
+import csv, io, json, os, pathlib, re, subprocess, sys
 from PIL import ImageFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 work = os.path.abspath(sys.argv[1])
 E = json.load(io.open(os.path.join(work, "edit.json"), encoding="utf-8"))
-js = ("import {loadPreset} from 'file:///%s/shortsmith/lib/preset.mjs';"
+js = ("import {loadPreset} from '%s';"
       "const r=loadPreset(process.argv[1], process.argv[2]);"
-      "process.stdout.write(JSON.stringify({fonts:r.preset.fonts,captions:r.preset.captions,layout:r.preset.layout}))") % ROOT.replace(os.sep, "/")
+      "process.stdout.write(JSON.stringify({fonts:r.preset.fonts,captions:r.preset.captions,layout:r.preset.layout}))") % pathlib.Path(ROOT, "shortsmith", "lib", "preset.mjs").as_uri()
 out = subprocess.run(["node", "--input-type=module", "-e", js, E["preset"], work], capture_output=True, text=True, encoding="utf-8")
 if out.returncode:
     sys.exit(out.stderr)

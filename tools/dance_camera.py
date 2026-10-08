@@ -23,7 +23,7 @@
 
 수치 근거는 아래 상수 옆에 적는다 (measured = 잰 것, guess = 짐작).
 """
-import io, json, os, subprocess, sys
+import io, json, os, pathlib, subprocess, sys
 sys.setrecursionlimit(100000)
 import numpy as np
 from scipy.ndimage import gaussian_filter1d, maximum_filter1d, minimum_filter1d
@@ -59,8 +59,8 @@ work = os.path.abspath(sys.argv[1])
 E = json.load(io.open(os.path.join(work, "edit.json"), encoding="utf-8"))
 SRC = E["source"] if os.path.isabs(E["source"]) else os.path.join(work, E["source"])
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-js = ("import {loadPreset} from 'file:///%s/shortsmith/lib/preset.mjs';"
-      "const r=loadPreset(process.argv[1], process.argv[2]);process.stdout.write(JSON.stringify({w:r.preset.layout.window,c:r.preset.camera||{}}))") % ROOT.replace(os.sep, "/")
+js = ("import {loadPreset} from '%s';"
+      "const r=loadPreset(process.argv[1], process.argv[2]);process.stdout.write(JSON.stringify({w:r.preset.layout.window,c:r.preset.camera||{}}))") % pathlib.Path(ROOT, "shortsmith", "lib", "preset.mjs").as_uri()
 PR = json.loads(subprocess.run(["node", "--input-type=module", "-e", js, E["preset"], work], capture_output=True, text=True, check=True).stdout)
 Wn, PCAM = PR["w"], PR["c"]
 ASP = Wn["w"] / Wn["h"]

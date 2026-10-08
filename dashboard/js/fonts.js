@@ -20,7 +20,7 @@
 
   /* 서버가 없을 때 쓸 최소 목록 */
   var FALLBACK = [
-    'Pretendard', 'Malgun Gothic', 'Noto Sans KR', 'Nanum Gothic',
+    'Pretendard', 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Nanum Gothic',
     'Segoe UI', 'Arial', 'Georgia', 'Consolas'
   ];
 
@@ -76,8 +76,8 @@
   /* 고른 이름을 스택으로 만든다. 뒤에 대체 폰트를 붙여 두어야 그 폰트가
      없는 글자(이모지 등)도 빈칸이 되지 않는다. */
   F.stack = function (name) {
-    if (!name) return 'Pretendard, Malgun Gothic, sans-serif';
-    return '"' + name + '", Pretendard, "Malgun Gothic", sans-serif';
+    if (!name) return 'Pretendard, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif';
+    return '"' + name + '", Pretendard, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif';
   };
 
   /* 폰트 고르는 칸. 목록이 늦게 와도 알아서 채워진다. */

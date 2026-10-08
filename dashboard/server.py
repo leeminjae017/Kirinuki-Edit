@@ -741,6 +741,13 @@ class Handler(SimpleHTTPRequestHandler):
             if os.name == "nt":
                 import string
                 drives = [c + ":\\" for c in string.ascii_uppercase if os.path.isdir(c + ":\\")]
+            elif sys.platform == "darwin":
+                # 맥은 드라이브 글자가 없다. 홈 폴더와 외장 디스크 (/Volumes) 부터 보인다.
+                home = os.path.expanduser("~")
+                vols = [os.path.join("/Volumes", v) for v in sorted(os.listdir("/Volumes")) if not v.startswith(".")]
+                # 시동 디스크 (Macintosh HD) 는 / 를 가리키는 바로가기라 뺀다
+                drives = [home] + [v for v in vols if os.path.isdir(v) and os.path.realpath(v) != "/"
+                                   and v != "/Volumes/Recovery"]
             else:
                 drives = ["/"]
             return self._json(200, {"ok": True, "path": "", "parent": None,
@@ -890,19 +897,21 @@ class Handler(SimpleHTTPRequestHandler):
         out = []
         for i in range(count):
             try:
-                pid, _eid, _lid, nid, ln, off2 = struct.unpack_from(">HHHHHH", data, o + 6 + 12 * i)
+                pid, eid, lid, nid, ln, off2 = struct.unpack_from(">HHHHHH", data, o + 6 + 12 * i)
             except struct.error:
                 break
             if nid not in (1, 16):                  # 1=패밀리, 16=타이포그래피 패밀리
                 continue
+            if pid == 1 and (eid, lid) != (0, 0):   # 맥 이름표는 영어(Roman)만 - 한글 등은 인코딩이 달라 깨진다
+                continue
             a = o + stroff + off2
             raw = data[a:a + ln]
             try:
-                txt = raw.decode("utf-16-be") if pid in (0, 3) else raw.decode("latin-1")
+                txt = raw.decode("utf-16-be") if pid in (0, 3) else raw.decode("mac_roman")
             except Exception:
                 continue
             txt = txt.strip().replace("\x00", "")
-            if txt and len(txt) < 64:
+            if txt and len(txt) < 64 and not txt.startswith("."):   # "."로 시작하면 맥의 숨은 시스템 폰트
                 out.append(txt)
         return out
 
@@ -953,9 +962,16 @@ class Handler(SimpleHTTPRequestHandler):
 
     def list_fonts(self):
         if Handler._font_cache is None:
-            dirs = [os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Fonts"),
-                    os.path.join(os.environ.get("LOCALAPPDATA", ""),
-                                 "Microsoft", "Windows", "Fonts")]
+            if os.name == "nt":
+                dirs = [os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Fonts"),
+                        os.path.join(os.environ.get("LOCALAPPDATA", ""),
+                                     "Microsoft", "Windows", "Fonts")]
+            elif sys.platform == "darwin":
+                dirs = [os.path.expanduser("~/Library/Fonts"), "/Library/Fonts",
+                        "/System/Library/Fonts", "/System/Library/Fonts/Supplemental"]
+            else:
+                dirs = [os.path.expanduser("~/.fonts"), os.path.expanduser("~/.local/share/fonts"),
+                        "/usr/share/fonts", "/usr/local/share/fonts"]
             seen = {}
             for d in dirs:
                 if not os.path.isdir(d):
